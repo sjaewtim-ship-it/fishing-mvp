@@ -212,8 +212,8 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 首屏核心钩子
-    this.add.text(375, 215, '这一杆，可能是鱼，也可能很离谱', {
+    // 更强钩子
+    this.add.text(375, 215, '有人钓到金条，有人钓到塑料袋', {
       fontSize: '28px',
       color: '#FFF3B0',
       fontStyle: 'bold',
@@ -223,9 +223,9 @@ export class MainScene extends Phaser.Scene {
       strokeThickness: 2,
     }).setOrigin(0.5);
 
-    // 信息模块：降权，不抢主舞台
-    this.add.rectangle(375, 352, 790, 210, 0x000000, 0.08)
-      .setStrokeStyle(2, 0xffffff, 0.10);
+    // 信息模块降权
+    this.add.rectangle(375, 352, 790, 210, 0x000000, 0.05)
+      .setStrokeStyle(1, 0xffffff, 0.06);
 
     const leftX = 235;
     const rightX = 515;
@@ -235,82 +235,94 @@ export class MainScene extends Phaser.Scene {
     const boxH1 = 74;
     const boxH2 = 92;
 
-    this.add.rectangle(leftX, topY, boxW, boxH1, 0xffffff, 0.06)
-      .setStrokeStyle(1, 0xffffff, 0.08);
-    this.add.rectangle(rightX, topY, boxW, boxH1, 0xffffff, 0.06)
-      .setStrokeStyle(1, 0xffffff, 0.08);
-    this.add.rectangle(leftX, bottomY, boxW, boxH2, 0xffffff, 0.05)
-      .setStrokeStyle(1, 0xffffff, 0.08);
-    this.add.rectangle(rightX, bottomY, boxW, boxH2, 0xffffff, 0.05)
-      .setStrokeStyle(1, 0xffffff, 0.08);
+    this.add.rectangle(leftX, topY, boxW, boxH1, 0xffffff, 0.04)
+      .setStrokeStyle(1, 0xffffff, 0.05);
+    this.add.rectangle(rightX, topY, boxW, boxH1, 0xffffff, 0.04)
+      .setStrokeStyle(1, 0xffffff, 0.05);
+    this.add.rectangle(leftX, bottomY, boxW, boxH2, 0xffffff, 0.035)
+      .setStrokeStyle(1, 0xffffff, 0.05);
+    this.add.rectangle(rightX, bottomY, boxW, boxH2, 0xffffff, 0.035)
+      .setStrokeStyle(1, 0xffffff, 0.05);
 
     this.add.text(145, topY, '🪙', {
       fontSize: '28px',
       color: '#FFD54F',
+      alpha: 0.95,
     }).setOrigin(0.5);
 
     this.add.text(260, topY - 15, '金币', {
       fontSize: '18px',
       color: '#DFF6FF',
+      alpha: 0.82,
     }).setOrigin(0.5);
 
     this.add.text(260, topY + 12, `${coins}`, {
       fontSize: '28px',
       color: '#FFE082',
       fontStyle: 'bold',
+      alpha: 0.95,
     }).setOrigin(0.5);
 
     this.add.text(425, topY, '⚡', {
       fontSize: '28px',
+      alpha: 0.95,
     }).setOrigin(0.5);
 
     this.add.text(540, topY - 15, '体力值', {
       fontSize: '18px',
       color: '#DFF6FF',
+      alpha: 0.82,
     }).setOrigin(0.5);
 
     this.add.text(540, topY + 12, `${energy}/${maxEnergy}`, {
       fontSize: '28px',
       color: '#FFFFFF',
       fontStyle: 'bold',
+      alpha: 0.95,
     }).setOrigin(0.5);
 
     this.add.text(145, bottomY, '⭐', {
       fontSize: '26px',
+      alpha: 0.95,
     }).setOrigin(0.5);
 
     this.add.text(leftX, bottomY - 20, '今日最佳渔获', {
       fontSize: '17px',
       color: '#DFF6FF',
+      alpha: 0.82,
     }).setOrigin(0.5);
 
     this.add.text(leftX, bottomY + 14, bestCatch, {
       fontSize: '24px',
       color: '#FFE082',
       fontStyle: 'bold',
+      alpha: 0.94,
       wordWrap: { width: 190 },
       align: 'center',
     }).setOrigin(0.5);
 
     this.add.text(425, bottomY, '🤯', {
       fontSize: '26px',
+      alpha: 0.95,
     }).setOrigin(0.5);
 
     this.add.text(rightX, bottomY - 20, '今日最离谱战绩', {
       fontSize: '17px',
       color: '#DFF6FF',
+      alpha: 0.82,
     }).setOrigin(0.5);
 
     this.add.text(rightX, bottomY + 14, weirdCatch, {
       fontSize: '24px',
       color: '#FFD180',
       fontStyle: 'bold',
+      alpha: 0.94,
       wordWrap: { width: 190 },
       align: 'center',
     }).setOrigin(0.5);
 
-    // 新手诱导
-    this.add.text(375, 470, '前3杆更容易出货', {
+    // 新手诱导更像刺激点
+    this.add.text(375, 470, '🎯 前3杆，出好货概率更高', {
       fontSize: '24px',
       color: '#FFF3B0',
       fontStyle: 'bold',
@@ -339,6 +351,11 @@ export class MainScene extends Phaser.Scene {
 
     startBtn.on('pointerdown', () => {
       SimpleAudio.click();
+
+      startBtn.setScale(0.95);
+      this.time.delayedCall(80, () => {
+        if (startBtn.active) startBtn.setScale(1);
+      });
 
       if (!EnergyManager.instance.hasEnergy()) {
         this.showToast('体力不足，请先补充体力');
@@ -410,7 +427,7 @@ export class MainScene extends Phaser.Scene {
     this.add.text(470, 1166, '🌿', { fontSize: '48px' }).setOrigin(0.5).setAlpha(0.9);
     this.add.text(610, 1172, '🌱', { fontSize: '40px' }).setOrigin(0.5).setAlpha(0.88);
 
-    // 生物：保留自然感
+    // 生物
     this.createSwimmer('🐟', 40, 'fish', 0.78, 0.14, 0.92, { minY: 920, maxY: 1005 });
     this.createSwimmer('🐠', 36, 'fish', 0.72, 0.12, 0.88, { minY: 930, maxY: 1015 });
     this.createSwimmer('🐡', 48, 'fish', 0.48, 0.10, 0.86, { minY: 950, maxY: 1035 });
