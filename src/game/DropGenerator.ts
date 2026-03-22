@@ -45,7 +45,7 @@ function randomFrom<T>(list: T[]): T {
 }
 
 export class DropGenerator {
-  // 兼容旧代码
+  // 兼容旧调用
   static generateByCategory(category: DropCategory = 'random'): DropItem {
     switch (category) {
       case 'fish':
@@ -62,57 +62,45 @@ export class DropGenerator {
     }
   }
 
-  // 新导演系统入口
+  // 1.1 联动导演系统
   static generate(): DropItem {
-    const bucket = DirectorSystem.getBucket();
+    const bias = DirectorSystem.getDropBias();
 
-    if (bucket === 'safe_fish') {
-      return DirectorSystem.pickWeighted<DropItem>([
-        { item: fishItems[0], weight: 45 },
-        { item: fishItems[1], weight: 35 },
-        { item: fishItems[2], weight: 15 },
-        { item: lightTrashItems[0], weight: 5 },
-      ]);
-    }
+    return DirectorSystem.pickWeighted<DropItem>([
+      { item: randomFrom(fishItems), weight: bias.fishWeight },
+      { item: randomFrom(lightTrashItems), weight: bias.lightTrashWeight },
+      { item: randomFrom(strongTrashItems), weight: bias.strongTrashWeight },
+      { item: randomFrom(legendItems), weight: bias.legendWeight },
+    ]);
+  }
 
-    if (bucket === 'fun_mix') {
-      return DirectorSystem.pickWeighted<DropItem>([
-        { item: fishItems[0], weight: 20 },
-        { item: fishItems[1], weight: 25 },
-        { item: fishItems[2], weight: 15 },
-        { item: randomFrom(lightTrashItems), weight: 25 },
-        { item: randomFrom(strongTrashItems), weight: 15 },
-      ]);
-    }
+  // 给 FishingScene/后续系统用：基于导演意图强行出“有趣结果”
+  static generateInteresting(): DropItem {
+    return DirectorSystem.pickWeighted<DropItem>([
+      { item: randomFrom(lightTrashItems), weight: 28 },
+      { item: randomFrom(strongTrashItems), weight: 42 },
+      { item: randomFrom(legendItems), weight: 18 },
+      { item: randomFrom(fishItems), weight: 12 },
+    ]);
+  }
 
-    if (bucket === 'good_shot') {
-      return DirectorSystem.pickWeighted<DropItem>([
-        { item: fishItems[2], weight: 26 },
-        { item: fishItems[3], weight: 34 },
-        { item: randomFrom(strongTrashItems), weight: 20 },
-        { item: randomFrom(legendItems), weight: 20 },
-      ]);
-    }
+  // 给 FishingScene/后续系统用：稳妥正常鱼
+  static generateSafeFish(): DropItem {
+    return DirectorSystem.pickWeighted<DropItem>([
+      { item: fishItems[0], weight: 42 },
+      { item: fishItems[1], weight: 30 },
+      { item: fishItems[2], weight: 18 },
+      { item: fishItems[3], weight: 10 },
+    ]);
+  }
 
-    if (bucket === 'normal_mix') {
-      return DirectorSystem.pickWeighted<DropItem>([
-        { item: randomFrom(fishItems), weight: 50 },
-        { item: randomFrom(lightTrashItems), weight: 18 },
-        { item: randomFrom(strongTrashItems), weight: 24 },
-        { item: randomFrom(legendItems), weight: 8 },
-      ]);
-    }
-
-    const rand = Math.random();
-
-    if (rand < 0.06) return randomFrom(legendItems);
-
-    if (rand < 0.38) {
-      return Math.random() < 0.45
-        ? randomFrom(lightTrashItems)
-        : randomFrom(strongTrashItems);
-    }
-
-    return randomFrom(fishItems);
+  // 给 FishingScene/后续系统用：更容易出好货
+  static generateGoodShot(): DropItem {
+    return DirectorSystem.pickWeighted<DropItem>([
+      { item: fishItems[2], weight: 25 },
+      { item: fishItems[3], weight: 32 },
+      { item: randomFrom(strongTrashItems), weight: 23 },
+      { item: randomFrom(legendItems), weight: 20 },
+    ]);
   }
 }
