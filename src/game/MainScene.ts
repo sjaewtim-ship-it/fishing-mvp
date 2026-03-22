@@ -102,8 +102,8 @@ export class MainScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.18);
 
-    this.add.text(375, 815, '看广告继续钓（+3体力）', {
-      fontSize: '30px',
+    this.add.text(375, 815, '补充体力 🎬', {
+      fontSize: '32px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);

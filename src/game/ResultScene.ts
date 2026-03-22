@@ -94,87 +94,93 @@ export class ResultScene extends Phaser.Scene {
     this.add.rectangle(375, 667, 750, 1334, success ? 0x8fd3ff : 0x34495e);
 
     if (!success) {
+      const hasEnergy = EnergyManager.instance.hasEnergy();
+
       this.add.rectangle(375, 510, 660, 650, 0x000000, 0.12)
         .setStrokeStyle(2, 0xffffff, 0.14);
 
       this.add.text(375, 180, this.getFailTitle(failReason), {
-        fontSize: '58px',
+        fontSize: '56px',
         color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
-      this.add.text(375, 270, this.getFailDesc(failReason), {
-        fontSize: '30px',
+      this.add.text(375, 268, this.getFailDesc(failReason), {
+        fontSize: '28px',
         color: '#FFFFFF',
-        wordWrap: { width: 620 },
+        wordWrap: { width: 600 },
         align: 'center',
       }).setOrigin(0.5);
 
-      this.add.text(375, 340, `第 ${round} 次钓鱼失手`, {
-        fontSize: '26px',
+      this.add.text(375, 336, `第 ${round} 次钓鱼失手`, {
+        fontSize: '24px',
         color: '#DFF9FB',
       }).setOrigin(0.5);
 
-      this.add.text(375, 398, '别急，再来一杆更容易中', {
-        fontSize: '26px',
+      this.add.text(375, 392, '别急，再来一杆更容易中', {
+        fontSize: '24px',
         color: '#FFF3B0',
       }).setOrigin(0.5);
 
-      const retry = this.add.rectangle(375, 560, 430, 98, 0xff6b6b)
-        .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(4, 0xffffff, 0.16);
+      if (hasEnergy) {
+        const retry = this.add.rectangle(375, 575, 430, 98, 0xff6b6b)
+          .setInteractive({ useHandCursor: true })
+          .setStrokeStyle(4, 0xffffff, 0.16);
 
-      this.add.text(375, 560, '再试一次', {
-        fontSize: '34px',
-        color: '#FFFFFF',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
+        this.add.text(375, 575, '再来一次', {
+          fontSize: '34px',
+          color: '#FFFFFF',
+          fontStyle: 'bold',
+        }).setOrigin(0.5);
 
-      retry.on('pointerdown', () => {
-        SimpleAudio.click();
-        this.scene.start('FishingScene');
-      });
+        retry.on('pointerdown', () => {
+          SimpleAudio.click();
+          EnergyManager.instance.costEnergy();
+          SaveSync.save();
+          this.scene.start('FishingScene');
+        });
+      } else {
+        const revive = this.add.rectangle(375, 575, 430, 98, 0x9b59b6)
+          .setInteractive({ useHandCursor: true })
+          .setStrokeStyle(4, 0xffffff, 0.16);
 
-      const revive = this.add.rectangle(375, 690, 430, 98, 0x9b59b6)
-        .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(4, 0xffffff, 0.16);
+        this.add.text(375, 575, '再来一次 🎬', {
+          fontSize: '32px',
+          color: '#FFFFFF',
+          fontStyle: 'bold',
+        }).setOrigin(0.5);
 
-      this.add.text(375, 690, '看广告再来一次', {
-        fontSize: '30px',
-        color: '#FFFFFF',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
+        revive.on('pointerdown', () => {
+          SimpleAudio.click();
+          AnalyticsManager.instance.onAdView('revive');
+          SaveSync.save();
+          this.scene.start('FishingScene');
+        });
 
-      revive.on('pointerdown', () => {
-        SimpleAudio.click();
-        AnalyticsManager.instance.onAdView('revive');
-        SaveSync.save();
-        this.scene.start('FishingScene');
-      });
+        const recover = this.add.rectangle(375, 710, 430, 98, 0xf39c12)
+          .setInteractive({ useHandCursor: true })
+          .setStrokeStyle(4, 0xffffff, 0.16);
 
-      const recover = this.add.rectangle(375, 820, 430, 98, 0xf39c12)
-        .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(4, 0xffffff, 0.16);
+        this.add.text(375, 710, '恢复体力 🎬', {
+          fontSize: '32px',
+          color: '#FFFFFF',
+          fontStyle: 'bold',
+        }).setOrigin(0.5);
 
-      this.add.text(375, 820, '看广告恢复体力', {
-        fontSize: '30px',
-        color: '#FFFFFF',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
+        recover.on('pointerdown', () => {
+          SimpleAudio.click();
+          AnalyticsManager.instance.onAdView('recover_energy');
+          EnergyManager.instance.addEnergy(3);
+          SaveSync.save();
+          this.scene.start('MainScene');
+        });
+      }
 
-      recover.on('pointerdown', () => {
-        SimpleAudio.click();
-        AnalyticsManager.instance.onAdView('recover_energy');
-        EnergyManager.instance.addEnergy(3);
-        SaveSync.save();
-        this.scene.start('MainScene');
-      });
-
-      const back = this.add.rectangle(375, 950, 280, 78, 0x34495e)
+      const back = this.add.rectangle(375, 930, 280, 78, 0x34495e)
         .setInteractive({ useHandCursor: true })
         .setStrokeStyle(2, 0xffffff, 0.14);
 
-      this.add.text(375, 950, '返回首页', {
+      this.add.text(375, 930, '返回首页', {
         fontSize: '28px',
         color: '#FFFFFF',
       }).setOrigin(0.5);
@@ -199,19 +205,20 @@ export class ResultScene extends Phaser.Scene {
     const rarity = this.getRarityText(drop);
     const style = this.getPosterStyle(drop);
 
+    // 海报区（截图用，不展示奖励信息）
     const posterX = 375;
-    const posterY = 350;
+    const posterY = 330;
     const posterW = 620;
-    const posterH = 650;
+    const posterH = 610;
 
     this.add.rectangle(posterX, posterY, posterW, posterH, style.bgBottom, 0.98)
       .setStrokeStyle(3, 0xffffff, 0.16);
 
-    this.add.rectangle(posterX, posterY - 185, posterW, 210, style.bgTop, 0.82);
-    this.add.circle(posterX, posterY - 10, 185, 0xffffff, 0.07);
-    this.add.circle(posterX, posterY + 10, 130, 0xffffff, 0.06);
+    this.add.rectangle(posterX, posterY - 170, posterW, 195, style.bgTop, 0.82);
+    this.add.circle(posterX, posterY - 5, 185, 0xffffff, 0.07);
+    this.add.circle(posterX, posterY + 5, 130, 0xffffff, 0.06);
 
-    this.add.rectangle(posterX, 88, 190, 46, style.tagBg, 0.88)
+    this.add.rectangle(posterX, 88, 200, 46, style.tagBg, 0.88)
       .setStrokeStyle(2, 0xffffff, 0.18);
 
     this.add.text(posterX, 88, rarity, {
@@ -220,18 +227,18 @@ export class ResultScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(posterX, 148, shareText, {
-      fontSize: '30px',
+    this.add.text(posterX, 145, shareText, {
+      fontSize: '28px',
       color: '#FFFFFF',
       fontStyle: 'bold',
       wordWrap: { width: 500 },
       align: 'center',
     }).setOrigin(0.5);
 
-    const glow = this.add.circle(posterX, 315, 135, style.accent, drop?.type === 'legend' ? 0.17 : 0.10);
+    const glow = this.add.circle(posterX, 295, 135, style.accent, drop?.type === 'legend' ? 0.17 : 0.10);
 
-    const icon = this.add.text(posterX, 305, emoji, {
-      fontSize: '190px',
+    const icon = this.add.text(posterX, 288, emoji, {
+      fontSize: '170px',
     }).setOrigin(0.5);
 
     icon.setScale(0.2);
@@ -253,31 +260,40 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(posterX, 455, drop?.name || '', {
-      fontSize: '50px',
+    this.add.text(posterX, 430, drop?.name || '', {
+      fontSize: '42px',
       color: '#FFFFFF',
       fontStyle: 'bold',
+      wordWrap: { width: 520 },
+      align: 'center',
     }).setOrigin(0.5);
 
-    this.add.text(posterX, 520, drop?.flavor || '今天手气不错', {
-      fontSize: '26px',
+    this.add.text(posterX, 485, drop?.flavor || '今天手气不错', {
+      fontSize: '24px',
       color: '#F4FBFF',
       wordWrap: { width: 500 },
       align: 'center',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    this.add.text(posterX, 625, '🎣 钓鱼小游戏', {
-      fontSize: '24px',
+    this.add.text(posterX, 570, '🎣 钓鱼小游戏', {
+      fontSize: '22px',
       color: '#F4FBFF',
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.92);
 
-    const doubleBtn = this.add.rectangle(375, 770, 430, 98, 0xf39c12)
+    // 页面展示奖励信息（不进截图）
+    this.add.text(375, 675, `获得金币：+${drop?.reward ?? 0}`, {
+      fontSize: '30px',
+      color: '#FFF3B0',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const doubleBtn = this.add.rectangle(375, 785, 430, 98, 0xf39c12)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.16);
 
-    this.add.text(375, 770, rewarded ? '已领取奖励' : '看广告奖励翻倍', {
-      fontSize: '30px',
+    this.add.text(375, 785, rewarded ? '已领取翻倍奖励' : '奖励翻倍 🎬', {
+      fontSize: rewarded ? '28px' : '32px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -301,11 +317,11 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    const shareBtn = this.add.rectangle(375, 895, 430, 98, 0x9b59b6)
+    const shareBtn = this.add.rectangle(375, 900, 430, 98, 0x9b59b6)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.16);
 
-    this.add.text(375, 895, '分享战绩', {
+    this.add.text(375, 900, '分享战绩', {
       fontSize: '32px',
       color: '#FFFFFF',
       fontStyle: 'bold',
