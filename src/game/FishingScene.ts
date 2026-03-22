@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { DirectorSystem } from './DirectorSystem';
+import { DirectorSystem, type VisualType } from './DirectorSystem';
 import { DropGenerator, type DropItem } from './DropGenerator';
 import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
@@ -32,8 +32,7 @@ export class FishingScene extends Phaser.Scene {
   }
 
   create(data?: { round?: number }) {
-    // 不再依赖 RoundManager 的 addRound / getRoundCount
-    this.roundNumber = data?.round ?? 1;
+    this.roundNumber = data?.round ?? DirectorSystem.getRoundNumber();
     this.config = DirectorSystem.getTimingAssist();
 
     this.buildScene();
@@ -170,7 +169,6 @@ export class FishingScene extends Phaser.Scene {
     this.pullBtnHint.setInteractive({ useHandCursor: true });
 
     const onPull = () => this.handlePull();
-
     this.pullBtnBg.on('pointerdown', onPull);
     this.pullBtnText.on('pointerdown', onPull);
     this.pullBtnHint.on('pointerdown', onPull);
@@ -185,7 +183,36 @@ export class FishingScene extends Phaser.Scene {
 
     this.time.delayedCall(this.config.biteDelayMs, () => {
       if (this.phase !== 'idle') return;
+
+      if (Math.random() < this.config.fakeBiteChance) {
+        this.triggerFakeBite();
+        return;
+      }
+
       this.triggerBite();
+    });
+  }
+
+  private triggerFakeBite() {
+    this.stateText.setText('好像有动静了…');
+    this.subHintText.setText('别急，先观察一下');
+
+    this.tweens.add({
+      targets: this.floatBobber,
+      y: 548,
+      duration: 90,
+      yoyo: true,
+      repeat: 2,
+      onStart: () => SimpleAudio.click(),
+      onComplete: () => {
+        if (this.phase !== 'idle') return;
+        this.stateText.setText('鱼还没咬稳，再等等');
+        this.subHintText.setText('真正咬钩时动静会更明显');
+
+        this.time.delayedCall(650, () => {
+          if (this.phase === 'idle') this.triggerBite();
+        });
+      },
     });
   }
 
@@ -193,12 +220,18 @@ export class FishingScene extends Phaser.Scene {
     this.phase = 'bite';
     this.biteStartAt = this.time.now;
 
-    if (DirectorSystem.shouldSoftProtectSuccess()) {
+    const kind = DirectorSystem.decideDropKind();
+
+    if (kind === 'legend') {
+      this.currentDrop = DropGenerator.generateLegend();
+    } else if (kind === 'trash') {
+      this.currentDrop = DropGenerator.generateTrash();
+    } else if (kind === 'interesting') {
+      this.currentDrop = DropGenerator.generateInteresting();
+    } else if (DirectorSystem.shouldSoftProtectSuccess()) {
       this.currentDrop = DropGenerator.generateSafeFish();
     } else if (DirectorSystem.shouldForceInterestingOutcome()) {
       this.currentDrop = DropGenerator.generateInteresting();
-    } else if (DirectorSystem.getBucket() === 'good_shot') {
-      this.currentDrop = DropGenerator.generateGoodShot();
     } else {
       this.currentDrop = DropGenerator.generate();
     }
@@ -209,33 +242,8 @@ export class FishingScene extends Phaser.Scene {
     this.pullBtnText.setText('现在拉！');
     this.pullBtnHint.setText('太早或太晚都会跑鱼');
 
-    if (this.currentDrop.type === 'legend') {
-      this.tweens.add({
-        targets: [this.fishShadow, this.fishGlow],
-        scaleX: 1.22,
-        scaleY: 1.22,
-        alpha: 0.45,
-        duration: 180,
-        yoyo: true,
-        repeat: 5,
-      });
-    } else if (this.currentDrop.type === 'trash') {
-      this.tweens.add({
-        targets: this.fishShadow,
-        x: 420,
-        duration: 120,
-        yoyo: true,
-        repeat: 5,
-      });
-    } else {
-      this.tweens.add({
-        targets: this.fishShadow,
-        y: 792,
-        duration: 180,
-        yoyo: true,
-        repeat: 4,
-      });
-    }
+    const visual = DirectorSystem.decideVisualType(this.currentDrop.type);
+    this.playVisualSignal(visual);
 
     this.tweens.add({
       targets: this.floatBobber,
@@ -257,6 +265,54 @@ export class FishingScene extends Phaser.Scene {
     this.time.delayedCall(this.config.goodWindowMs + this.config.lateToleranceMs, () => {
       if (this.phase !== 'bite') return;
       this.failAndGo('late');
+    });
+  }
+
+  private playVisualSignal(visual: VisualType) {
+    if (visual === 'big') {
+      this.tweens.add({
+        targets: [this.fishShadow, this.fishGlow],
+        scaleX: 1.26,
+        scaleY: 1.26,
+        alpha: 0.45,
+        duration: 180,
+        yoyo: true,
+        repeat: 5,
+      });
+      return;
+    }
+
+    if (visual === 'weird') {
+      this.tweens.add({
+        targets: this.fishShadow,
+        x: 420,
+        duration: 120,
+        yoyo: true,
+        repeat: 6,
+      });
+      return;
+    }
+
+    if (visual === 'small') {
+      this.fishShadow.setScale(0.76);
+      this.fishGlow.setScale(0.76);
+      this.tweens.add({
+        targets: [this.fishShadow, this.fishGlow],
+        scaleX: 0.86,
+        scaleY: 0.86,
+        duration: 140,
+        yoyo: true,
+        repeat: 5,
+      });
+      return;
+    }
+
+    this.tweens.add({
+      targets: this.fishShadow,
+      y: 792,
+      duration: 180,
+      yoyo: true,
+      repeat: 4,
     });
   }
 
@@ -299,6 +355,8 @@ export class FishingScene extends Phaser.Scene {
 
   private successAndGo() {
     this.phase = 'resolved';
+    DirectorSystem.recordSuccess();
+    DirectorSystem.nextRound();
     SaveSync.save();
 
     this.stateText.setText('上钩了！');
@@ -328,6 +386,8 @@ export class FishingScene extends Phaser.Scene {
 
   private failAndGo(reason: 'early' | 'too_early' | 'late') {
     this.phase = 'resolved';
+    DirectorSystem.recordFail();
+    DirectorSystem.nextRound();
     SaveSync.save();
 
     this.stateText.setText(reason === 'late' ? '慢了半拍…' : '这一杆失手了');

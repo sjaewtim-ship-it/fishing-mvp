@@ -1,5 +1,3 @@
-import { DirectorSystem } from './DirectorSystem';
-
 export type DropItem = {
   name: string;
   type: 'fish' | 'trash' | 'legend';
@@ -45,7 +43,6 @@ function randomFrom<T>(list: T[]): T {
 }
 
 export class DropGenerator {
-  // 兼容旧调用
   static generateByCategory(category: DropCategory = 'random'): DropItem {
     switch (category) {
       case 'fish':
@@ -62,45 +59,47 @@ export class DropGenerator {
     }
   }
 
-  // 1.1 联动导演系统
   static generate(): DropItem {
-    const bias = DirectorSystem.getDropBias();
+    const rand = Math.random();
 
-    return DirectorSystem.pickWeighted<DropItem>([
-      { item: randomFrom(fishItems), weight: bias.fishWeight },
-      { item: randomFrom(lightTrashItems), weight: bias.lightTrashWeight },
-      { item: randomFrom(strongTrashItems), weight: bias.strongTrashWeight },
-      { item: randomFrom(legendItems), weight: bias.legendWeight },
-    ]);
+    if (rand < 0.06) return randomFrom(legendItems);
+
+    if (rand < 0.38) {
+      return Math.random() < 0.45
+        ? randomFrom(lightTrashItems)
+        : randomFrom(strongTrashItems);
+    }
+
+    return randomFrom(fishItems);
   }
 
-  // 给 FishingScene/后续系统用：基于导演意图强行出“有趣结果”
-  static generateInteresting(): DropItem {
-    return DirectorSystem.pickWeighted<DropItem>([
-      { item: randomFrom(lightTrashItems), weight: 28 },
-      { item: randomFrom(strongTrashItems), weight: 42 },
-      { item: randomFrom(legendItems), weight: 18 },
-      { item: randomFrom(fishItems), weight: 12 },
-    ]);
-  }
-
-  // 给 FishingScene/后续系统用：稳妥正常鱼
   static generateSafeFish(): DropItem {
-    return DirectorSystem.pickWeighted<DropItem>([
-      { item: fishItems[0], weight: 42 },
-      { item: fishItems[1], weight: 30 },
-      { item: fishItems[2], weight: 18 },
-      { item: fishItems[3], weight: 10 },
-    ]);
+    return randomFrom(fishItems);
   }
 
-  // 给 FishingScene/后续系统用：更容易出好货
+  static generateInteresting(): DropItem {
+    return Math.random() < 0.25
+      ? randomFrom(legendItems)
+      : randomFrom(strongTrashItems);
+  }
+
   static generateGoodShot(): DropItem {
-    return DirectorSystem.pickWeighted<DropItem>([
-      { item: fishItems[2], weight: 25 },
-      { item: fishItems[3], weight: 32 },
-      { item: randomFrom(strongTrashItems), weight: 23 },
-      { item: randomFrom(legendItems), weight: 20 },
-    ]);
+    const pool: DropItem[] = [
+      fishItems[2],
+      fishItems[3],
+      randomFrom(strongTrashItems),
+      randomFrom(legendItems),
+    ];
+    return randomFrom(pool);
+  }
+
+  static generateTrash(): DropItem {
+    return Math.random() < 0.35
+      ? randomFrom(lightTrashItems)
+      : randomFrom(strongTrashItems);
+  }
+
+  static generateLegend(): DropItem {
+    return randomFrom(legendItems);
   }
 }
