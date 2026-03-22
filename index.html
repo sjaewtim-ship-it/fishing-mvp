@@ -15,20 +15,18 @@
       overflow: hidden;
       background: #000;
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
       touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
     }
 
     #game-container {
       width: 100vw;
       height: 100vh;
-      overflow: hidden;
       display: flex;
-      align-items: center;
+      align-items: flex-start; /* 👈 关键：贴顶 */
       justify-content: center;
+      overflow: hidden;
     }
 
     canvas {
