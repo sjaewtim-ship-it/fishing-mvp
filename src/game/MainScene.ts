@@ -6,19 +6,22 @@ import { SaveSync } from './SaveSync';
 import { AnalyticsManager } from './AnalyticsManager';
 import { SimpleAudio } from './SimpleAudio';
 
+type CreatureKind = 'fish' | 'crab' | 'turtle' | 'lobster' | 'octopus';
+
 type Swimmer = {
   sprite: Phaser.GameObjects.Text;
   vx: number;
   vy: number;
   radius: number;
+  kind: CreatureKind;
 };
 
 export class MainScene extends Phaser.Scene {
   private swimmers: Swimmer[] = [];
-  private readonly waterLeft = 40;
-  private readonly waterRight = 710;
-  private readonly waterTop = 760;
-  private readonly waterBottom = 1280;
+  private readonly waterLeft = 36;
+  private readonly waterRight = 714;
+  private readonly waterTop = 770;
+  private readonly waterBottom = 1268;
 
   constructor() {
     super('MainScene');
@@ -45,30 +48,38 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  private randomVelocity(base: number) {
-    const sign = Math.random() > 0.5 ? 1 : -1;
-    return sign * Phaser.Math.Between(base - 6, base + 6);
-  }
-
   private isOverlapping(x: number, y: number, radius: number) {
     return this.swimmers.some((s) => {
       const dx = s.sprite.x - x;
       const dy = s.sprite.y - y;
-      const minDist = s.radius + radius + 12;
+      const minDist = s.radius + radius + 18;
       return dx * dx + dy * dy < minDist * minDist;
     });
   }
 
-  private createSwimmer(emoji: string, fontSize: number, baseSpeed: number, alpha = 0.95) {
-    const radius = Math.max(18, fontSize * 0.35);
+  private createSwimmer(
+    emoji: string,
+    fontSize: number,
+    kind: CreatureKind,
+    speedX: number,
+    speedY: number,
+    alpha = 0.95,
+    fixedBand?: { minY: number; maxY: number }
+  ) {
+    const radius = Math.max(18, fontSize * 0.34);
 
     let x = 100;
     let y = 900;
     let found = false;
 
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 100; i++) {
       x = Phaser.Math.Between(this.waterLeft + radius, this.waterRight - radius);
-      y = Phaser.Math.Between(this.waterTop + radius, this.waterBottom - radius);
+
+      if (fixedBand) {
+        y = Phaser.Math.Between(fixedBand.minY, fixedBand.maxY);
+      } else {
+        y = Phaser.Math.Between(this.waterTop + radius, this.waterBottom - radius);
+      }
 
       if (!this.isOverlapping(x, y, radius)) {
         found = true;
@@ -78,18 +89,24 @@ export class MainScene extends Phaser.Scene {
 
     if (!found) {
       x = Phaser.Math.Between(this.waterLeft + radius, this.waterRight - radius);
-      y = Phaser.Math.Between(this.waterTop + radius, this.waterBottom - radius);
+      y = fixedBand
+        ? Phaser.Math.Between(fixedBand.minY, fixedBand.maxY)
+        : Phaser.Math.Between(this.waterTop + radius, this.waterBottom - radius);
     }
 
     const sprite = this.add.text(x, y, emoji, {
       fontSize: `${fontSize}px`,
     }).setOrigin(0.5).setAlpha(alpha);
 
+    const vx = (Math.random() > 0.5 ? 1 : -1) * speedX;
+    const vy = (Math.random() > 0.5 ? 1 : -1) * speedY;
+
     this.swimmers.push({
       sprite,
-      vx: this.randomVelocity(baseSpeed),
-      vy: this.randomVelocity(baseSpeed),
+      vx,
+      vy,
       radius,
+      kind,
     });
   }
 
@@ -107,8 +124,6 @@ export class MainScene extends Phaser.Scene {
 
     // 背景
     this.add.rectangle(375, 667, 750, 1334, 0x8fd3ff);
-
-    // 深蓝水域直接铺到底
     this.add.rectangle(375, 1047, 750, 574, 0x1e88e5);
 
     // 白云
@@ -158,12 +173,12 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 信息模块
-    this.add.rectangle(375, 345, 660, 210, 0x000000, 0.10)
+    // 信息模块总背景：完整覆盖 4 个子模块
+    this.add.rectangle(375, 350, 676, 226, 0x000000, 0.11)
       .setStrokeStyle(2, 0xffffff, 0.14);
 
-    // 第一行：金币 + 体力
-    this.add.rectangle(235, 305, 250, 76, 0xffffff, 0.09)
+    // 第一行：金币 / 体力
+    this.add.rectangle(235, 305, 262, 80, 0xffffff, 0.09)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
     this.add.text(145, 305, '🪙', {
@@ -182,7 +197,7 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.rectangle(515, 305, 250, 76, 0xffffff, 0.09)
+    this.add.rectangle(515, 305, 262, 80, 0xffffff, 0.09)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
     this.add.text(425, 305, '⚡', {
@@ -200,13 +215,8 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 分隔线
-    this.add.line(375, 350, 100, 0, 650, 0, 0xffffff).setAlpha(0.12);
-
     // 第二行：最佳 / 最离谱
-    this.add.rectangle(235, 415, 250, 92, 0xffffff, 0.08)
-      .setStrokeStyle(2, 0xffffff, 0.10);
-    this.add.rectangle(515, 415, 250, 92, 0xffffff, 0.08)
+    this.add.rectangle(235, 415, 262, 96, 0xffffff, 0.08)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
     this.add.text(145, 415, '⭐', {
@@ -222,9 +232,12 @@ export class MainScene extends Phaser.Scene {
       fontSize: '26px',
       color: '#FFE082',
       fontStyle: 'bold',
-      wordWrap: { width: 180 },
+      wordWrap: { width: 190 },
       align: 'center',
     }).setOrigin(0.5);
+
+    this.add.rectangle(515, 415, 262, 96, 0xffffff, 0.08)
+      .setStrokeStyle(2, 0xffffff, 0.10);
 
     this.add.text(425, 415, '🤯', {
       fontSize: '28px',
@@ -239,7 +252,7 @@ export class MainScene extends Phaser.Scene {
       fontSize: '26px',
       color: '#FFD180',
       fontStyle: 'bold',
-      wordWrap: { width: 180 },
+      wordWrap: { width: 190 },
       align: 'center',
     }).setOrigin(0.5);
 
@@ -309,20 +322,30 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // 水面下文案
+    // 水下文案
     this.add.text(375, 735, '水下似乎有东西在游动…', {
       fontSize: '22px',
       color: '#EAF6FF',
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    // 随机生成水里生物
-    this.createSwimmer('🐟', 30, 18, 0.95);
-    this.createSwimmer('🐠', 28, 16, 0.9);
-    this.createSwimmer('🐡', 34, 14, 0.88);
-    this.createSwimmer('🦀', 30, 12, 0.95);
-    this.createSwimmer('🐢', 30, 10, 0.92);
-    this.createSwimmer('🦞', 32, 13, 0.95);
+    // 随机水生物：大小符合常识
+    // 鱼：中小型，中速
+    this.createSwimmer('🐟', 28, 'fish', 0.95, 0.35, 0.92);
+    this.createSwimmer('🐠', 26, 'fish', 0.90, 0.30, 0.88);
+    this.createSwimmer('🐡', 34, 'fish', 0.70, 0.25, 0.86);
+
+    // 螃蟹：偏小，贴底横向为主
+    this.createSwimmer('🦀', 26, 'crab', 0.75, 0.08, 0.95, { minY: 1120, maxY: 1230 });
+
+    // 龙虾：中等偏大，底部移动
+    this.createSwimmer('🦞', 30, 'lobster', 0.68, 0.10, 0.95, { minY: 1070, maxY: 1220 });
+
+    // 乌龟：更大，更慢
+    this.createSwimmer('🐢', 34, 'turtle', 0.42, 0.12, 0.94, { minY: 980, maxY: 1180 });
+
+    // 章鱼：较大，慢速漂移
+    this.createSwimmer('🐙', 36, 'octopus', 0.36, 0.22, 0.92, { minY: 930, maxY: 1130 });
 
     // 底部浪花装饰
     this.add.text(375, 1248, '🌊   🌊   🌊', {
@@ -333,24 +356,45 @@ export class MainScene extends Phaser.Scene {
 
   update() {
     for (const s of this.swimmers) {
-      s.sprite.x += s.vx * 0.25;
-      s.sprite.y += s.vy * 0.25;
+      // 不同物种不同运动规律
+      switch (s.kind) {
+        case 'fish':
+          s.sprite.x += s.vx;
+          s.sprite.y += s.vy;
+          break;
+        case 'crab':
+          s.sprite.x += s.vx;
+          s.sprite.y += s.vy;
+          break;
+        case 'lobster':
+          s.sprite.x += s.vx;
+          s.sprite.y += s.vy;
+          break;
+        case 'turtle':
+          s.sprite.x += s.vx;
+          s.sprite.y += s.vy;
+          break;
+        case 'octopus':
+          s.sprite.x += s.vx;
+          s.sprite.y += s.vy;
+          break;
+      }
 
       if (s.sprite.x <= this.waterLeft + s.radius) {
         s.sprite.x = this.waterLeft + s.radius;
-        s.vx *= -1;
+        s.vx = Math.abs(s.vx);
       }
       if (s.sprite.x >= this.waterRight - s.radius) {
         s.sprite.x = this.waterRight - s.radius;
-        s.vx *= -1;
+        s.vx = -Math.abs(s.vx);
       }
       if (s.sprite.y <= this.waterTop + s.radius) {
         s.sprite.y = this.waterTop + s.radius;
-        s.vy *= -1;
+        s.vy = Math.abs(s.vy);
       }
       if (s.sprite.y >= this.waterBottom - s.radius) {
         s.sprite.y = this.waterBottom - s.radius;
-        s.vy *= -1;
+        s.vy = -Math.abs(s.vy);
       }
     }
 
@@ -362,7 +406,7 @@ export class MainScene extends Phaser.Scene {
 
         const dx = a.sprite.x - b.sprite.x;
         const dy = a.sprite.y - b.sprite.y;
-        const minDist = a.radius + b.radius + 8;
+        const minDist = a.radius + b.radius + 10;
 
         if (dx * dx + dy * dy < minDist * minDist) {
           a.vx *= -1;
@@ -370,10 +414,10 @@ export class MainScene extends Phaser.Scene {
           b.vx *= -1;
           b.vy *= -1;
 
-          a.sprite.x += a.vx * 0.5;
-          a.sprite.y += a.vy * 0.5;
-          b.sprite.x += b.vx * 0.5;
-          b.sprite.y += b.vy * 0.5;
+          a.sprite.x += a.vx * 2;
+          a.sprite.y += a.vy * 2;
+          b.sprite.x += b.vx * 2;
+          b.sprite.y += b.vy * 2;
         }
       }
     }
