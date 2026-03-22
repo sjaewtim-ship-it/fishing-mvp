@@ -45,7 +45,7 @@ function randomFrom<T>(list: T[]): T {
 }
 
 export class DropGenerator {
-  // 兼容旧代码：如果别的地方还在调 generateByCategory，不会再报错
+  // 兼容旧代码
   static generateByCategory(category: DropCategory = 'random'): DropItem {
     switch (category) {
       case 'fish':
@@ -62,7 +62,7 @@ export class DropGenerator {
     }
   }
 
-  // 新版导演系统入口
+  // 新导演系统入口
   static generate(): DropItem {
     const bucket = DirectorSystem.getBucket();
 
@@ -105,9 +105,7 @@ export class DropGenerator {
 
     const rand = Math.random();
 
-    if (rand < 0.06) {
-      return randomFrom(legendItems);
-    }
+    if (rand < 0.06) return randomFrom(legendItems);
 
     if (rand < 0.38) {
       return Math.random() < 0.45
