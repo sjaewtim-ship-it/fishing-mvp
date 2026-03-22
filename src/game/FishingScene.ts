@@ -20,8 +20,9 @@ export class FishingScene extends Phaser.Scene {
   private stateText!: Phaser.GameObjects.Text;
   private subHintText!: Phaser.GameObjects.Text;
 
-  private pullBtn!: Phaser.GameObjects.Rectangle;
+  private pullBtnBg!: Phaser.GameObjects.Rectangle;
   private pullBtnText!: Phaser.GameObjects.Text;
+  private pullBtnHint!: Phaser.GameObjects.Text;
 
   private biteStartAt = 0;
   private currentDrop: DropItem | null = null;
@@ -153,20 +154,35 @@ export class FishingScene extends Phaser.Scene {
     this.add.ellipse(392, 1225, 260, 72, sandColor, 0.95);
     this.add.ellipse(575, 1212, 220, 60, sandColor, 0.95);
 
-    // 拉杆按钮
-    this.pullBtn = this.add.rectangle(375, 1290, 450, 108, 0xff5f5f)
-      .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(4, 0xffffff, 0.18);
+    // 按钮区底板，增强可点击区域感
+    this.add.rectangle(375, 1288, 520, 132, 0x000000, 0.10)
+      .setStrokeStyle(2, 0xffffff, 0.10);
 
-    this.pullBtnText = this.add.text(375, 1290, '立刻拉杆', {
+    // 拉杆按钮：背景 + 主文案 + 副文案
+    this.pullBtnBg = this.add.rectangle(375, 1278, 450, 104, 0xff5f5f)
+      .setStrokeStyle(4, 0xffffff, 0.18)
+      .setInteractive({ useHandCursor: true });
+
+    this.pullBtnText = this.add.text(375, 1266, '立刻拉杆', {
       fontSize: '36px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.pullBtn.on('pointerdown', () => {
-      this.handlePull();
-    });
+    this.pullBtnHint = this.add.text(375, 1306, '看到明显动静再拉', {
+      fontSize: '18px',
+      color: '#FFEFEF',
+    }).setOrigin(0.5);
+
+    // 文本也绑定点击，避免命中不稳定
+    this.pullBtnText.setInteractive({ useHandCursor: true });
+    this.pullBtnHint.setInteractive({ useHandCursor: true });
+
+    const onPull = () => this.handlePull();
+
+    this.pullBtnBg.on('pointerdown', onPull);
+    this.pullBtnText.on('pointerdown', onPull);
+    this.pullBtnHint.on('pointerdown', onPull);
   }
 
   private startFishingFlow() {
@@ -198,6 +214,9 @@ export class FishingScene extends Phaser.Scene {
 
     this.stateText.setText('咬钩了！快拉杆');
     this.subHintText.setText('现在是最佳时机，慢了就跑鱼');
+    this.pullBtnBg.setFillStyle(0xff7a45, 1);
+    this.pullBtnText.setText('现在拉！');
+    this.pullBtnHint.setText('太早或太晚都会跑鱼');
 
     // 根据结果类型给不同前兆
     if (this.currentDrop.type === 'legend') {
@@ -236,6 +255,15 @@ export class FishingScene extends Phaser.Scene {
       repeat: 5,
     });
 
+    this.tweens.add({
+      targets: this.pullBtnBg,
+      scaleX: 1.03,
+      scaleY: 1.03,
+      duration: 180,
+      yoyo: true,
+      repeat: 5,
+    });
+
     // 自动拉晚失败
     this.time.delayedCall(this.config.goodWindowMs + this.config.lateToleranceMs, () => {
       if (this.phase !== 'bite') return;
@@ -248,11 +276,14 @@ export class FishingScene extends Phaser.Scene {
 
     SimpleAudio.click();
 
-    this.pullBtn.setScale(0.95);
-    this.pullBtnText.setScale(0.95);
-    this.time.delayedCall(80, () => {
-      if (this.pullBtn.active) this.pullBtn.setScale(1);
+    this.pullBtnBg.setScale(0.96);
+    this.pullBtnText.setScale(0.96);
+    this.pullBtnHint.setScale(0.96);
+
+    this.time.delayedCall(90, () => {
+      if (this.pullBtnBg.active) this.pullBtnBg.setScale(1);
       if (this.pullBtnText.active) this.pullBtnText.setScale(1);
+      if (this.pullBtnHint.active) this.pullBtnHint.setScale(1);
     });
 
     if (this.phase === 'idle') {
