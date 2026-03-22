@@ -18,13 +18,16 @@
       top: 0;
       left: 0;
       touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     #game-container {
       width: 100vw;
       height: 100vh;
       display: flex;
-      align-items: flex-start; /* 👈 关键：贴顶 */
+      align-items: flex-start;
       justify-content: center;
       overflow: hidden;
     }
