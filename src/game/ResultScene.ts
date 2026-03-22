@@ -19,30 +19,61 @@ type ResultData = {
 };
 
 export class ResultScene extends Phaser.Scene {
+  private shareRewardClaimed = false;
+
   constructor() {
     super('ResultScene');
+  }
+
+  private showToast(message: string) {
+    const bg = this.add.rectangle(375, 1120, 470, 68, 0x000000, 0.58)
+      .setStrokeStyle(2, 0xffffff, 0.14);
+    const text = this.add.text(375, 1120, message, {
+      fontSize: '26px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const container = this.add.container(0, 0, [bg, text]);
+
+    this.tweens.add({
+      targets: container,
+      alpha: 0,
+      y: -16,
+      delay: 900,
+      duration: 260,
+      onComplete: () => container.destroy(),
+    });
   }
 
   private getShareText(drop?: DropItem, round?: number) {
     if (!drop) return '这游戏有点离谱…';
 
     if (drop.type === 'legend') {
-      if (drop.name === '金条') return `第${round}次直接钓到金条！！`;
-      if (drop.name === '神秘宝箱') return `第${round}次开出神秘宝箱！`;
-      if (drop.name === '黄金锦鲤') return `第${round}次直接出金鱼王！`;
-      return `第${round}次出了神物，欧皇附体！`;
+      if (drop.name === '金条') return `第${round}杆直接钓到金条！！`;
+      if (drop.name === '神秘宝箱') return `第${round}杆开出神秘宝箱！`;
+      if (drop.name === '黄金锦鲤') return `第${round}杆钓到黄金锦鲤！`;
+      return `第${round}杆出了神物，今天真有点欧！`;
     }
 
     if (drop.type === 'trash') {
-      if (drop.name === '内裤') return '我居然钓到了内裤？？？';
-      if (drop.name === '比基尼') return '这也太离谱了吧？！';
+      if (drop.name === '内裤') return '这游戏也太离谱了，我居然钓到内裤？？';
+      if (drop.name === '比基尼') return '这也能钓上来？？？';
       if (drop.name === 'iPhone') return '我从水里钓出一台 iPhone…';
-      if (drop.name === '龙虾') return '今天这一杆真不亏';
-      if (drop.name === '盲盒') return '这盲盒里到底能开出什么？';
-      return `我居然钓到了${drop.name}？？？`;
+      if (drop.name === '盲盒') return '这盲盒居然是从水里捞出来的';
+      if (drop.name === '龙虾') return '这一杆居然是龙虾，赚了';
+      return `我刚刚钓到了${drop.name}？？？`;
     }
 
-    return `第${round}次，今天手气还行！`;
+    return `第${round}杆有收获，手气还不错`;
+  }
+
+  private getPosterSubline(drop?: DropItem) {
+    if (!drop) return '你也来试试这一杆会是什么';
+
+    if (drop.type === 'legend') return '欧皇附体，建议立刻截图炫耀';
+    if (drop.type === 'trash') return '离谱指数拉满，建议发给朋友看看';
+    return '这杆不亏，下一杆可能更大';
   }
 
   private getFailTitle(reason?: 'early' | 'too_early' | 'late') {
@@ -70,8 +101,13 @@ export class ResultScene extends Phaser.Scene {
   }
 
   private getPosterStyle(drop?: DropItem) {
-    if (!drop) return { bgTop: 0x4facfe, bgBottom: 0x00c6ff, accent: 0xeafcff, tagBg: 0x1f6fb2 };
-    if (drop.type === 'legend') return { bgTop: 0xf6d365, bgBottom: 0xfda085, accent: 0xfff3b0, tagBg: 0xb9770e };
+    if (!drop) {
+      return { bgTop: 0x4facfe, bgBottom: 0x00c6ff, accent: 0xeafcff, tagBg: 0x1f6fb2 };
+    }
+
+    if (drop.type === 'legend') {
+      return { bgTop: 0xf6d365, bgBottom: 0xfda085, accent: 0xfff3b0, tagBg: 0xb9770e };
+    }
 
     if (drop.type === 'trash') {
       if (['iPhone', '比基尼', '盲盒', '龙虾', '乌龟'].includes(drop.name)) {
@@ -81,6 +117,10 @@ export class ResultScene extends Phaser.Scene {
     }
 
     return { bgTop: 0x43e97b, bgBottom: 0x38f9d7, accent: 0xeefff7, tagBg: 0x1f9d74 };
+  }
+
+  private getShareRewardKey(round: number, drop?: DropItem) {
+    return `fishing_share_reward_${round}_${drop?.name ?? 'none'}`;
   }
 
   create(data: ResultData) {
@@ -201,24 +241,25 @@ export class ResultScene extends Phaser.Scene {
     }
 
     const shareText = this.getShareText(drop, round);
+    const posterSubline = this.getPosterSubline(drop);
     const emoji = VisualMap.getEmoji(drop?.name || '');
     const rarity = this.getRarityText(drop);
     const style = this.getPosterStyle(drop);
 
-    // 海报区（分享用）
     const posterX = 375;
-    const posterY = 330;
+    const posterY = 322;
     const posterW = 620;
-    const posterH = 610;
+    const posterH = 600;
 
+    // 海报区（传播核心）
     this.add.rectangle(posterX, posterY, posterW, posterH, style.bgBottom, 0.98)
       .setStrokeStyle(3, 0xffffff, 0.16);
 
-    this.add.rectangle(posterX, posterY - 170, posterW, 195, style.bgTop, 0.82);
-    this.add.circle(posterX, posterY - 5, 185, 0xffffff, 0.07);
+    this.add.rectangle(posterX, posterY - 172, posterW, 195, style.bgTop, 0.84);
+    this.add.circle(posterX, posterY - 6, 185, 0xffffff, 0.07);
     this.add.circle(posterX, posterY + 5, 130, 0xffffff, 0.06);
 
-    this.add.rectangle(posterX, 88, 200, 46, style.tagBg, 0.88)
+    this.add.rectangle(posterX, 88, 210, 46, style.tagBg, 0.90)
       .setStrokeStyle(2, 0xffffff, 0.18);
 
     this.add.text(posterX, 88, rarity, {
@@ -227,17 +268,17 @@ export class ResultScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(posterX, 145, shareText, {
+    this.add.text(posterX, 144, shareText, {
       fontSize: '28px',
       color: '#FFFFFF',
       fontStyle: 'bold',
-      wordWrap: { width: 500 },
+      wordWrap: { width: 520 },
       align: 'center',
     }).setOrigin(0.5);
 
-    const glow = this.add.circle(posterX, 295, 135, style.accent, drop?.type === 'legend' ? 0.17 : 0.10);
+    const glow = this.add.circle(posterX, 288, 135, style.accent, drop?.type === 'legend' ? 0.17 : 0.10);
 
-    const icon = this.add.text(posterX, 288, emoji, {
+    const icon = this.add.text(posterX, 282, emoji, {
       fontSize: '170px',
     }).setOrigin(0.5);
 
@@ -260,7 +301,7 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(posterX, 430, drop?.name || '', {
+    this.add.text(posterX, 425, drop?.name || '', {
       fontSize: '42px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -268,25 +309,40 @@ export class ResultScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    this.add.text(posterX, 485, drop?.flavor || '今天手气不错', {
+    this.add.text(posterX, 480, drop?.flavor || '今天手气不错', {
       fontSize: '24px',
       color: '#F4FBFF',
       wordWrap: { width: 500 },
       align: 'center',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    // 页面展示奖励数据（不进分享截图）
-    this.add.text(375, 675, `获得金币：+${drop?.reward ?? 0}`, {
+    this.add.text(posterX, 540, posterSubline, {
+      fontSize: '22px',
+      color: '#FFF3B0',
+      fontStyle: 'bold',
+      wordWrap: { width: 500 },
+      align: 'center',
+    }).setOrigin(0.5).setAlpha(0.96);
+
+    // 页面信息（不进海报）
+    this.add.text(375, 655, `获得金币：+${drop?.reward ?? 0}`, {
       fontSize: '30px',
       color: '#FFF3B0',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const doubleBtn = this.add.rectangle(375, 785, 430, 98, 0xf39c12)
+    this.add.text(375, 695, '晒出去，朋友更容易点进来试一杆', {
+      fontSize: '22px',
+      color: '#FFFFFF',
+      alpha: 0.90,
+    }).setOrigin(0.5);
+
+    // 奖励翻倍
+    const doubleBtn = this.add.rectangle(375, 790, 430, 94, 0xf39c12)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.16);
 
-    this.add.text(375, 785, rewarded ? '已领取翻倍奖励' : '奖励翻倍 🎬', {
+    this.add.text(375, 790, rewarded ? '已领取翻倍奖励' : '奖励翻倍 🎬', {
       fontSize: rewarded ? '28px' : '32px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -311,20 +367,29 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    const shareBtn = this.add.rectangle(375, 900, 430, 98, 0x9b59b6)
+    // 分享激励
+    const shareRewardKey = this.getShareRewardKey(round, drop);
+    this.shareRewardClaimed = localStorage.getItem(shareRewardKey) === '1';
+
+    const shareBtn = this.add.rectangle(375, 905, 430, 98, 0x9b59b6)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.16);
 
-    this.add.text(375, 900, '分享战绩', {
-      fontSize: '32px',
+    this.add.text(375, 892, this.shareRewardClaimed ? '已领取分享奖励' : '分享战绩 🎁', {
+      fontSize: this.shareRewardClaimed ? '28px' : '32px',
       color: '#FFFFFF',
       fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    this.add.text(375, 930, this.shareRewardClaimed ? '本次结果已领奖励' : '分享可额外获得 +20 金币', {
+      fontSize: '20px',
+      color: '#F4FBFF',
+      alpha: 0.92,
     }).setOrigin(0.5);
 
     shareBtn.on('pointerdown', () => {
       SimpleAudio.click();
       AnalyticsManager.instance.onAdView('share');
-      SaveSync.save();
 
       const x = posterX - posterW / 2;
       const y = posterY - posterH / 2;
@@ -334,13 +399,31 @@ export class ResultScene extends Phaser.Scene {
       this.time.delayedCall(50, () => {
         ShareManager.saveResultPoster(this, x, y, w, h);
       });
+
+      if (!this.shareRewardClaimed) {
+        CoinManager.instance.addCoins(20);
+        localStorage.setItem(shareRewardKey, '1');
+        this.shareRewardClaimed = true;
+        SaveSync.save();
+        this.showToast('分享奖励 +20 金币');
+        this.scene.restart({
+          ...data,
+          success: true,
+          drop,
+          round,
+          rewarded,
+        });
+      } else {
+        this.showToast('本次结果的分享奖励已领取');
+      }
     });
 
-    const backBtn = this.add.rectangle(375, 1015, 280, 78, 0x34495e)
+    // 返回
+    const backBtn = this.add.rectangle(375, 1032, 280, 78, 0x34495e)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(2, 0xffffff, 0.14);
 
-    this.add.text(375, 1015, '返回首页', {
+    this.add.text(375, 1032, '返回首页', {
       fontSize: '28px',
       color: '#FFFFFF',
     }).setOrigin(0.5);
