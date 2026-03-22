@@ -205,7 +205,7 @@ export class ResultScene extends Phaser.Scene {
     const rarity = this.getRarityText(drop);
     const style = this.getPosterStyle(drop);
 
-    // 海报区（截图用，不展示奖励信息）
+    // 海报区（分享用）
     const posterX = 375;
     const posterY = 330;
     const posterW = 620;
@@ -275,13 +275,7 @@ export class ResultScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    this.add.text(posterX, 570, '🎣 钓鱼小游戏', {
-      fontSize: '22px',
-      color: '#F4FBFF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setAlpha(0.92);
-
-    // 页面展示奖励信息（不进截图）
+    // 页面展示奖励数据（不进分享截图）
     this.add.text(375, 675, `获得金币：+${drop?.reward ?? 0}`, {
       fontSize: '30px',
       color: '#FFF3B0',
