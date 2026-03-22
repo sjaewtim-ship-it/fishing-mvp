@@ -20,6 +20,7 @@ export class DirectorSystem {
   private static round = 0;
   private static failStreak = 0;
   private static successStreak = 0;
+  private static combo = 0;
 
   static getRoundNumber(): number {
     return this.round + 1;
@@ -32,11 +33,28 @@ export class DirectorSystem {
   static recordSuccess() {
     this.successStreak += 1;
     this.failStreak = 0;
+    this.combo += 1;
   }
 
   static recordFail() {
     this.failStreak += 1;
     this.successStreak = 0;
+    this.combo = 0;
+  }
+
+  static getCombo(): number {
+    return this.combo;
+  }
+
+  static hasComboBonus(): boolean {
+    return this.combo >= 2;
+  }
+
+  static getComboLabel(): string {
+    if (this.combo >= 5) return `🔥 ${this.combo}连击，手气爆了`;
+    if (this.combo >= 3) return `⚡ ${this.combo}连击，状态火热`;
+    if (this.combo >= 2) return `✨ ${this.combo}连击，继续上头`;
+    return '';
   }
 
   static getBucket(): DirectorBucket {
@@ -52,6 +70,7 @@ export class DirectorSystem {
   static getRoundHint(): string {
     const bucket = this.getBucket();
 
+    if (this.combo >= 3) return '连击状态中，这一杆更容易出节目效果';
     if (this.failStreak >= 2) return '这一杆可能会翻盘，盯紧浮漂';
     if (this.successStreak >= 2) return '手气起来了，下一杆可能更刺激';
 
@@ -81,6 +100,17 @@ export class DirectorSystem {
         lateToleranceMs: 420,
         biteDelayMs: 1500,
         fakeBiteChance: 0.01,
+      };
+    }
+
+    if (this.combo >= 3) {
+      return {
+        perfectWindowMs: 900,
+        goodWindowMs: 1320,
+        earlyToleranceMs: 340,
+        lateToleranceMs: 340,
+        biteDelayMs: 1500,
+        fakeBiteChance: 0.02,
       };
     }
 
@@ -129,13 +159,17 @@ export class DirectorSystem {
           earlyToleranceMs: 240,
           lateToleranceMs: 260,
           biteDelayMs: 2050,
-          fakeBiteChance: 0.1,
+          fakeBiteChance: 0.10,
         };
     }
   }
 
   static getShadowScaleRange(): { min: number; max: number } {
     const bucket = this.getBucket();
+
+    if (this.combo >= 3) {
+      return { min: 0.95, max: 1.48 };
+    }
 
     switch (bucket) {
       case 'safe_fish':
@@ -154,6 +188,8 @@ export class DirectorSystem {
 
   static shouldForceInterestingOutcome(): boolean {
     const bucket = this.getBucket();
+
+    if (this.combo >= 3) return Math.random() < 0.72;
     if (this.failStreak >= 2) return true;
     if (bucket === 'fun_mix') return Math.random() < 0.55;
     if (bucket === 'good_shot') return Math.random() < 0.75;
@@ -168,11 +204,20 @@ export class DirectorSystem {
   static decideDropKind(): 'normal' | 'trash' | 'legend' | 'interesting' {
     const bucket = this.getBucket();
 
+    if (this.combo >= 4) {
+      const r = Math.random();
+      if (r < 0.22) return 'legend';
+      if (r < 0.68) return 'interesting';
+      if (r < 0.9) return 'trash';
+      return 'normal';
+    }
+
     if (this.failStreak >= 2) {
       return Math.random() < 0.72 ? 'interesting' : 'legend';
     }
 
     if (bucket === 'safe_fish') return 'normal';
+
     if (bucket === 'fun_mix') {
       const r = Math.random();
       if (r < 0.45) return 'trash';
@@ -194,11 +239,15 @@ export class DirectorSystem {
     return 'normal';
   }
 
-  // 假信号 / 反预期
   static decideVisualType(realType: 'fish' | 'trash' | 'legend'): VisualType {
     const r = Math.random();
 
-    // 约 30% 反预期
+    if (this.combo >= 3) {
+      if (realType === 'legend') return 'big';
+      if (realType === 'trash') return r < 0.4 ? 'big' : 'weird';
+      return r < 0.3 ? 'small' : 'normal';
+    }
+
     if (r < 0.3) {
       if (realType === 'legend') return 'small';
       if (realType === 'trash') return 'big';

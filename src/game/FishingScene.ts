@@ -18,6 +18,7 @@ export class FishingScene extends Phaser.Scene {
   private hintText!: Phaser.GameObjects.Text;
   private stateText!: Phaser.GameObjects.Text;
   private subHintText!: Phaser.GameObjects.Text;
+  private comboText!: Phaser.GameObjects.Text;
 
   private pullBtnBg!: Phaser.GameObjects.Rectangle;
   private pullBtnText!: Phaser.GameObjects.Text;
@@ -63,13 +64,21 @@ export class FishingScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    this.stateText = this.add.text(375, 210, '等待鱼咬钩...', {
+    this.comboText = this.add.text(375, 184, DirectorSystem.getComboLabel(), {
+      fontSize: '22px',
+      color: '#FFE082',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setAlpha(DirectorSystem.getCombo() >= 2 ? 1 : 0);
+
+    this.stateText = this.add.text(375, 224, '等待鱼咬钩...', {
       fontSize: '30px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.subHintText = this.add.text(375, 252, '看到明显动静时再拉杆，别太早也别太晚', {
+    this.subHintText = this.add.text(375, 266, '看到明显动静时再拉杆，别太早也别太晚', {
       fontSize: '20px',
       color: '#EAF6FF',
       wordWrap: { width: 620 },
@@ -174,9 +183,28 @@ export class FishingScene extends Phaser.Scene {
     this.pullBtnHint.on('pointerdown', onPull);
   }
 
+  private refreshHintUI() {
+    this.hintText.setText(DirectorSystem.getRoundHint());
+
+    const comboLabel = DirectorSystem.getComboLabel();
+    this.comboText.setText(comboLabel);
+    this.comboText.setAlpha(comboLabel ? 1 : 0);
+
+    if (comboLabel) {
+      this.tweens.add({
+        targets: this.comboText,
+        scaleX: 1.06,
+        scaleY: 1.06,
+        duration: 220,
+        yoyo: true,
+      });
+    }
+  }
+
   private startFishingFlow() {
     this.phase = 'idle';
     this.currentDrop = null;
+    this.refreshHintUI();
 
     this.stateText.setText('等待鱼咬钩...');
     this.subHintText.setText('鱼影和浮漂有明显变化时再拉杆');
@@ -255,8 +283,8 @@ export class FishingScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: this.pullBtnBg,
-      scaleX: 1.03,
-      scaleY: 1.03,
+      scaleX: DirectorSystem.hasComboBonus() ? 1.06 : 1.03,
+      scaleY: DirectorSystem.hasComboBonus() ? 1.06 : 1.03,
       duration: 180,
       yoyo: true,
       repeat: 5,
@@ -272,8 +300,8 @@ export class FishingScene extends Phaser.Scene {
     if (visual === 'big') {
       this.tweens.add({
         targets: [this.fishShadow, this.fishGlow],
-        scaleX: 1.26,
-        scaleY: 1.26,
+        scaleX: DirectorSystem.hasComboBonus() ? 1.34 : 1.26,
+        scaleY: DirectorSystem.hasComboBonus() ? 1.34 : 1.26,
         alpha: 0.45,
         duration: 180,
         yoyo: true,
@@ -359,8 +387,8 @@ export class FishingScene extends Phaser.Scene {
     DirectorSystem.nextRound();
     SaveSync.save();
 
-    this.stateText.setText('上钩了！');
-    this.subHintText.setText('看看这一杆到底捞到了什么');
+    this.stateText.setText(DirectorSystem.getCombo() >= 2 ? `命中！${DirectorSystem.getCombo()}连击` : '上钩了！');
+    this.subHintText.setText(DirectorSystem.getCombo() >= 3 ? '状态火热，下一杆更有机会出节目效果' : '看看这一杆到底捞到了什么');
 
     this.tweens.add({
       targets: this.floatBobber,
@@ -374,6 +402,16 @@ export class FishingScene extends Phaser.Scene {
       alpha: 0,
       duration: 180,
     });
+
+    if (DirectorSystem.getCombo() >= 2) {
+      this.tweens.add({
+        targets: [this.titleText, this.stateText],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 160,
+        yoyo: true,
+      });
+    }
 
     this.time.delayedCall(380, () => {
       this.scene.start('ResultScene', {
