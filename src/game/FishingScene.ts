@@ -82,57 +82,54 @@ export class FishingScene extends Phaser.Scene {
     const tier = this.getSizeTier(targetDrop);
     const tierConfig = this.getTierConfig(tier);
 
-    // ===== 背景 =====
     this.add.rectangle(375, 667, 750, 1334, 0x8fd3ff);
     this.add.rectangle(375, 980, 750, 520, 0x1e88e5);
     this.add.rectangle(375, 570, 750, 6, 0xeafcff).setAlpha(0.8);
 
-    // 顶部信息
-    this.add.rectangle(375, 140, 620, 130, 0x000000, 0.10)
+    this.add.rectangle(375, 150, 640, 145, 0x000000, 0.10)
       .setStrokeStyle(2, 0xffffff, 0.12);
 
     this.add.text(375, 90, `第 ${round} 次钓鱼`, {
+      fontSize: '32px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const statusText = this.add.text(375, 138, '抛竿中…', {
       fontSize: '30px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const statusText = this.add.text(375, 135, '抛竿中…', {
-      fontSize: '28px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    const tipText = this.add.text(375, 180, '准备抛竿，把鱼饵扔进水里', {
-      fontSize: '22px',
+    const tipText = this.add.text(375, 186, '准备抛竿，把鱼饵扔进水里', {
+      fontSize: '24px',
       color: '#eaf6ff',
+      wordWrap: { width: 580 },
+      align: 'center',
     }).setOrigin(0.5);
 
-    // ===== 鱼竿 / 鱼线 / 浮漂 =====
     const rod = this.add.text(235, 315, '🎣', {
-      fontSize: '112px',
+      fontSize: '116px',
     }).setOrigin(0.5);
 
-    const line = this.add.rectangle(315, 420, 4, 180, 0xffffff).setOrigin(0.5, 0);
+    this.add.rectangle(315, 420, 4, 180, 0xffffff).setOrigin(0.5, 0);
 
     const bobber = this.add.circle(375, 585, 10, 0xff4757);
     const ripple1 = this.add.circle(375, 592, 20, 0xffffff, 0).setStrokeStyle(3, 0xffffff, 0.32);
     const ripple2 = this.add.circle(375, 592, 35, 0xffffff, 0).setStrokeStyle(2, 0xffffff, 0.2);
 
-    // ===== 水下鱼影：永远只是一条鱼影，不暴露结果 =====
     const fishShadow = this.add.text(160, 670, '🐟', {
-      fontSize: `${Math.round(54 * tierConfig.shadowScale)}px`,
+      fontSize: `${Math.round(58 * tierConfig.shadowScale)}px`,
     }).setOrigin(0.5).setAlpha(tierConfig.shadowAlpha);
 
     fishShadow.setTint(0x0f3057);
 
-    // ===== 拉杆按钮 =====
-    const pullBtn = this.add.rectangle(375, 960, 340, 98, 0x7f8c8d)
+    const pullBtn = this.add.rectangle(375, 955, 420, 120, 0x7f8c8d)
       .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(3, 0xffffff, 0.14);
+      .setStrokeStyle(4, 0xffffff, 0.14);
 
-    const pullBtnText = this.add.text(375, 960, '等待咬钩…', {
-      fontSize: '30px',
+    const pullBtnText = this.add.text(375, 955, '等待咬钩…', {
+      fontSize: '34px',
       color: '#ecf0f1',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -171,7 +168,6 @@ export class FishingScene extends Phaser.Scene {
       statusText.setText('🎣 正在收线…');
       tipText.setText('看看钓上来的到底是什么');
 
-      // 鱼竿抬起
       this.tweens.add({
         targets: rod,
         y: 260,
@@ -179,7 +175,6 @@ export class FishingScene extends Phaser.Scene {
         duration: 280,
       });
 
-      // 浮漂上提
       this.tweens.killTweensOf(bobber);
       this.tweens.add({
         targets: bobber,
@@ -188,9 +183,8 @@ export class FishingScene extends Phaser.Scene {
         ease: 'Quad.easeOut',
       });
 
-      // 中间先显示未知轮廓
       const unknown = this.add.text(375, 470, '❔', {
-        fontSize: '90px',
+        fontSize: '96px',
       }).setOrigin(0.5).setAlpha(0);
 
       this.tweens.add({
@@ -204,7 +198,7 @@ export class FishingScene extends Phaser.Scene {
         unknown.destroy();
 
         const finalEmoji = this.add.text(375, 470, VisualMap.getEmoji(targetDrop.name), {
-          fontSize: '120px',
+          fontSize: '132px',
         }).setOrigin(0.5).setScale(0.2);
 
         this.tweens.add({
@@ -237,7 +231,7 @@ export class FishingScene extends Phaser.Scene {
       SimpleAudio.fail();
 
       const failFlash = this.add.text(375, 320, '💢 跑了！', {
-        fontSize: '52px',
+        fontSize: '56px',
         color: '#ffffff',
         fontStyle: 'bold',
       }).setOrigin(0.5);
@@ -270,7 +264,7 @@ export class FishingScene extends Phaser.Scene {
       SimpleAudio.success();
 
       const successFlash = this.add.text(375, 320, '💥 拉中！', {
-        fontSize: '54px',
+        fontSize: '58px',
         color: '#ffffff',
         fontStyle: 'bold',
       }).setOrigin(0.5);
@@ -287,7 +281,6 @@ export class FishingScene extends Phaser.Scene {
       });
     };
 
-    // ===== 第一段：抛竿入水 =====
     SimpleAudio.cast();
 
     this.tweens.add({
@@ -319,7 +312,6 @@ export class FishingScene extends Phaser.Scene {
       repeat: 1
     });
 
-    // 漂浮
     this.tweens.add({
       targets: bobber,
       y: 606,
@@ -328,14 +320,12 @@ export class FishingScene extends Phaser.Scene {
       repeat: -1
     });
 
-    // ===== 第二段：鱼影试探 =====
     this.time.delayedCall(850, () => {
       if (resolved) return;
 
       phase = 'approaching';
       tipText.setText(tierConfig.previewText);
 
-      // 第一次经过
       this.tweens.add({
         targets: fishShadow,
         x: 300,
@@ -345,7 +335,6 @@ export class FishingScene extends Phaser.Scene {
         onComplete: () => {
           if (resolved) return;
 
-          // 再次离开一点，制造试探感
           this.tweens.add({
             targets: fishShadow,
             x: 220,
@@ -362,7 +351,6 @@ export class FishingScene extends Phaser.Scene {
       });
     });
 
-    // ===== 第三段：咬钩爆点 =====
     const biteDelay = Phaser.Math.Between(2200, 3000);
 
     this.time.delayedCall(biteDelay, () => {
@@ -390,7 +378,7 @@ export class FishingScene extends Phaser.Scene {
         305,
         tier === 'large' ? '🐟‼️' : '‼️',
         {
-          fontSize: tier === 'large' ? '72px' : '82px',
+          fontSize: tier === 'large' ? '74px' : '84px',
           color: '#ffffff',
         }
       ).setOrigin(0.5);
@@ -405,7 +393,6 @@ export class FishingScene extends Phaser.Scene {
         onComplete: () => warning.destroy(),
       });
 
-      // 鱼影冲向浮漂
       this.tweens.killTweensOf(fishShadow);
       this.tweens.add({
         targets: fishShadow,
@@ -416,7 +403,6 @@ export class FishingScene extends Phaser.Scene {
         ease: 'Power2',
       });
 
-      // 浮漂剧烈异动
       this.tweens.killTweensOf(bobber);
       this.tweens.add({
         targets: bobber,
@@ -426,7 +412,6 @@ export class FishingScene extends Phaser.Scene {
         repeat: tier === 'large' ? 7 : 5
       });
 
-      // 鱼竿拉扯
       this.tweens.add({
         targets: rod,
         x: 220,
@@ -444,7 +429,6 @@ export class FishingScene extends Phaser.Scene {
       });
     });
 
-    // ===== 玩家点击拉杆 =====
     pullBtn.on('pointerdown', () => {
       SimpleAudio.click();
 

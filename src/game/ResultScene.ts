@@ -125,38 +125,38 @@ export class ResultScene extends Phaser.Scene {
     this.add.rectangle(375, 667, 750, 1334, success ? 0x2ecc71 : 0x34495e);
 
     if (!success) {
-      this.add.rectangle(375, 500, 650, 640, 0x000000, 0.12)
+      this.add.rectangle(375, 510, 660, 650, 0x000000, 0.12)
         .setStrokeStyle(2, 0xffffff, 0.14);
 
       this.add.text(375, 180, this.getFailTitle(failReason), {
-        fontSize: '56px',
+        fontSize: '58px',
         color: '#ffffff',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
-      this.add.text(375, 265, this.getFailDesc(failReason), {
-        fontSize: '28px',
+      this.add.text(375, 270, this.getFailDesc(failReason), {
+        fontSize: '30px',
         color: '#ffffff',
         wordWrap: { width: 620 },
         align: 'center',
       }).setOrigin(0.5);
 
-      this.add.text(375, 335, `第 ${round} 次钓鱼失手`, {
-        fontSize: '24px',
+      this.add.text(375, 340, `第 ${round} 次钓鱼失手`, {
+        fontSize: '26px',
         color: '#dff9fb',
       }).setOrigin(0.5);
 
-      this.add.text(375, 390, '再试一次，这次你会更准', {
-        fontSize: '24px',
+      this.add.text(375, 398, '再试一次，这次你会更准', {
+        fontSize: '26px',
         color: '#dff9fb',
       }).setOrigin(0.5);
 
-      const retry = this.add.rectangle(375, 555, 360, 90, 0x3498db)
+      const retry = this.add.rectangle(375, 560, 420, 96, 0x3498db)
         .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(3, 0xffffff, 0.16);
+        .setStrokeStyle(4, 0xffffff, 0.16);
 
-      this.add.text(375, 555, '再试一次', {
-        fontSize: '30px',
+      this.add.text(375, 560, '再试一次', {
+        fontSize: '32px',
         color: '#ffffff',
         fontStyle: 'bold',
       }).setOrigin(0.5);
@@ -166,12 +166,12 @@ export class ResultScene extends Phaser.Scene {
         this.scene.start('FishingScene');
       });
 
-      const revive = this.add.rectangle(375, 675, 360, 90, 0xf39c12)
+      const revive = this.add.rectangle(375, 685, 420, 96, 0xf39c12)
         .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(3, 0xffffff, 0.16);
+        .setStrokeStyle(4, 0xffffff, 0.16);
 
-      this.add.text(375, 675, '看广告再来一次', {
-        fontSize: '28px',
+      this.add.text(375, 685, '看广告再来一次', {
+        fontSize: '30px',
         color: '#ffffff',
         fontStyle: 'bold',
       }).setOrigin(0.5);
@@ -183,12 +183,12 @@ export class ResultScene extends Phaser.Scene {
         this.scene.start('FishingScene');
       });
 
-      const recover = this.add.rectangle(375, 795, 360, 90, 0x16a085)
+      const recover = this.add.rectangle(375, 810, 420, 96, 0x16a085)
         .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(3, 0xffffff, 0.16);
+        .setStrokeStyle(4, 0xffffff, 0.16);
 
-      this.add.text(375, 795, '看广告恢复体力', {
-        fontSize: '28px',
+      this.add.text(375, 810, '看广告恢复体力', {
+        fontSize: '30px',
         color: '#ffffff',
         fontStyle: 'bold',
       }).setOrigin(0.5);
@@ -201,12 +201,12 @@ export class ResultScene extends Phaser.Scene {
         this.scene.start('MainScene');
       });
 
-      const back = this.add.rectangle(375, 915, 260, 74, 0xe74c3c)
+      const back = this.add.rectangle(375, 940, 280, 78, 0xe74c3c)
         .setInteractive({ useHandCursor: true })
         .setStrokeStyle(2, 0xffffff, 0.14);
 
-      this.add.text(375, 915, '返回', {
-        fontSize: '26px',
+      this.add.text(375, 940, '返回', {
+        fontSize: '28px',
         color: '#ffffff',
       }).setOrigin(0.5);
 
@@ -230,43 +230,35 @@ export class ResultScene extends Phaser.Scene {
     const rarity = this.getRarityText(drop);
     const style = this.getPosterStyle(drop);
 
-    // ===== 海报区 =====
     const posterX = 375;
     const posterY = 350;
     const posterW = 620;
     const posterH = 650;
 
-    // 底层海报
     this.add.rectangle(posterX, posterY, posterW, posterH, style.bgBottom, 0.98)
       .setStrokeStyle(3, 0xffffff, 0.16);
 
-    // 顶部高亮层
     this.add.rectangle(posterX, posterY - 185, posterW, 210, style.bgTop, 0.82);
-
-    // 中部聚焦层
     this.add.circle(posterX, posterY - 10, 185, 0xffffff, 0.07);
     this.add.circle(posterX, posterY + 10, 130, 0xffffff, 0.06);
 
-    // 稀有度标签
-    this.add.rectangle(posterX, 88, 180, 44, style.tagBg, 0.88)
+    this.add.rectangle(posterX, 88, 190, 46, style.tagBg, 0.88)
       .setStrokeStyle(2, 0xffffff, 0.18);
 
     this.add.text(posterX, 88, rarity, {
-      fontSize: '22px',
+      fontSize: '24px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 顶部分享文案：缩小并贴近安全区
-    this.add.text(posterX, 150, shareText, {
-      fontSize: '28px',
+    this.add.text(posterX, 148, shareText, {
+      fontSize: '30px',
       color: '#ffffff',
       fontStyle: 'bold',
       wordWrap: { width: 500 },
       align: 'center',
     }).setOrigin(0.5);
 
-    // 主物品更大、更聚焦
     const glow = this.add.circle(posterX, 315, 135, style.accent, drop?.type === 'legend' ? 0.17 : 0.10);
 
     const icon = this.add.text(posterX, 305, emoji, {
@@ -292,35 +284,31 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    // 物品名称上移
     this.add.text(posterX, 455, drop?.name || '', {
-      fontSize: '48px',
+      fontSize: '50px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // flavor 文案更轻
     this.add.text(posterX, 520, drop?.flavor || '今天手气不错', {
-      fontSize: '24px',
+      fontSize: '26px',
       color: '#f4fbff',
       wordWrap: { width: 500 },
       align: 'center',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    // 底部品牌下沉
     this.add.text(posterX, 625, '🎣 钓鱼小游戏', {
-      fontSize: '22px',
+      fontSize: '24px',
       color: '#f4fbff',
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.92);
 
-    // ===== 按钮区 =====
-    const doubleBtn = this.add.rectangle(375, 770, 380, 88, 0xf39c12)
+    const doubleBtn = this.add.rectangle(375, 770, 420, 96, 0xf39c12)
       .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(3, 0xffffff, 0.16);
+      .setStrokeStyle(4, 0xffffff, 0.16);
 
     this.add.text(375, 770, rewarded ? '已领取奖励' : '看广告奖励翻倍', {
-      fontSize: '28px',
+      fontSize: '30px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -344,12 +332,12 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    const shareBtn = this.add.rectangle(375, 875, 380, 88, 0x3498db)
+    const shareBtn = this.add.rectangle(375, 890, 420, 96, 0x3498db)
       .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(3, 0xffffff, 0.16);
+      .setStrokeStyle(4, 0xffffff, 0.16);
 
-    this.add.text(375, 875, '分享战绩', {
-      fontSize: '30px',
+    this.add.text(375, 890, '分享战绩', {
+      fontSize: '32px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -369,12 +357,12 @@ export class ResultScene extends Phaser.Scene {
       });
     });
 
-    const backBtn = this.add.rectangle(375, 980, 260, 74, 0xe74c3c)
+    const backBtn = this.add.rectangle(375, 1015, 280, 78, 0xe74c3c)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(2, 0xffffff, 0.14);
 
-    this.add.text(375, 980, '返回', {
-      fontSize: '26px',
+    this.add.text(375, 1015, '返回', {
+      fontSize: '28px',
       color: '#ffffff',
     }).setOrigin(0.5);
 

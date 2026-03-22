@@ -15,77 +15,74 @@ export class MainScene extends Phaser.Scene {
   create() {
     SaveSync.load();
 
-    // 背景
     this.cameras.main.setBackgroundColor('#6ec6ff');
     this.add.rectangle(375, 667, 750, 1334, 0x8fd3ff);
     this.add.rectangle(375, 980, 750, 520, 0x1e88e5);
 
-    // 顶部信息卡
-    const topCard = this.add.rectangle(375, 155, 650, 210, 0x000000, 0.12)
-      .setStrokeStyle(2, 0xffffff, 0.15);
+    this.add.rectangle(375, 165, 660, 220, 0x000000, 0.10)
+      .setStrokeStyle(2, 0xffffff, 0.12);
 
     this.add.text(375, 72, `金币：${CoinManager.instance.getCoins()}`, {
-      fontSize: '30px',
+      fontSize: '32px',
       color: '#fff6a9',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     this.add.text(
       375,
-      110,
+      115,
       `体力：${EnergyManager.instance.getEnergy()} / ${EnergyManager.instance.getMaxEnergy()}`,
       {
-        fontSize: '24px',
+        fontSize: '26px',
         color: '#ffffff',
       }
     ).setOrigin(0.5);
 
     this.add.text(
       375,
-      145,
+      155,
       `今日已钓：${RoundManager.instance.getRoundCount()} 次`,
       {
-        fontSize: '22px',
+        fontSize: '24px',
         color: '#eaf6ff',
       }
     ).setOrigin(0.5);
 
     this.add.text(
       375,
-      185,
+      198,
       `今日最佳鱼获：${RecordManager.instance.getBestCatch()}`,
       {
-        fontSize: '22px',
+        fontSize: '24px',
         color: '#fff6a9',
       }
     ).setOrigin(0.5);
 
     this.add.text(
       375,
-      220,
+      238,
       `今日最离谱战绩：${RecordManager.instance.getWeirdCatch()}`,
       {
-        fontSize: '22px',
+        fontSize: '24px',
         color: '#ffeaa7',
       }
     ).setOrigin(0.5);
 
-    // 标题区
     const title = this.add.text(375, 385, '🎣 钓鱼小游戏', {
-      fontSize: '54px',
+      fontSize: '58px',
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#1565c0',
       strokeThickness: 6,
     }).setOrigin(0.5);
 
-    this.add.text(375, 445, '轻度 · 上瘾 · 可传播', {
-      fontSize: '24px',
+    this.add.text(375, 450, '轻度 · 上瘾 · 可传播', {
+      fontSize: '26px',
       color: '#ffffff',
     }).setOrigin(0.5);
 
-    this.add.text(375, 490, '看准时机，拉杆出货', {
-      fontSize: '20px',
+    this.add.text(375, 495, '看准时机，拉杆出货', {
+      fontSize: '22px',
       color: '#dff6ff',
     }).setOrigin(0.5);
 
@@ -97,13 +94,12 @@ export class MainScene extends Phaser.Scene {
       repeat: -1,
     });
 
-    // 开始按钮
-    const startBtn = this.add.rectangle(375, 640, 360, 100, 0xff6b6b)
+    const startBtn = this.add.rectangle(375, 650, 420, 116, 0xff6b6b)
       .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(3, 0xffffff, 0.18);
+      .setStrokeStyle(4, 0xffffff, 0.18);
 
-    this.add.text(375, 640, '开始钓鱼', {
-      fontSize: '34px',
+    this.add.text(375, 650, '开始钓鱼', {
+      fontSize: '38px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -121,13 +117,12 @@ export class MainScene extends Phaser.Scene {
       this.scene.start('FishingScene');
     });
 
-    // 广告按钮
-    const adBtn = this.add.rectangle(375, 780, 390, 88, 0x9b59b6)
+    const adBtn = this.add.rectangle(375, 805, 450, 100, 0x9b59b6)
       .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(3, 0xffffff, 0.18);
+      .setStrokeStyle(4, 0xffffff, 0.18);
 
-    this.add.text(375, 780, '看广告继续钓（+3体力）', {
-      fontSize: '28px',
+    this.add.text(375, 805, '看广告继续钓（+3体力）', {
+      fontSize: '30px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -140,13 +135,12 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // 重置按钮
-    const resetBtn = this.add.rectangle(375, 910, 250, 68, 0x34495e)
+    const resetBtn = this.add.rectangle(375, 945, 280, 78, 0x34495e)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(2, 0xffffff, 0.15);
 
-    this.add.text(375, 910, '重置进度', {
-      fontSize: '24px',
+    this.add.text(375, 945, '重置进度', {
+      fontSize: '26px',
       color: '#ffffff',
     }).setOrigin(0.5);
 
@@ -156,9 +150,8 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // 底部轻装饰
-    this.add.text(375, 1030, '🌊 🌊 🌊', {
-      fontSize: '28px',
+    this.add.text(375, 1050, '🌊 🌊 🌊', {
+      fontSize: '30px',
       color: '#dff6ff',
     }).setOrigin(0.5);
   }
