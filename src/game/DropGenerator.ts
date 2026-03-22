@@ -42,9 +42,8 @@ const mythFish: DropItem[] = [
   { name: '黄金锦鲤', type: 'legend', reward: 200, flavor: '我直接欧皇了？？？' },
 ];
 
-// 离谱物：情绪爆点
+// 离谱物：精简版
 const lightTrashItems: DropItem[] = [
-  { name: '塑料袋', type: 'trash', reward: 12, flavor: '环保警告出现了' },
   { name: '破袜子', type: 'trash', reward: 15, flavor: '这谁的袜子？？？' },
   { name: '拖鞋', type: 'trash', reward: 16, flavor: '另一只去哪了？' },
   { name: '树枝', type: 'trash', reward: 10, flavor: '这也算收获吗…' },
@@ -52,17 +51,12 @@ const lightTrashItems: DropItem[] = [
 
 const strongTrashItems: DropItem[] = [
   { name: '内裤', type: 'trash', reward: 18, flavor: '这水里到底发生过什么…' },
-  { name: '盲盒', type: 'trash', reward: 28, flavor: '这玩意居然从水里出来？' },
-  { name: 'iPhone', type: 'trash', reward: 35, flavor: '还能开机就离谱了' },
-  { name: '电饭煲', type: 'trash', reward: 26, flavor: '今晚能直接开饭？' },
   { name: '螃蟹', type: 'trash', reward: 40, flavor: '今晚加餐有了' },
   { name: '乌龟', type: 'trash', reward: 45, flavor: '这也能钓上来？？？' },
-  { name: '泥鳅', type: 'trash', reward: 14, flavor: '这也算收获吗…' },
 ];
 
-// 神物：非鱼类大爽点
+// 神物：去掉金条
 const legendItems: DropItem[] = [
-  { name: '金条', type: 'legend', reward: 260, flavor: '今天手气爆炸' },
   { name: '钻石戒指', type: 'legend', reward: 320, flavor: '我直接欧皇了？？？' },
   { name: '神秘宝箱', type: 'legend', reward: 280, flavor: '命运开始改变了' },
 ];
@@ -71,16 +65,11 @@ function randomFrom<T>(list: T[]): T {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-function allFishPool(): DropItem[] {
-  return [...commonFish, ...goodFish, ...rareFish];
-}
-
 function allLegendPool(): DropItem[] {
   return [...mythFish, ...legendItems];
 }
 
 export class DropGenerator {
-  // 兼容旧调用
   static generateByCategory(category: DropCategory = 'random'): DropItem {
     switch (category) {
       case 'fish':
@@ -95,7 +84,6 @@ export class DropGenerator {
     }
   }
 
-  // 鱼类专用随机
   static generateFishOnly(): DropItem {
     const combo = DirectorSystem.getCombo();
 
@@ -125,7 +113,7 @@ export class DropGenerator {
   }
 
   static generateTrash(): DropItem {
-    return Math.random() < 0.35
+    return Math.random() < 0.45
       ? randomFrom(lightTrashItems)
       : randomFrom(strongTrashItems);
   }
@@ -134,7 +122,6 @@ export class DropGenerator {
     return randomFrom(allLegendPool());
   }
 
-  // 前期保护：稳稳给鱼
   static generateSafeFish(): DropItem {
     return DirectorSystem.pickWeighted<DropItem>([
       { item: randomFrom(commonFish), weight: 72 },
@@ -143,82 +130,79 @@ export class DropGenerator {
     ]);
   }
 
-  // 有趣结果：离谱物 / 稀有鱼 / 神物
   static generateInteresting(): DropItem {
     const combo = DirectorSystem.getCombo();
 
     if (combo >= 4) {
       return DirectorSystem.pickWeighted<DropItem>([
-        { item: randomFrom(goodFish), weight: 16 },
-        { item: randomFrom(rareFish), weight: 22 },
+        { item: randomFrom(goodFish), weight: 18 },
+        { item: randomFrom(rareFish), weight: 24 },
         { item: randomFrom(strongTrashItems), weight: 36 },
-        { item: randomFrom(allLegendPool()), weight: 26 },
+        { item: randomFrom(allLegendPool()), weight: 22 },
       ]);
     }
 
     return DirectorSystem.pickWeighted<DropItem>([
-      { item: randomFrom(goodFish), weight: 18 },
-      { item: randomFrom(rareFish), weight: 12 },
-      { item: randomFrom(strongTrashItems), weight: 50 },
+      { item: randomFrom(goodFish), weight: 20 },
+      { item: randomFrom(rareFish), weight: 14 },
+      { item: randomFrom(strongTrashItems), weight: 46 },
       { item: randomFrom(allLegendPool()), weight: 20 },
     ]);
   }
 
-  // 好货杆：更容易出优质鱼 / 稀有鱼 / 传说鱼
   static generateGoodShot(): DropItem {
     const combo = DirectorSystem.getCombo();
 
     if (combo >= 3) {
       return DirectorSystem.pickWeighted<DropItem>([
-        { item: randomFrom(goodFish), weight: 34 },
+        { item: randomFrom(goodFish), weight: 36 },
         { item: randomFrom(rareFish), weight: 28 },
         { item: randomFrom(mythFish), weight: 18 },
         { item: randomFrom(strongTrashItems), weight: 12 },
-        { item: randomFrom(legendItems), weight: 8 },
+        { item: randomFrom(legendItems), weight: 6 },
       ]);
     }
 
     return DirectorSystem.pickWeighted<DropItem>([
-      { item: randomFrom(goodFish), weight: 40 },
+      { item: randomFrom(goodFish), weight: 42 },
       { item: randomFrom(rareFish), weight: 24 },
       { item: randomFrom(mythFish), weight: 10 },
       { item: randomFrom(strongTrashItems), weight: 18 },
-      { item: randomFrom(legendItems), weight: 8 },
+      { item: randomFrom(legendItems), weight: 6 },
     ]);
   }
 
-  // 总随机池：重新平衡鱼类比重，避免“垃圾比鱼更像主角”
   static generate(): DropItem {
     const combo = DirectorSystem.getCombo();
 
     if (combo >= 5) {
       return DirectorSystem.pickWeighted<DropItem>([
-        { item: randomFrom(commonFish), weight: 20 },
-        { item: randomFrom(goodFish), weight: 26 },
+        { item: randomFrom(commonFish), weight: 24 },
+        { item: randomFrom(goodFish), weight: 28 },
         { item: randomFrom(rareFish), weight: 18 },
-        { item: randomFrom(lightTrashItems), weight: 10 },
-        { item: randomFrom(strongTrashItems), weight: 16 },
-        { item: randomFrom(allLegendPool()), weight: 10 },
+        { item: randomFrom(lightTrashItems), weight: 8 },
+        { item: randomFrom(strongTrashItems), weight: 14 },
+        { item: randomFrom(allLegendPool()), weight: 8 },
       ]);
     }
 
     if (combo >= 3) {
       return DirectorSystem.pickWeighted<DropItem>([
-        { item: randomFrom(commonFish), weight: 28 },
+        { item: randomFrom(commonFish), weight: 32 },
         { item: randomFrom(goodFish), weight: 24 },
         { item: randomFrom(rareFish), weight: 14 },
-        { item: randomFrom(lightTrashItems), weight: 10 },
+        { item: randomFrom(lightTrashItems), weight: 8 },
         { item: randomFrom(strongTrashItems), weight: 16 },
-        { item: randomFrom(allLegendPool()), weight: 8 },
+        { item: randomFrom(allLegendPool()), weight: 6 },
       ]);
     }
 
     return DirectorSystem.pickWeighted<DropItem>([
-      { item: randomFrom(commonFish), weight: 40 },
+      { item: randomFrom(commonFish), weight: 44 },
       { item: randomFrom(goodFish), weight: 18 },
       { item: randomFrom(rareFish), weight: 8 },
-      { item: randomFrom(lightTrashItems), weight: 10 },
-      { item: randomFrom(strongTrashItems), weight: 18 },
+      { item: randomFrom(lightTrashItems), weight: 8 },
+      { item: randomFrom(strongTrashItems), weight: 16 },
       { item: randomFrom(allLegendPool()), weight: 6 },
     ]);
   }
