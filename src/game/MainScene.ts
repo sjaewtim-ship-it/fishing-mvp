@@ -18,10 +18,12 @@ type Swimmer = {
 
 export class MainScene extends Phaser.Scene {
   private swimmers: Swimmer[] = [];
-  private readonly waterLeft = 36;
-  private readonly waterRight = 714;
-  private readonly waterTop = 770;
-  private readonly waterBottom = 1268;
+
+  // 水域缩小约 35%
+  private readonly waterLeft = 90;
+  private readonly waterRight = 660;
+  private readonly waterTop = 840;
+  private readonly waterBottom = 1165;
 
   constructor() {
     super('MainScene');
@@ -52,7 +54,7 @@ export class MainScene extends Phaser.Scene {
     return this.swimmers.some((s) => {
       const dx = s.sprite.x - x;
       const dy = s.sprite.y - y;
-      const minDist = s.radius + radius + 18;
+      const minDist = s.radius + radius + 10;
       return dx * dx + dy * dy < minDist * minDist;
     });
   }
@@ -66,20 +68,17 @@ export class MainScene extends Phaser.Scene {
     alpha = 0.95,
     fixedBand?: { minY: number; maxY: number }
   ) {
-    const radius = Math.max(18, fontSize * 0.34);
+    const radius = Math.max(16, fontSize * 0.34);
 
     let x = 100;
     let y = 900;
     let found = false;
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 120; i++) {
       x = Phaser.Math.Between(this.waterLeft + radius, this.waterRight - radius);
-
-      if (fixedBand) {
-        y = Phaser.Math.Between(fixedBand.minY, fixedBand.maxY);
-      } else {
-        y = Phaser.Math.Between(this.waterTop + radius, this.waterBottom - radius);
-      }
+      y = fixedBand
+        ? Phaser.Math.Between(fixedBand.minY, fixedBand.maxY)
+        : Phaser.Math.Between(this.waterTop + radius, this.waterBottom - radius);
 
       if (!this.isOverlapping(x, y, radius)) {
         found = true;
@@ -124,7 +123,7 @@ export class MainScene extends Phaser.Scene {
 
     // 背景
     this.add.rectangle(375, 667, 750, 1334, 0x8fd3ff);
-    this.add.rectangle(375, 1047, 750, 574, 0x1e88e5);
+    this.add.rectangle(375, 1060, 750, 548, 0x1e88e5);
 
     // 白云
     const cloud1 = this.add.text(110, 86, '☁️', { fontSize: '42px' }).setAlpha(0.88);
@@ -173,12 +172,12 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 信息模块总背景：完整覆盖 4 个子模块
-    this.add.rectangle(375, 350, 676, 226, 0x000000, 0.11)
+    // 信息模块：上下增高约20%，并整体更协调
+    this.add.rectangle(375, 365, 680, 272, 0x000000, 0.11)
       .setStrokeStyle(2, 0xffffff, 0.14);
 
     // 第一行：金币 / 体力
-    this.add.rectangle(235, 305, 262, 80, 0xffffff, 0.09)
+    this.add.rectangle(235, 305, 272, 86, 0xffffff, 0.09)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
     this.add.text(145, 305, '🪙', {
@@ -186,49 +185,49 @@ export class MainScene extends Phaser.Scene {
       color: '#FFD54F',
     }).setOrigin(0.5);
 
-    this.add.text(260, 286, '金币', {
+    this.add.text(260, 284, '金币', {
       fontSize: '20px',
       color: '#DFF6FF',
     }).setOrigin(0.5);
 
-    this.add.text(260, 318, `${coins}`, {
+    this.add.text(260, 320, `${coins}`, {
       fontSize: '30px',
       color: '#FFE082',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.rectangle(515, 305, 262, 80, 0xffffff, 0.09)
+    this.add.rectangle(515, 305, 272, 86, 0xffffff, 0.09)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
     this.add.text(425, 305, '⚡', {
       fontSize: '30px',
     }).setOrigin(0.5);
 
-    this.add.text(540, 286, '体力值', {
+    this.add.text(540, 284, '体力值', {
       fontSize: '20px',
       color: '#DFF6FF',
     }).setOrigin(0.5);
 
-    this.add.text(540, 318, `${energy}/${maxEnergy}`, {
+    this.add.text(540, 320, `${energy}/${maxEnergy}`, {
       fontSize: '30px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     // 第二行：最佳 / 最离谱
-    this.add.rectangle(235, 415, 262, 96, 0xffffff, 0.08)
+    this.add.rectangle(235, 435, 272, 104, 0xffffff, 0.08)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
-    this.add.text(145, 415, '⭐', {
+    this.add.text(145, 435, '⭐', {
       fontSize: '28px',
     }).setOrigin(0.5);
 
-    this.add.text(260, 394, '今日最佳渔获', {
+    this.add.text(260, 410, '今日最佳渔获', {
       fontSize: '18px',
       color: '#DFF6FF',
     }).setOrigin(0.5);
 
-    this.add.text(260, 430, bestCatch, {
+    this.add.text(260, 452, bestCatch, {
       fontSize: '26px',
       color: '#FFE082',
       fontStyle: 'bold',
@@ -236,19 +235,19 @@ export class MainScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    this.add.rectangle(515, 415, 262, 96, 0xffffff, 0.08)
+    this.add.rectangle(515, 435, 272, 104, 0xffffff, 0.08)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
-    this.add.text(425, 415, '🤯', {
+    this.add.text(425, 435, '🤯', {
       fontSize: '28px',
     }).setOrigin(0.5);
 
-    this.add.text(540, 394, '今日最离谱战绩', {
+    this.add.text(540, 410, '今日最离谱战绩', {
       fontSize: '18px',
       color: '#DFF6FF',
     }).setOrigin(0.5);
 
-    this.add.text(540, 430, weirdCatch, {
+    this.add.text(540, 452, weirdCatch, {
       fontSize: '26px',
       color: '#FFD180',
       fontStyle: 'bold',
@@ -256,20 +255,20 @@ export class MainScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    // 按钮
-    const startBtn = this.add.rectangle(375, 555, 410, 100, 0xff5f5f)
+    // 按钮区：和整体布局更和谐
+    const startBtn = this.add.rectangle(375, 600, 400, 96, 0xff5f5f)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.20);
 
-    this.add.text(375, 555, '开始钓鱼', {
-      fontSize: '36px',
+    this.add.text(375, 600, '开始钓鱼', {
+      fontSize: '34px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     this.tweens.add({
       targets: startBtn,
-      scale: 1.04,
+      scale: 1.035,
       duration: 850,
       yoyo: true,
       repeat: -1,
@@ -288,12 +287,12 @@ export class MainScene extends Phaser.Scene {
       this.scene.start('FishingScene');
     });
 
-    const adBtn = this.add.rectangle(375, 670, 410, 88, 0x9b59b6)
+    const adBtn = this.add.rectangle(375, 705, 400, 84, 0x9b59b6)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.18);
 
-    this.add.text(375, 670, '🎬 补充体力', {
-      fontSize: '30px',
+    this.add.text(375, 705, '🎬 补充体力', {
+      fontSize: '28px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -323,32 +322,23 @@ export class MainScene extends Phaser.Scene {
     });
 
     // 水下文案
-    this.add.text(375, 735, '水下似乎有东西在游动…', {
+    this.add.text(375, 775, '水下似乎有东西在游动…', {
       fontSize: '22px',
       color: '#EAF6FF',
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    // 随机水生物：大小符合常识
-    // 鱼：中小型，中速
-    this.createSwimmer('🐟', 28, 'fish', 0.95, 0.35, 0.92);
-    this.createSwimmer('🐠', 26, 'fish', 0.90, 0.30, 0.88);
-    this.createSwimmer('🐡', 34, 'fish', 0.70, 0.25, 0.86);
+    // 生物：水域更紧凑，整体更和谐
+    this.createSwimmer('🐟', 26, 'fish', 0.85, 0.26, 0.92);
+    this.createSwimmer('🐠', 24, 'fish', 0.80, 0.24, 0.88);
+    this.createSwimmer('🐡', 30, 'fish', 0.62, 0.20, 0.86);
 
-    // 螃蟹：偏小，贴底横向为主
-    this.createSwimmer('🦀', 26, 'crab', 0.75, 0.08, 0.95, { minY: 1120, maxY: 1230 });
+    this.createSwimmer('🦀', 24, 'crab', 0.65, 0.06, 0.95, { minY: 1090, maxY: 1160 });
+    this.createSwimmer('🦞', 28, 'lobster', 0.55, 0.08, 0.95, { minY: 1040, maxY: 1145 });
+    this.createSwimmer('🐢', 32, 'turtle', 0.34, 0.10, 0.94, { minY: 960, maxY: 1100 });
+    this.createSwimmer('🐙', 34, 'octopus', 0.30, 0.18, 0.92, { minY: 910, maxY: 1060 });
 
-    // 龙虾：中等偏大，底部移动
-    this.createSwimmer('🦞', 30, 'lobster', 0.68, 0.10, 0.95, { minY: 1070, maxY: 1220 });
-
-    // 乌龟：更大，更慢
-    this.createSwimmer('🐢', 34, 'turtle', 0.42, 0.12, 0.94, { minY: 980, maxY: 1180 });
-
-    // 章鱼：较大，慢速漂移
-    this.createSwimmer('🐙', 36, 'octopus', 0.36, 0.22, 0.92, { minY: 930, maxY: 1130 });
-
-    // 底部浪花装饰
-    this.add.text(375, 1248, '🌊   🌊   🌊', {
+    this.add.text(375, 1250, '🌊   🌊   🌊', {
       fontSize: '28px',
       color: '#DFF6FF',
     }).setOrigin(0.5).setAlpha(0.82);
@@ -356,29 +346,8 @@ export class MainScene extends Phaser.Scene {
 
   update() {
     for (const s of this.swimmers) {
-      // 不同物种不同运动规律
-      switch (s.kind) {
-        case 'fish':
-          s.sprite.x += s.vx;
-          s.sprite.y += s.vy;
-          break;
-        case 'crab':
-          s.sprite.x += s.vx;
-          s.sprite.y += s.vy;
-          break;
-        case 'lobster':
-          s.sprite.x += s.vx;
-          s.sprite.y += s.vy;
-          break;
-        case 'turtle':
-          s.sprite.x += s.vx;
-          s.sprite.y += s.vy;
-          break;
-        case 'octopus':
-          s.sprite.x += s.vx;
-          s.sprite.y += s.vy;
-          break;
-      }
+      s.sprite.x += s.vx;
+      s.sprite.y += s.vy;
 
       if (s.sprite.x <= this.waterLeft + s.radius) {
         s.sprite.x = this.waterLeft + s.radius;
