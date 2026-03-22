@@ -19,7 +19,6 @@ type Swimmer = {
 export class MainScene extends Phaser.Scene {
   private swimmers: Swimmer[] = [];
 
-  // 水域再缩小 15%~20%
   private readonly waterLeft = 125;
   private readonly waterRight = 625;
   private readonly waterTop = 905;
@@ -172,8 +171,8 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 信息模块
-    this.add.rectangle(394, 356, 708, 230, 0x000000, 0.11)
+    // 信息模块总区域放大约 15%，子块保持不变
+    this.add.rectangle(394, 360, 814, 265, 0x000000, 0.11)
       .setStrokeStyle(2, 0xffffff, 0.14);
 
     const leftX = 225;
@@ -324,14 +323,14 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // 文案置于水面上方，紧邻水面
-    this.add.text(375, 835, '水下似乎有东西在游动…', {
+    // 文案放到水面上方，紧邻水面
+    this.add.text(375, 882, '水下似乎有东西在游动…', {
       fontSize: '22px',
       color: '#EAF6FF',
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    // 水下环境：保留珊瑚 / 水草 / 沙地
+    // 水下环境
     const sandColor = 0xd8c28a;
     this.add.ellipse(210, 1195, 210, 56, sandColor, 0.95);
     this.add.ellipse(385, 1212, 240, 66, sandColor, 0.95);
@@ -345,17 +344,13 @@ export class MainScene extends Phaser.Scene {
     this.add.text(470, 1166, '🌿', { fontSize: '48px' }).setOrigin(0.5).setAlpha(0.9);
     this.add.text(610, 1172, '🌱', { fontSize: '40px' }).setOrigin(0.5).setAlpha(0.88);
 
-    // 更自然的动物：鱼 / 螃蟹 / 乌龟
-    // 鱼：中速，轻微上下
-    this.createSwimmer('🐟', 40, 'fish', 0.78, 0.14, 0.92, { minY: 900, maxY: 1015 });
-    this.createSwimmer('🐠', 36, 'fish', 0.72, 0.12, 0.88, { minY: 915, maxY: 1025 });
-    this.createSwimmer('🐡', 48, 'fish', 0.48, 0.10, 0.86, { minY: 940, maxY: 1045 });
+    // 生物：更自然
+    this.createSwimmer('🐟', 40, 'fish', 0.78, 0.14, 0.92, { minY: 920, maxY: 1005 });
+    this.createSwimmer('🐠', 36, 'fish', 0.72, 0.12, 0.88, { minY: 930, maxY: 1015 });
+    this.createSwimmer('🐡', 48, 'fish', 0.48, 0.10, 0.86, { minY: 950, maxY: 1035 });
 
-    // 螃蟹：贴底，横向为主
-    this.createSwimmer('🦀', 40, 'crab', 0.42, 0.03, 0.95, { minY: 1065, maxY: 1110 });
-
-    // 乌龟：更大更慢更稳
-    this.createSwimmer('🐢', 56, 'turtle', 0.24, 0.05, 0.94, { minY: 980, maxY: 1080 });
+    this.createSwimmer('🦀', 40, 'crab', 0.42, 0.03, 0.95, { minY: 1068, maxY: 1110 });
+    this.createSwimmer('🐢', 56, 'turtle', 0.24, 0.05, 0.94, { minY: 985, maxY: 1070 });
 
     this.add.text(375, 1248, '🌊   🌊   🌊', {
       fontSize: '28px',
@@ -398,7 +393,6 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
-    // 相遇反向
     for (let i = 0; i < this.swimmers.length; i++) {
       for (let j = i + 1; j < this.swimmers.length; j++) {
         const a = this.swimmers[i];
