@@ -70,48 +70,17 @@ export class ResultScene extends Phaser.Scene {
   }
 
   private getPosterStyle(drop?: DropItem) {
-    if (!drop) {
-      return {
-        bgTop: 0x4facfe,
-        bgBottom: 0x00c6ff,
-        accent: 0xeafcff,
-        tagBg: 0x1f6fb2,
-      };
-    }
-
-    if (drop.type === 'legend') {
-      return {
-        bgTop: 0xf6d365,
-        bgBottom: 0xfda085,
-        accent: 0xfff3b0,
-        tagBg: 0xb9770e,
-      };
-    }
+    if (!drop) return { bgTop: 0x4facfe, bgBottom: 0x00c6ff, accent: 0xeafcff, tagBg: 0x1f6fb2 };
+    if (drop.type === 'legend') return { bgTop: 0xf6d365, bgBottom: 0xfda085, accent: 0xfff3b0, tagBg: 0xb9770e };
 
     if (drop.type === 'trash') {
       if (['iPhone', '比基尼', '盲盒', '龙虾', '乌龟'].includes(drop.name)) {
-        return {
-          bgTop: 0x667eea,
-          bgBottom: 0x764ba2,
-          accent: 0xf0e6ff,
-          tagBg: 0x4b3f8f,
-        };
+        return { bgTop: 0x667eea, bgBottom: 0x764ba2, accent: 0xf0e6ff, tagBg: 0x4b3f8f };
       }
-
-      return {
-        bgTop: 0x36d1dc,
-        bgBottom: 0x5b86e5,
-        accent: 0xeafcff,
-        tagBg: 0x2266aa,
-      };
+      return { bgTop: 0x36d1dc, bgBottom: 0x5b86e5, accent: 0xeafcff, tagBg: 0x2266aa };
     }
 
-    return {
-      bgTop: 0x43e97b,
-      bgBottom: 0x38f9d7,
-      accent: 0xeefff7,
-      tagBg: 0x1f9d74,
-    };
+    return { bgTop: 0x43e97b, bgBottom: 0x38f9d7, accent: 0xeefff7, tagBg: 0x1f9d74 };
   }
 
   create(data: ResultData) {
@@ -121,8 +90,8 @@ export class ResultScene extends Phaser.Scene {
     const rewarded = data.rewarded ?? false;
     const failReason = data.failReason;
 
-    this.cameras.main.setBackgroundColor(success ? '#2ecc71' : '#34495e');
-    this.add.rectangle(375, 667, 750, 1334, success ? 0x2ecc71 : 0x34495e);
+    this.cameras.main.setBackgroundColor(success ? '#8FD3FF' : '#34495E');
+    this.add.rectangle(375, 667, 750, 1334, success ? 0x8fd3ff : 0x34495e);
 
     if (!success) {
       this.add.rectangle(375, 510, 660, 650, 0x000000, 0.12)
@@ -130,34 +99,34 @@ export class ResultScene extends Phaser.Scene {
 
       this.add.text(375, 180, this.getFailTitle(failReason), {
         fontSize: '58px',
-        color: '#ffffff',
+        color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
       this.add.text(375, 270, this.getFailDesc(failReason), {
         fontSize: '30px',
-        color: '#ffffff',
+        color: '#FFFFFF',
         wordWrap: { width: 620 },
         align: 'center',
       }).setOrigin(0.5);
 
       this.add.text(375, 340, `第 ${round} 次钓鱼失手`, {
         fontSize: '26px',
-        color: '#dff9fb',
+        color: '#DFF9FB',
       }).setOrigin(0.5);
 
-      this.add.text(375, 398, '再试一次，这次你会更准', {
+      this.add.text(375, 398, '别急，再来一杆更容易中', {
         fontSize: '26px',
-        color: '#dff9fb',
+        color: '#FFF3B0',
       }).setOrigin(0.5);
 
-      const retry = this.add.rectangle(375, 560, 420, 96, 0x3498db)
+      const retry = this.add.rectangle(375, 560, 430, 98, 0xff6b6b)
         .setInteractive({ useHandCursor: true })
         .setStrokeStyle(4, 0xffffff, 0.16);
 
       this.add.text(375, 560, '再试一次', {
-        fontSize: '32px',
-        color: '#ffffff',
+        fontSize: '34px',
+        color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
@@ -166,13 +135,13 @@ export class ResultScene extends Phaser.Scene {
         this.scene.start('FishingScene');
       });
 
-      const revive = this.add.rectangle(375, 685, 420, 96, 0xf39c12)
+      const revive = this.add.rectangle(375, 690, 430, 98, 0x9b59b6)
         .setInteractive({ useHandCursor: true })
         .setStrokeStyle(4, 0xffffff, 0.16);
 
-      this.add.text(375, 685, '看广告再来一次', {
+      this.add.text(375, 690, '看广告再来一次', {
         fontSize: '30px',
-        color: '#ffffff',
+        color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
@@ -183,13 +152,13 @@ export class ResultScene extends Phaser.Scene {
         this.scene.start('FishingScene');
       });
 
-      const recover = this.add.rectangle(375, 810, 420, 96, 0x16a085)
+      const recover = this.add.rectangle(375, 820, 430, 98, 0xf39c12)
         .setInteractive({ useHandCursor: true })
         .setStrokeStyle(4, 0xffffff, 0.16);
 
-      this.add.text(375, 810, '看广告恢复体力', {
+      this.add.text(375, 820, '看广告恢复体力', {
         fontSize: '30px',
-        color: '#ffffff',
+        color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
@@ -201,13 +170,13 @@ export class ResultScene extends Phaser.Scene {
         this.scene.start('MainScene');
       });
 
-      const back = this.add.rectangle(375, 940, 280, 78, 0xe74c3c)
+      const back = this.add.rectangle(375, 950, 280, 78, 0x34495e)
         .setInteractive({ useHandCursor: true })
         .setStrokeStyle(2, 0xffffff, 0.14);
 
-      this.add.text(375, 940, '返回', {
+      this.add.text(375, 950, '返回首页', {
         fontSize: '28px',
-        color: '#ffffff',
+        color: '#FFFFFF',
       }).setOrigin(0.5);
 
       back.on('pointerdown', () => {
@@ -247,13 +216,13 @@ export class ResultScene extends Phaser.Scene {
 
     this.add.text(posterX, 88, rarity, {
       fontSize: '24px',
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     this.add.text(posterX, 148, shareText, {
       fontSize: '30px',
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontStyle: 'bold',
       wordWrap: { width: 500 },
       align: 'center',
@@ -286,30 +255,30 @@ export class ResultScene extends Phaser.Scene {
 
     this.add.text(posterX, 455, drop?.name || '', {
       fontSize: '50px',
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     this.add.text(posterX, 520, drop?.flavor || '今天手气不错', {
       fontSize: '26px',
-      color: '#f4fbff',
+      color: '#F4FBFF',
       wordWrap: { width: 500 },
       align: 'center',
     }).setOrigin(0.5).setAlpha(0.95);
 
     this.add.text(posterX, 625, '🎣 钓鱼小游戏', {
       fontSize: '24px',
-      color: '#f4fbff',
+      color: '#F4FBFF',
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.92);
 
-    const doubleBtn = this.add.rectangle(375, 770, 420, 96, 0xf39c12)
+    const doubleBtn = this.add.rectangle(375, 770, 430, 98, 0xf39c12)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.16);
 
     this.add.text(375, 770, rewarded ? '已领取奖励' : '看广告奖励翻倍', {
       fontSize: '30px',
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -332,13 +301,13 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    const shareBtn = this.add.rectangle(375, 890, 420, 96, 0x3498db)
+    const shareBtn = this.add.rectangle(375, 895, 430, 98, 0x9b59b6)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.16);
 
-    this.add.text(375, 890, '分享战绩', {
+    this.add.text(375, 895, '分享战绩', {
       fontSize: '32px',
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -357,13 +326,13 @@ export class ResultScene extends Phaser.Scene {
       });
     });
 
-    const backBtn = this.add.rectangle(375, 1015, 280, 78, 0xe74c3c)
+    const backBtn = this.add.rectangle(375, 1015, 280, 78, 0x34495e)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(2, 0xffffff, 0.14);
 
-    this.add.text(375, 1015, '返回', {
+    this.add.text(375, 1015, '返回首页', {
       fontSize: '28px',
-      color: '#ffffff',
+      color: '#FFFFFF',
     }).setOrigin(0.5);
 
     backBtn.on('pointerdown', () => {

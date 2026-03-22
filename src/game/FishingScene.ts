@@ -24,7 +24,6 @@ export class FishingScene extends Phaser.Scene {
 
     if (largeNames.includes(drop.name)) return 'large';
     if (smallNames.includes(drop.name)) return 'small';
-
     return 'medium';
   }
 
@@ -65,7 +64,7 @@ export class FishingScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor('#6ec6ff');
+    this.cameras.main.setBackgroundColor('#8FD3FF');
 
     const round = RoundManager.instance.nextRound();
     AnalyticsManager.instance.onStartRound();
@@ -83,27 +82,27 @@ export class FishingScene extends Phaser.Scene {
     const tierConfig = this.getTierConfig(tier);
 
     this.add.rectangle(375, 667, 750, 1334, 0x8fd3ff);
-    this.add.rectangle(375, 980, 750, 520, 0x1e88e5);
-    this.add.rectangle(375, 570, 750, 6, 0xeafcff).setAlpha(0.8);
+    this.add.rectangle(375, 995, 750, 510, 0x1e88e5);
+    this.add.rectangle(375, 570, 750, 6, 0xeafcff).setAlpha(0.85);
 
     this.add.rectangle(375, 150, 640, 145, 0x000000, 0.10)
       .setStrokeStyle(2, 0xffffff, 0.12);
 
     this.add.text(375, 90, `第 ${round} 次钓鱼`, {
       fontSize: '32px',
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     const statusText = this.add.text(375, 138, '抛竿中…', {
       fontSize: '30px',
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     const tipText = this.add.text(375, 186, '准备抛竿，把鱼饵扔进水里', {
       fontSize: '24px',
-      color: '#eaf6ff',
+      color: '#EAF6FF',
       wordWrap: { width: 580 },
       align: 'center',
     }).setOrigin(0.5);
@@ -114,7 +113,7 @@ export class FishingScene extends Phaser.Scene {
 
     this.add.rectangle(315, 420, 4, 180, 0xffffff).setOrigin(0.5, 0);
 
-    const bobber = this.add.circle(375, 585, 10, 0xff4757);
+    const bobber = this.add.circle(375, 585, 10, 0xff6b6b);
     const ripple1 = this.add.circle(375, 592, 20, 0xffffff, 0).setStrokeStyle(3, 0xffffff, 0.32);
     const ripple2 = this.add.circle(375, 592, 35, 0xffffff, 0).setStrokeStyle(2, 0xffffff, 0.2);
 
@@ -124,13 +123,13 @@ export class FishingScene extends Phaser.Scene {
 
     fishShadow.setTint(0x0f3057);
 
-    const pullBtn = this.add.rectangle(375, 955, 420, 120, 0x7f8c8d)
+    const pullBtn = this.add.rectangle(375, 955, 430, 120, 0x7f8c8d)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.14);
 
     const pullBtnText = this.add.text(375, 955, '等待咬钩…', {
       fontSize: '34px',
-      color: '#ecf0f1',
+      color: '#ECF0F1',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -141,7 +140,7 @@ export class FishingScene extends Phaser.Scene {
     const setPullIdle = () => {
       pullBtn.setFillStyle(0x7f8c8d);
       pullBtnText.setText('等待咬钩…');
-      pullBtnText.setColor('#ecf0f1');
+      pullBtnText.setColor('#ECF0F1');
       this.tweens.killTweensOf([pullBtn, pullBtnText]);
       pullBtn.setScale(1);
       pullBtnText.setScale(1);
@@ -150,7 +149,7 @@ export class FishingScene extends Phaser.Scene {
     const setPullActive = () => {
       pullBtn.setFillStyle(0xff6b6b);
       pullBtnText.setText('快拉！！');
-      pullBtnText.setColor('#ffffff');
+      pullBtnText.setColor('#FFFFFF');
 
       this.tweens.add({
         targets: [pullBtn, pullBtnText],
@@ -232,7 +231,7 @@ export class FishingScene extends Phaser.Scene {
 
       const failFlash = this.add.text(375, 320, '💢 跑了！', {
         fontSize: '56px',
-        color: '#ffffff',
+        color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
@@ -263,9 +262,9 @@ export class FishingScene extends Phaser.Scene {
       setPullIdle();
       SimpleAudio.success();
 
-      const successFlash = this.add.text(375, 320, '💥 拉中！', {
+      const successFlash = this.add.text(375, 320, '💥 拉中了！', {
         fontSize: '58px',
-        color: '#ffffff',
+        color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
@@ -379,7 +378,7 @@ export class FishingScene extends Phaser.Scene {
         tier === 'large' ? '🐟‼️' : '‼️',
         {
           fontSize: tier === 'large' ? '74px' : '84px',
-          color: '#ffffff',
+          color: '#FFFFFF',
         }
       ).setOrigin(0.5);
 
@@ -423,7 +422,7 @@ export class FishingScene extends Phaser.Scene {
       this.time.delayedCall(tierConfig.biteTimeout, () => {
         if (!resolved && phase === 'bite') {
           statusText.setText('太晚了！');
-          tipText.setText('鱼已经挣脱了');
+          tipText.setText('鱼已经跑了');
           resolveFail('late');
         }
       });
