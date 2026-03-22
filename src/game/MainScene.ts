@@ -1,13 +1,25 @@
 import Phaser from 'phaser';
 import { EnergyManager } from './EnergyManager';
 import { RecordManager } from './RecordManager';
-import { RoundManager } from './RoundManager';
 import { CoinManager } from './CoinManager';
 import { SaveSync } from './SaveSync';
 import { AnalyticsManager } from './AnalyticsManager';
 import { SimpleAudio } from './SimpleAudio';
 
+type Swimmer = {
+  sprite: Phaser.GameObjects.Text;
+  vx: number;
+  vy: number;
+  radius: number;
+};
+
 export class MainScene extends Phaser.Scene {
+  private swimmers: Swimmer[] = [];
+  private readonly waterLeft = 40;
+  private readonly waterRight = 710;
+  private readonly waterTop = 760;
+  private readonly waterBottom = 1280;
+
   constructor() {
     super('MainScene');
   }
@@ -33,26 +45,75 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
+  private randomVelocity(base: number) {
+    const sign = Math.random() > 0.5 ? 1 : -1;
+    return sign * Phaser.Math.Between(base - 6, base + 6);
+  }
+
+  private isOverlapping(x: number, y: number, radius: number) {
+    return this.swimmers.some((s) => {
+      const dx = s.sprite.x - x;
+      const dy = s.sprite.y - y;
+      const minDist = s.radius + radius + 12;
+      return dx * dx + dy * dy < minDist * minDist;
+    });
+  }
+
+  private createSwimmer(emoji: string, fontSize: number, baseSpeed: number, alpha = 0.95) {
+    const radius = Math.max(18, fontSize * 0.35);
+
+    let x = 100;
+    let y = 900;
+    let found = false;
+
+    for (let i = 0; i < 80; i++) {
+      x = Phaser.Math.Between(this.waterLeft + radius, this.waterRight - radius);
+      y = Phaser.Math.Between(this.waterTop + radius, this.waterBottom - radius);
+
+      if (!this.isOverlapping(x, y, radius)) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      x = Phaser.Math.Between(this.waterLeft + radius, this.waterRight - radius);
+      y = Phaser.Math.Between(this.waterTop + radius, this.waterBottom - radius);
+    }
+
+    const sprite = this.add.text(x, y, emoji, {
+      fontSize: `${fontSize}px`,
+    }).setOrigin(0.5).setAlpha(alpha);
+
+    this.swimmers.push({
+      sprite,
+      vx: this.randomVelocity(baseSpeed),
+      vy: this.randomVelocity(baseSpeed),
+      radius,
+    });
+  }
+
   create() {
     SaveSync.load();
+    this.swimmers = [];
 
     const coins = CoinManager.instance.getCoins();
     const energy = EnergyManager.instance.getEnergy();
     const maxEnergy = EnergyManager.instance.getMaxEnergy();
-    const roundCount = RoundManager.instance.getRoundCount();
     const bestCatch = RecordManager.instance.getBestCatch();
     const weirdCatch = RecordManager.instance.getWeirdCatch();
 
     this.cameras.main.setBackgroundColor('#8FD3FF');
 
-    // 背景：天空 + 水域 + 底部浅色区
+    // 背景
     this.add.rectangle(375, 667, 750, 1334, 0x8fd3ff);
-    this.add.rectangle(375, 960, 750, 300, 0x1e88e5);
-    this.add.rectangle(375, 1240, 750, 188, 0x8fd3ff);
+
+    // 深蓝水域直接铺到底
+    this.add.rectangle(375, 1047, 750, 574, 0x1e88e5);
 
     // 白云
-    const cloud1 = this.add.text(110, 92, '☁️', { fontSize: '42px' }).setAlpha(0.88);
-    const cloud2 = this.add.text(520, 118, '☁️ ☁️', { fontSize: '34px' }).setAlpha(0.82);
+    const cloud1 = this.add.text(110, 86, '☁️', { fontSize: '42px' }).setAlpha(0.88);
+    const cloud2 = this.add.text(520, 120, '☁️ ☁️', { fontSize: '34px' }).setAlpha(0.82);
     const cloud3 = this.add.text(640, 72, '☁️', { fontSize: '30px' }).setAlpha(0.76);
 
     this.tweens.add({
@@ -97,82 +158,97 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 信息模块（居中）
-    this.add.rectangle(375, 350, 660, 230, 0x000000, 0.10)
+    // 信息模块
+    this.add.rectangle(375, 345, 660, 210, 0x000000, 0.10)
       .setStrokeStyle(2, 0xffffff, 0.14);
 
-    // 第一行：金币 / 体力 / 已钓
-    this.add.text(130, 295, '🪙', {
+    // 第一行：金币 + 体力
+    this.add.rectangle(235, 305, 250, 76, 0xffffff, 0.09)
+      .setStrokeStyle(2, 0xffffff, 0.10);
+
+    this.add.text(145, 305, '🪙', {
       fontSize: '30px',
       color: '#FFD54F',
     }).setOrigin(0.5);
 
-    this.add.text(195, 295, `金币 ${coins}`, {
-      fontSize: '26px',
+    this.add.text(260, 286, '金币', {
+      fontSize: '20px',
+      color: '#DFF6FF',
+    }).setOrigin(0.5);
+
+    this.add.text(260, 318, `${coins}`, {
+      fontSize: '30px',
       color: '#FFE082',
       fontStyle: 'bold',
-    }).setOrigin(0, 0.5);
+    }).setOrigin(0.5);
 
-    this.add.text(355, 295, '⚡', {
+    this.add.rectangle(515, 305, 250, 76, 0xffffff, 0.09)
+      .setStrokeStyle(2, 0xffffff, 0.10);
+
+    this.add.text(425, 305, '⚡', {
       fontSize: '30px',
     }).setOrigin(0.5);
 
-    this.add.text(420, 295, `体力 ${energy}/${maxEnergy}`, {
-      fontSize: '26px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(0, 0.5);
-
-    this.add.text(595, 295, '🎯', {
-      fontSize: '28px',
+    this.add.text(540, 286, '体力值', {
+      fontSize: '20px',
+      color: '#DFF6FF',
     }).setOrigin(0.5);
 
-    this.add.text(645, 295, `已钓${roundCount}次`, {
-      fontSize: '24px',
+    this.add.text(540, 318, `${energy}/${maxEnergy}`, {
+      fontSize: '30px',
       color: '#FFFFFF',
       fontStyle: 'bold',
-    }).setOrigin(1, 0.5);
+    }).setOrigin(0.5);
 
     // 分隔线
-    this.add.line(375, 342, 95, 0, 655, 0, 0xffffff).setAlpha(0.12);
+    this.add.line(375, 350, 100, 0, 650, 0, 0xffffff).setAlpha(0.12);
 
     // 第二行：最佳 / 最离谱
-    this.add.text(130, 405, '⭐', {
-      fontSize: '30px',
+    this.add.rectangle(235, 415, 250, 92, 0xffffff, 0.08)
+      .setStrokeStyle(2, 0xffffff, 0.10);
+    this.add.rectangle(515, 415, 250, 92, 0xffffff, 0.08)
+      .setStrokeStyle(2, 0xffffff, 0.10);
+
+    this.add.text(145, 415, '⭐', {
+      fontSize: '28px',
     }).setOrigin(0.5);
 
-    this.add.text(195, 383, '今日最佳渔获', {
-      fontSize: '20px',
+    this.add.text(260, 394, '今日最佳渔获', {
+      fontSize: '18px',
       color: '#DFF6FF',
-    }).setOrigin(0, 0.5);
+    }).setOrigin(0.5);
 
-    this.add.text(195, 420, bestCatch, {
-      fontSize: '28px',
+    this.add.text(260, 430, bestCatch, {
+      fontSize: '26px',
       color: '#FFE082',
       fontStyle: 'bold',
-    }).setOrigin(0, 0.5);
-
-    this.add.text(400, 405, '🤯', {
-      fontSize: '30px',
+      wordWrap: { width: 180 },
+      align: 'center',
     }).setOrigin(0.5);
 
-    this.add.text(465, 383, '今日最离谱战绩', {
-      fontSize: '20px',
-      color: '#DFF6FF',
-    }).setOrigin(0, 0.5);
-
-    this.add.text(465, 420, weirdCatch, {
+    this.add.text(425, 415, '🤯', {
       fontSize: '28px',
+    }).setOrigin(0.5);
+
+    this.add.text(540, 394, '今日最离谱战绩', {
+      fontSize: '18px',
+      color: '#DFF6FF',
+    }).setOrigin(0.5);
+
+    this.add.text(540, 430, weirdCatch, {
+      fontSize: '26px',
       color: '#FFD180',
       fontStyle: 'bold',
-    }).setOrigin(0, 0.5);
+      wordWrap: { width: 180 },
+      align: 'center',
+    }).setOrigin(0.5);
 
-    // 按钮：缩小并放在信息块和水面之间
-    const startBtn = this.add.rectangle(375, 560, 410, 102, 0xff5f5f)
+    // 按钮
+    const startBtn = this.add.rectangle(375, 555, 410, 100, 0xff5f5f)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.20);
 
-    this.add.text(375, 560, '开始钓鱼', {
+    this.add.text(375, 555, '开始钓鱼', {
       fontSize: '36px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -199,11 +275,11 @@ export class MainScene extends Phaser.Scene {
       this.scene.start('FishingScene');
     });
 
-    const adBtn = this.add.rectangle(375, 680, 410, 90, 0x9b59b6)
+    const adBtn = this.add.rectangle(375, 670, 410, 88, 0x9b59b6)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.18);
 
-    this.add.text(375, 680, '🎬 补充体力', {
+    this.add.text(375, 670, '🎬 补充体力', {
       fontSize: '30px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -233,83 +309,73 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // 水面下文案，紧挨着
-    this.add.text(375, 748, '水下似乎有东西在游动…', {
+    // 水面下文案
+    this.add.text(375, 735, '水下似乎有东西在游动…', {
       fontSize: '22px',
       color: '#EAF6FF',
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    // 水面波浪动效
-    const wave1 = this.add.text(180, 790, '〰️〰️〰️', {
-      fontSize: '28px',
-      color: '#DFF6FF',
-    }).setOrigin(0.5).setAlpha(0.85);
+    // 随机生成水里生物
+    this.createSwimmer('🐟', 30, 18, 0.95);
+    this.createSwimmer('🐠', 28, 16, 0.9);
+    this.createSwimmer('🐡', 34, 14, 0.88);
+    this.createSwimmer('🦀', 30, 12, 0.95);
+    this.createSwimmer('🐢', 30, 10, 0.92);
+    this.createSwimmer('🦞', 32, 13, 0.95);
 
-    const wave2 = this.add.text(560, 790, '〰️〰️〰️', {
-      fontSize: '28px',
-      color: '#DFF6FF',
-    }).setOrigin(0.5).setAlpha(0.65);
-
-    this.tweens.add({
-      targets: wave1,
-      x: 220,
-      alpha: 0.55,
-      duration: 1400,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    this.tweens.add({
-      targets: wave2,
-      x: 520,
-      alpha: 0.85,
-      duration: 1600,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // 水里生物：区域收缩，不再像鱼缸
-    const fishA = this.add.text(120, 890, '🐟', { fontSize: '30px' }).setOrigin(0.5).setAlpha(0.95);
-    const fishB = this.add.text(600, 950, '🐠', { fontSize: '28px' }).setOrigin(0.5).setAlpha(0.90);
-    const fishC = this.add.text(220, 1035, '🐡', { fontSize: '34px' }).setOrigin(0.5).setAlpha(0.88);
-    const crab = this.add.text(120, 1120, '🦀', { fontSize: '30px' }).setOrigin(0.5).setAlpha(0.95);
-    const turtle = this.add.text(580, 1175, '🐢', { fontSize: '30px' }).setOrigin(0.5).setAlpha(0.92);
-    const lobster = this.add.text(220, 1235, '🦞', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.95);
-
-    const move = (obj: Phaser.GameObjects.Text, dist: number, speed: number, floatY = 12) => {
-      this.tweens.add({
-        targets: obj,
-        x: obj.x + dist,
-        duration: speed,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-
-      this.tweens.add({
-        targets: obj,
-        y: obj.y + floatY,
-        duration: 1200,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    };
-
-    move(fishA, 420, 5200, 14);
-    move(fishB, -380, 6100, 10);
-    move(fishC, 320, 6800, 16);
-    move(crab, 360, 7600, 6);
-    move(turtle, -280, 9200, 8);
-    move(lobster, 360, 7000, 8);
-
-    // 底部浅色区上的波浪装饰
-    this.add.text(375, 1245, '🌊   🌊   🌊', {
+    // 底部浪花装饰
+    this.add.text(375, 1248, '🌊   🌊   🌊', {
       fontSize: '28px',
       color: '#DFF6FF',
     }).setOrigin(0.5).setAlpha(0.82);
+  }
+
+  update() {
+    for (const s of this.swimmers) {
+      s.sprite.x += s.vx * 0.25;
+      s.sprite.y += s.vy * 0.25;
+
+      if (s.sprite.x <= this.waterLeft + s.radius) {
+        s.sprite.x = this.waterLeft + s.radius;
+        s.vx *= -1;
+      }
+      if (s.sprite.x >= this.waterRight - s.radius) {
+        s.sprite.x = this.waterRight - s.radius;
+        s.vx *= -1;
+      }
+      if (s.sprite.y <= this.waterTop + s.radius) {
+        s.sprite.y = this.waterTop + s.radius;
+        s.vy *= -1;
+      }
+      if (s.sprite.y >= this.waterBottom - s.radius) {
+        s.sprite.y = this.waterBottom - s.radius;
+        s.vy *= -1;
+      }
+    }
+
+    // 相遇反向
+    for (let i = 0; i < this.swimmers.length; i++) {
+      for (let j = i + 1; j < this.swimmers.length; j++) {
+        const a = this.swimmers[i];
+        const b = this.swimmers[j];
+
+        const dx = a.sprite.x - b.sprite.x;
+        const dy = a.sprite.y - b.sprite.y;
+        const minDist = a.radius + b.radius + 8;
+
+        if (dx * dx + dy * dy < minDist * minDist) {
+          a.vx *= -1;
+          a.vy *= -1;
+          b.vx *= -1;
+          b.vy *= -1;
+
+          a.sprite.x += a.vx * 0.5;
+          a.sprite.y += a.vy * 0.5;
+          b.sprite.x += b.vx * 0.5;
+          b.sprite.y += b.vy * 0.5;
+        }
+      }
+    }
   }
 }
