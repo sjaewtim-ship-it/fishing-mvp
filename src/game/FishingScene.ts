@@ -146,30 +146,34 @@ export class FishingScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    this.add.text(135, 1125, '🌿', { fontSize: '54px' }).setOrigin(0.5).setAlpha(0.90);
-    this.add.text(610, 1115, '🌱', { fontSize: '48px' }).setOrigin(0.5).setAlpha(0.88);
-    this.add.text(178, 1040, '🪸', { fontSize: '56px' }).setOrigin(0.5).setAlpha(0.92);
-    this.add.text(565, 1030, '🪸', { fontSize: '62px' }).setOrigin(0.5).setAlpha(0.90);
+    // 水底装饰稍微上移一点，给按钮留空间
+    this.add.text(135, 1085, '🌿', { fontSize: '54px' }).setOrigin(0.5).setAlpha(0.90);
+    this.add.text(610, 1075, '🌱', { fontSize: '48px' }).setOrigin(0.5).setAlpha(0.88);
+    this.add.text(178, 1000, '🪸', { fontSize: '56px' }).setOrigin(0.5).setAlpha(0.92);
+    this.add.text(565, 990, '🪸', { fontSize: '62px' }).setOrigin(0.5).setAlpha(0.90);
 
     const sandColor = 0xd8c28a;
-    this.add.ellipse(200, 1210, 220, 58, sandColor, 0.95);
-    this.add.ellipse(392, 1225, 260, 72, sandColor, 0.95);
-    this.add.ellipse(575, 1212, 220, 60, sandColor, 0.95);
+    this.add.ellipse(200, 1170, 220, 58, sandColor, 0.95);
+    this.add.ellipse(392, 1185, 260, 72, sandColor, 0.95);
+    this.add.ellipse(575, 1172, 220, 60, sandColor, 0.95);
 
-    this.add.rectangle(375, 1288, 520, 132, 0x000000, 0.10)
+    // ===== 安全按钮区：整体上移 =====
+    const actionBaseY = 1140;
+
+    this.add.rectangle(375, actionBaseY, 520, 132, 0x000000, 0.10)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
-    this.pullBtnBg = this.add.rectangle(375, 1278, 450, 104, 0xff5f5f)
+    this.pullBtnBg = this.add.rectangle(375, actionBaseY - 10, 450, 104, 0xff5f5f)
       .setStrokeStyle(4, 0xffffff, 0.18)
       .setInteractive({ useHandCursor: true });
 
-    this.pullBtnText = this.add.text(375, 1266, '立刻拉杆', {
+    this.pullBtnText = this.add.text(375, actionBaseY - 22, '立刻拉杆', {
       fontSize: '36px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.pullBtnHint = this.add.text(375, 1306, '看到明显动静再拉', {
+    this.pullBtnHint = this.add.text(375, actionBaseY + 18, '看到明显动静再拉', {
       fontSize: '18px',
       color: '#FFEFEF',
     }).setOrigin(0.5);
@@ -388,7 +392,11 @@ export class FishingScene extends Phaser.Scene {
     SaveSync.save();
 
     this.stateText.setText(DirectorSystem.getCombo() >= 2 ? `命中！${DirectorSystem.getCombo()}连击` : '上钩了！');
-    this.subHintText.setText(DirectorSystem.getCombo() >= 3 ? '状态火热，下一杆更有机会出节目效果' : '看看这一杆到底捞到了什么');
+    this.subHintText.setText(
+      DirectorSystem.getCombo() >= 3
+        ? '状态火热，下一杆更有机会出节目效果'
+        : '看看这一杆到底捞到了什么'
+    );
 
     this.tweens.add({
       targets: this.floatBobber,
