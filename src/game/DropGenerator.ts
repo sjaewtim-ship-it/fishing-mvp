@@ -7,12 +7,13 @@ export type DropItem = {
   flavor: string;
 };
 
+export type DropCategory = 'fish' | 'trash' | 'legend' | 'random';
+
 const fishItems: DropItem[] = [
   { name: '小鲫鱼', type: 'fish', reward: 6, flavor: '这一杆挺稳' },
   { name: '鲤鱼', type: 'fish', reward: 10, flavor: '手气还不错' },
   { name: '鲈鱼', type: 'fish', reward: 14, flavor: '有点意思了' },
   { name: '锦鲤', type: 'fish', reward: 20, flavor: '这一杆不亏' },
-  { name: '黄金锦鲤', type: 'legend', reward: 200, flavor: '我直接欧皇了？？？' },
 ];
 
 const lightTrashItems: DropItem[] = [
@@ -44,15 +45,33 @@ function randomFrom<T>(list: T[]): T {
 }
 
 export class DropGenerator {
+  // 兼容旧代码：如果别的地方还在调 generateByCategory，不会再报错
+  static generateByCategory(category: DropCategory = 'random'): DropItem {
+    switch (category) {
+      case 'fish':
+        return randomFrom(fishItems);
+      case 'trash':
+        return Math.random() < 0.4
+          ? randomFrom(lightTrashItems)
+          : randomFrom(strongTrashItems);
+      case 'legend':
+        return randomFrom(legendItems);
+      case 'random':
+      default:
+        return this.generate();
+    }
+  }
+
+  // 新版导演系统入口
   static generate(): DropItem {
     const bucket = DirectorSystem.getBucket();
 
     if (bucket === 'safe_fish') {
       return DirectorSystem.pickWeighted<DropItem>([
-        { item: fishItems[0], weight: 45 }, // 小鲫鱼
-        { item: fishItems[1], weight: 35 }, // 鲤鱼
-        { item: fishItems[2], weight: 15 }, // 鲈鱼
-        { item: lightTrashItems[0], weight: 5 }, // 塑料袋
+        { item: fishItems[0], weight: 45 },
+        { item: fishItems[1], weight: 35 },
+        { item: fishItems[2], weight: 15 },
+        { item: lightTrashItems[0], weight: 5 },
       ]);
     }
 
@@ -77,14 +96,13 @@ export class DropGenerator {
 
     if (bucket === 'normal_mix') {
       return DirectorSystem.pickWeighted<DropItem>([
-        { item: randomFrom(fishItems.slice(0, 4)), weight: 50 },
+        { item: randomFrom(fishItems), weight: 50 },
         { item: randomFrom(lightTrashItems), weight: 18 },
         { item: randomFrom(strongTrashItems), weight: 24 },
         { item: randomFrom(legendItems), weight: 8 },
       ]);
     }
 
-    // free_random：正常长期随机池
     const rand = Math.random();
 
     if (rand < 0.06) {
@@ -97,6 +115,6 @@ export class DropGenerator {
         : randomFrom(strongTrashItems);
     }
 
-    return randomFrom(fishItems.slice(0, 4));
+    return randomFrom(fishItems);
   }
 }
