@@ -13,9 +13,9 @@ export class MainScene extends Phaser.Scene {
   }
 
   private showToast(message: string) {
-    const toastBg = this.add.rectangle(375, 1090, 430, 64, 0x000000, 0.55)
+    const toastBg = this.add.rectangle(375, 1110, 430, 64, 0x000000, 0.55)
       .setStrokeStyle(2, 0xffffff, 0.14);
-    const toastText = this.add.text(375, 1090, message, {
+    const toastText = this.add.text(375, 1110, message, {
       fontSize: '26px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -47,16 +47,11 @@ export class MainScene extends Phaser.Scene {
 
     // 背景
     this.add.rectangle(375, 667, 750, 1334, 0x8fd3ff);
+    this.add.rectangle(375, 1040, 750, 430, 0x1e88e5);
+    this.add.rectangle(375, 800, 750, 6, 0xeafcff).setAlpha(0.9);
 
-    // 天空层
-    this.add.rectangle(375, 230, 750, 460, 0x9fdbff);
-
-    // 水域（在补充体力按钮之下）
-    this.add.rectangle(375, 980, 750, 520, 0x1e88e5);
-    this.add.rectangle(375, 760, 750, 6, 0xeafcff).setAlpha(0.9);
-
-    // 顶部标题
-    const title = this.add.text(375, 78, '🎣 钓鱼小游戏', {
+    // 标题
+    const title = this.add.text(375, 88, '🎣 钓鱼小游戏', {
       fontSize: '52px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -64,7 +59,7 @@ export class MainScene extends Phaser.Scene {
       strokeThickness: 6,
     }).setOrigin(0.5);
 
-    this.add.text(375, 132, '看准时机，一杆出货', {
+    this.add.text(375, 144, '看准时机，一杆出货', {
       fontSize: '24px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -78,68 +73,70 @@ export class MainScene extends Phaser.Scene {
       repeat: -1,
     });
 
-    // 信息区大卡片
-    this.add.rectangle(375, 335, 660, 300, 0x000000, 0.12)
+    // 顶部信息总卡
+    this.add.rectangle(375, 355, 660, 315, 0x000000, 0.10)
       .setStrokeStyle(2, 0xffffff, 0.14);
 
     // 第一行：金币 / 体力
-    this.add.rectangle(235, 255, 250, 88, 0xffffff, 0.12)
-      .setStrokeStyle(2, 0xffffff, 0.12);
-    this.add.text(140, 255, '🪙', {
+    this.add.rectangle(235, 265, 250, 88, 0xffffff, 0.10)
+      .setStrokeStyle(2, 0xffffff, 0.10);
+    this.add.rectangle(515, 265, 250, 88, 0xffffff, 0.10)
+      .setStrokeStyle(2, 0xffffff, 0.10);
+
+    this.add.text(145, 265, '🪙', {
       fontSize: '32px',
     }).setOrigin(0.5);
-    this.add.text(265, 239, '金币', {
+
+    this.add.text(260, 247, '金币', {
       fontSize: '20px',
       color: '#DFF6FF',
     }).setOrigin(0.5);
-    this.add.text(265, 272, `${coins}`, {
+
+    this.add.text(260, 281, `${coins}`, {
       fontSize: '30px',
       color: '#FFF3B0',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.rectangle(515, 255, 250, 88, 0xffffff, 0.12)
-      .setStrokeStyle(2, 0xffffff, 0.12);
-    this.add.text(420, 255, '⚡', {
+    this.add.text(425, 265, '⚡', {
       fontSize: '32px',
     }).setOrigin(0.5);
-    this.add.text(545, 239, '体力', {
+
+    this.add.text(540, 247, '体力', {
       fontSize: '20px',
       color: '#DFF6FF',
     }).setOrigin(0.5);
-    this.add.text(545, 272, `${energy} / ${maxEnergy}`, {
+
+    this.add.text(540, 281, `${energy} / ${maxEnergy}`, {
       fontSize: '30px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 第二行：今日已钓
-    this.add.rectangle(375, 355, 530, 76, 0xffffff, 0.10)
-      .setStrokeStyle(2, 0xffffff, 0.10);
-    this.add.text(155, 355, '🎯', {
-      fontSize: '30px',
-    }).setOrigin(0.5);
-    this.add.text(275, 355, '今日已钓', {
+    // 分隔线
+    this.add.line(375, 330, 110, 0, 640, 0, 0xffffff).setAlpha(0.12);
+    this.add.line(375, 408, 110, 0, 640, 0, 0xffffff).setAlpha(0.10);
+    this.add.line(375, 486, 110, 0, 640, 0, 0xffffff).setAlpha(0.10);
+
+    // 第二行
+    this.add.text(145, 370, '🎯', { fontSize: '30px' }).setOrigin(0.5);
+    this.add.text(260, 370, '今日已钓', {
       fontSize: '22px',
       color: '#EAF6FF',
     }).setOrigin(0.5);
-    this.add.text(485, 355, `${roundCount} 次`, {
+    this.add.text(515, 370, `${roundCount} 次`, {
       fontSize: '28px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 第三行：今日最佳鱼获
-    this.add.rectangle(375, 435, 530, 76, 0xffffff, 0.10)
-      .setStrokeStyle(2, 0xffffff, 0.10);
-    this.add.text(155, 435, '🏆', {
-      fontSize: '30px',
-    }).setOrigin(0.5);
-    this.add.text(275, 435, '今日最佳鱼获', {
+    // 第三行
+    this.add.text(145, 448, '⭐', { fontSize: '30px' }).setOrigin(0.5);
+    this.add.text(260, 448, '今日最佳鱼获', {
       fontSize: '22px',
       color: '#EAF6FF',
     }).setOrigin(0.5);
-    this.add.text(485, 435, bestCatch, {
+    this.add.text(515, 448, bestCatch, {
       fontSize: '26px',
       color: '#FFF3B0',
       fontStyle: 'bold',
@@ -147,17 +144,13 @@ export class MainScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    // 第四行：今日最离谱战绩
-    this.add.rectangle(375, 515, 530, 76, 0xffffff, 0.10)
-      .setStrokeStyle(2, 0xffffff, 0.10);
-    this.add.text(155, 515, '🤣', {
-      fontSize: '30px',
-    }).setOrigin(0.5);
-    this.add.text(275, 515, '今日最离谱战绩', {
+    // 第四行
+    this.add.text(145, 526, '🤯', { fontSize: '30px' }).setOrigin(0.5);
+    this.add.text(260, 526, '今日最离谱战绩', {
       fontSize: '22px',
       color: '#EAF6FF',
     }).setOrigin(0.5);
-    this.add.text(485, 515, weirdCatch, {
+    this.add.text(515, 526, weirdCatch, {
       fontSize: '26px',
       color: '#FFEAA7',
       fontStyle: 'bold',
@@ -165,12 +158,12 @@ export class MainScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    // 开始钓鱼按钮
-    const startBtn = this.add.rectangle(375, 640, 430, 112, 0xff6b6b)
+    // 主按钮：开始钓鱼
+    const startBtn = this.add.rectangle(375, 650, 430, 112, 0xff6b6b)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.20);
 
-    this.add.text(375, 640, '开始钓鱼', {
+    this.add.text(375, 650, '开始钓鱼', {
       fontSize: '38px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -189,12 +182,12 @@ export class MainScene extends Phaser.Scene {
       this.scene.start('FishingScene');
     });
 
-    // 补充体力按钮（在水域上方）
-    const adBtn = this.add.rectangle(375, 740, 450, 96, 0x9b59b6)
+    // 次按钮：补充体力
+    const adBtn = this.add.rectangle(375, 770, 450, 96, 0x9b59b6)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(4, 0xffffff, 0.18);
 
-    this.add.text(375, 740, '补充体力 🎬', {
+    this.add.text(375, 770, '🎬 补充体力', {
       fontSize: '32px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -224,24 +217,31 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // 水域文字
-    this.add.text(375, 820, '水下似乎有东西在游动…', {
+    // 水域提示
+    this.add.text(375, 850, '水下似乎有东西在游动…', {
       fontSize: '22px',
       color: '#DFF6FF',
       fontStyle: 'bold',
     }).setOrigin(0.5).setAlpha(0.95);
 
-    // 自由游动的小鱼
-    const fishA = this.add.text(120, 930, '🐟', { fontSize: '34px' }).setOrigin(0.5).setAlpha(0.95);
+    // 鱼群
+    const fishA = this.add.text(120, 940, '🐟', { fontSize: '34px' }).setOrigin(0.5).setAlpha(0.95);
     const fishB = this.add.text(620, 1010, '🐠', { fontSize: '30px' }).setOrigin(0.5).setAlpha(0.9);
-    const fishC = this.add.text(220, 1110, '🐡', { fontSize: '38px' }).setOrigin(0.5).setAlpha(0.9);
-    const fishD = this.add.text(560, 1180, '🐟', { fontSize: '26px' }).setOrigin(0.5).setAlpha(0.85);
+    const fishC = this.add.text(220, 1120, '🐡', { fontSize: '38px' }).setOrigin(0.5).setAlpha(0.9);
+    const fishD = this.add.text(560, 1190, '🐟', { fontSize: '26px' }).setOrigin(0.5).setAlpha(0.85);
 
     this.tweens.add({
       targets: fishA,
       x: 610,
-      y: 960,
       duration: 5200,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+    this.tweens.add({
+      targets: fishA,
+      y: '+=18',
+      duration: 1200,
       ease: 'Sine.easeInOut',
       yoyo: true,
       repeat: -1,
@@ -250,8 +250,15 @@ export class MainScene extends Phaser.Scene {
     this.tweens.add({
       targets: fishB,
       x: 160,
-      y: 1040,
       duration: 6100,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+    this.tweens.add({
+      targets: fishB,
+      y: '+=16',
+      duration: 1400,
       ease: 'Sine.easeInOut',
       yoyo: true,
       repeat: -1,
@@ -260,8 +267,15 @@ export class MainScene extends Phaser.Scene {
     this.tweens.add({
       targets: fishC,
       x: 590,
-      y: 1130,
       duration: 7000,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+    this.tweens.add({
+      targets: fishC,
+      y: '+=20',
+      duration: 1600,
       ease: 'Sine.easeInOut',
       yoyo: true,
       repeat: -1,
@@ -270,14 +284,20 @@ export class MainScene extends Phaser.Scene {
     this.tweens.add({
       targets: fishD,
       x: 180,
-      y: 1215,
       duration: 5600,
       ease: 'Sine.easeInOut',
       yoyo: true,
       repeat: -1,
     });
+    this.tweens.add({
+      targets: fishD,
+      y: '+=14',
+      duration: 1300,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
 
-    // 波纹装饰
     this.add.text(375, 1260, '🌊   🌊   🌊', {
       fontSize: '30px',
       color: '#DFF6FF',
