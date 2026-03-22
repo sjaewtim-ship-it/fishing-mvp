@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { DirectorSystem } from './DirectorSystem';
 import { DropGenerator, type DropItem } from './DropGenerator';
-import { RoundManager } from './RoundManager';
 import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
 
@@ -32,8 +31,9 @@ export class FishingScene extends Phaser.Scene {
     super('FishingScene');
   }
 
-  create() {
-    this.roundNumber = RoundManager.instance.getRoundCount() + 1;
+  create(data?: { round?: number }) {
+    // 不再依赖 RoundManager 的 addRound / getRoundCount
+    this.roundNumber = data?.round ?? 1;
     this.config = DirectorSystem.getTimingAssist();
 
     this.buildScene();
@@ -43,11 +43,9 @@ export class FishingScene extends Phaser.Scene {
   private buildScene() {
     this.cameras.main.setBackgroundColor('#8FD3FF');
 
-    // 背景
     this.add.rectangle(375, 667, 750, 1334, 0x8fd3ff);
     this.add.rectangle(375, 1015, 750, 640, 0x1e88e5);
 
-    // 标题区
     this.titleText = this.add.text(375, 95, '🎣 正在钓鱼', {
       fontSize: '46px',
       color: '#FFFFFF',
@@ -79,7 +77,6 @@ export class FishingScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    // 水面
     this.add.rectangle(375, 560, 750, 6, 0xeafcff).setAlpha(0.9);
 
     const ripple1 = this.add.ellipse(375, 585, 90, 20, 0xffffff, 0.16);
@@ -95,7 +92,6 @@ export class FishingScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // 浮漂
     const line = this.add.rectangle(0, -65, 4, 130, 0xffffff, 0.9);
     const bobberTop = this.add.circle(0, 0, 10, 0xff5f5f);
     const bobberBottom = this.add.circle(0, 16, 13, 0xffffff);
@@ -111,7 +107,6 @@ export class FishingScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // 鱼影
     const shadowRange = DirectorSystem.getShadowScaleRange();
     const shadowW = Phaser.Math.Between(
       Math.floor(95 * shadowRange.min),
@@ -143,7 +138,6 @@ export class FishingScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // 水底装饰
     this.add.text(135, 1125, '🌿', { fontSize: '54px' }).setOrigin(0.5).setAlpha(0.90);
     this.add.text(610, 1115, '🌱', { fontSize: '48px' }).setOrigin(0.5).setAlpha(0.88);
     this.add.text(178, 1040, '🪸', { fontSize: '56px' }).setOrigin(0.5).setAlpha(0.92);
@@ -154,11 +148,9 @@ export class FishingScene extends Phaser.Scene {
     this.add.ellipse(392, 1225, 260, 72, sandColor, 0.95);
     this.add.ellipse(575, 1212, 220, 60, sandColor, 0.95);
 
-    // 按钮区底板，增强可点击区域感
     this.add.rectangle(375, 1288, 520, 132, 0x000000, 0.10)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
-    // 拉杆按钮：背景 + 主文案 + 副文案
     this.pullBtnBg = this.add.rectangle(375, 1278, 450, 104, 0xff5f5f)
       .setStrokeStyle(4, 0xffffff, 0.18)
       .setInteractive({ useHandCursor: true });
@@ -174,7 +166,6 @@ export class FishingScene extends Phaser.Scene {
       color: '#FFEFEF',
     }).setOrigin(0.5);
 
-    // 文本也绑定点击，避免命中不稳定
     this.pullBtnText.setInteractive({ useHandCursor: true });
     this.pullBtnHint.setInteractive({ useHandCursor: true });
 
@@ -218,7 +209,6 @@ export class FishingScene extends Phaser.Scene {
     this.pullBtnText.setText('现在拉！');
     this.pullBtnHint.setText('太早或太晚都会跑鱼');
 
-    // 根据结果类型给不同前兆
     if (this.currentDrop.type === 'legend') {
       this.tweens.add({
         targets: [this.fishShadow, this.fishGlow],
@@ -264,7 +254,6 @@ export class FishingScene extends Phaser.Scene {
       repeat: 5,
     });
 
-    // 自动拉晚失败
     this.time.delayedCall(this.config.goodWindowMs + this.config.lateToleranceMs, () => {
       if (this.phase !== 'bite') return;
       this.failAndGo('late');
@@ -310,7 +299,6 @@ export class FishingScene extends Phaser.Scene {
 
   private successAndGo() {
     this.phase = 'resolved';
-    RoundManager.instance.addRound();
     SaveSync.save();
 
     this.stateText.setText('上钩了！');
@@ -340,7 +328,6 @@ export class FishingScene extends Phaser.Scene {
 
   private failAndGo(reason: 'early' | 'too_early' | 'late') {
     this.phase = 'resolved';
-    RoundManager.instance.addRound();
     SaveSync.save();
 
     this.stateText.setText(reason === 'late' ? '慢了半拍…' : '这一杆失手了');
