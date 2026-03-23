@@ -262,7 +262,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 4. actionSection - 主行动区（补充体力按钮整体上移 50px）
+  // 4. actionSection - 主行动区（只保留开始钓鱼一个主按钮）
   // ==================================================
   private renderActionSection(L: ReturnType<typeof this.calculateLayout>, isFullEnergy: boolean) {
     const x = L.centerX;
@@ -275,10 +275,10 @@ export class MainScene extends Phaser.Scene {
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // 主按钮：开始钓鱼（最强 CTA）
+    // 主按钮：开始钓鱼（唯一主 CTA，居中放置）
     const startBtnW = 480;
     const startBtnH = 110;
-    const startBtnY = L.actionY + 20;  // 从 45 减少到 20，上移 25px
+    const startBtnY = L.actionY + LAYOUT_SPEC.actionHeight / 2;  // 垂直居中
 
     const startBtn = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0xff6b6b, 0.9);
     this.add.text(x, startBtnY, '开始钓鱼', {
@@ -287,29 +287,9 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 次按钮：补充体力（上调 40px）
-    const energyBtnW = 360;
-    const energyBtnH = 80;
-    const energyBtnY = startBtnY + startBtnH / 2 - 20 + energyBtnH / 2;  // 从 20 减少到 -20，上调 40px
-
-    const energyBtn = this.add.rectangle(x, energyBtnY, energyBtnW, energyBtnH, 0x9b59b6, isFullEnergy ? 0.4 : 0.8);
-    this.add.text(x, energyBtnY - 8, '🎬 补充体力', {
-      fontSize: '26px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    this.add.text(x, energyBtnY + 22, '观看广告可恢复 3 点体力', {
-      fontSize: '13px',
-      color: '#F0E8FF',
-    }).setOrigin(0.5);
-
     // 按钮交互
     startBtn.setInteractive({ useHandCursor: true });
     startBtn.on('pointerdown', () => this.onStartFishing());
-
-    energyBtn.setInteractive({ useHandCursor: true });
-    energyBtn.on('pointerdown', () => this.onAddEnergy(isFullEnergy));
   }
 
   // ==================================================
