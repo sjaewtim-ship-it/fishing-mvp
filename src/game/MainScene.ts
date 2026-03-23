@@ -287,10 +287,10 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 次按钮：补充体力（降级，整体上移 50px）
+    // 次按钮：补充体力（上调 40px）
     const energyBtnW = 360;
     const energyBtnH = 80;
-    const energyBtnY = startBtnY + startBtnH / 2 + 20 + energyBtnH / 2;  // 间距从 40 减少到 20px，再上移 25px
+    const energyBtnY = startBtnY + startBtnH / 2 - 20 + energyBtnH / 2;  // 从 20 减少到 -20，上调 40px
 
     const energyBtn = this.add.rectangle(x, energyBtnY, energyBtnW, energyBtnH, 0x9b59b6, isFullEnergy ? 0.4 : 0.8);
     this.add.text(x, energyBtnY - 8, '🎬 补充体力', {
