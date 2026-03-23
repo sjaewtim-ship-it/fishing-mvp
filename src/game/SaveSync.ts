@@ -41,13 +41,19 @@ export class SaveSync {
     };
   }
 
+  private static syncCompatibilityRound(round: number) {
+    RoundManager.instance.setRoundCount(round);
+  }
+
   static load() {
     const data = StorageManager.instance.load();
     if (!data) return;
 
+    const directorSystemState = this.getDirectorSystemStateFromSave(data);
+
     CoinManager.instance.setCoins(data.coins ?? 0);
     EnergyManager.instance.setEnergy(data.energy ?? 5);
-    RoundManager.instance.setRoundCount(data.roundCount ?? 0);
+    this.syncCompatibilityRound(directorSystemState.round);
     RecordManager.instance.setBestCatch(data.bestCatch ?? '暂无');
     RecordManager.instance.setWeirdCatch(data.weirdCatch ?? '暂无');
     AnalyticsManager.instance.setData({
@@ -62,17 +68,18 @@ export class SaveSync {
       continuousNonLegendCount: data.continuousNonLegendCount ?? 0,
       recentLegendCooldown: data.recentLegendCooldown ?? 0,
     });
-    DirectorSystem.setState(this.getDirectorSystemStateFromSave(data));
+    DirectorSystem.setState(directorSystemState);
   }
 
   static save() {
     const director = DirectorManager.instance.getDebugInfo();
     const directorSystem = DirectorSystem.getState();
+    this.syncCompatibilityRound(directorSystem.round);
 
     StorageManager.instance.save({
       coins: CoinManager.instance.getCoins(),
       energy: EnergyManager.instance.getEnergy(),
-      roundCount: RoundManager.instance.getRoundCount(),
+      roundCount: directorSystem.round,
       bestCatch: RecordManager.instance.getBestCatch(),
       weirdCatch: RecordManager.instance.getWeirdCatch(),
       totalStartRounds: AnalyticsManager.instance.getTotalStartRounds(),

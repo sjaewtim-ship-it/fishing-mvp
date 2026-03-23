@@ -1,4 +1,5 @@
-// 兼容保留：这是模板示例场景，不属于当前真实运行链路。
+// ===== 遗留模板场景：非当前真实运行链路 =====
+// 当前实际玩法不再进入本场景；本文件仅作为 Phaser 模板残留保留。
 import { Scene } from 'phaser';
 
 export class Game extends Scene

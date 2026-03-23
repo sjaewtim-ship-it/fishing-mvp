@@ -1,4 +1,5 @@
-// 兼容保留：这是 Phaser 模板入口，不属于当前真实运行链路。
+// ===== 遗留模板入口：非当前真实运行链路 =====
+// 当前实际入口为 src/main.ts；本文件仅作为 Phaser 模板残留保留。
 import { Game as MainGame } from './scenes/Game';
 import { AUTO, Game, Scale,Types } from 'phaser';
 

@@ -1,4 +1,5 @@
-// 兼容保留：当前主玩法回合节奏以 DirectorSystem 为准，本文件仍用于存档兼容。
+// ===== 兼容保留文件：非当前主玩法状态源 =====
+// 当前主玩法回合节奏以 DirectorSystem 为准，本文件仅保留给旧存档兼容层使用。
 import type { DropItem } from './DropGenerator';
 
 export class RoundManager {

@@ -79,6 +79,10 @@ export class ResultScene extends Phaser.Scene {
     return ['龙鱼', '黄金锦鲤'].includes(name || '');
   }
 
+  private isPremiumTrash(name?: string) {
+    return ['内裤', '螃蟹', '乌龟'].includes(name || '');
+  }
+
   private getRarityText(drop?: DropItem) {
     if (!drop) return '普通';
 
@@ -88,7 +92,7 @@ export class ResultScene extends Phaser.Scene {
     }
 
     if (drop.type === 'trash') {
-      if (['iPhone', '盲盒', '螃蟹', '乌龟'].includes(drop.name)) return 'SR 离谱物';
+      if (this.isPremiumTrash(drop.name)) return 'SR 离谱物';
       return 'R 怪东西';
     }
 
@@ -110,7 +114,7 @@ export class ResultScene extends Phaser.Scene {
     }
 
     if (drop.type === 'trash') {
-      if (['iPhone', '盲盒', '螃蟹', '乌龟'].includes(drop.name)) {
+      if (this.isPremiumTrash(drop.name)) {
         return { bgTop: 0x667eea, bgBottom: 0x764ba2, accent: 0xf0e6ff, tagBg: 0x4b3f8f };
       }
       return { bgTop: 0x36d1dc, bgBottom: 0x5b86e5, accent: 0xeafcff, tagBg: 0x2266aa };
@@ -131,9 +135,8 @@ export class ResultScene extends Phaser.Scene {
     if (!drop) return '这游戏有点离谱…';
 
     if (drop.type === 'legend') {
-      if (drop.name === '金条') return `第${round}杆直接钓到金条！`;
-      if (drop.name === '神秘宝箱') return `第${round}杆开出神秘宝箱！`;
       if (drop.name === '钻石戒指') return `第${round}杆捞出钻石戒指！`;
+      if (drop.name === '神秘宝箱') return `第${round}杆开出神秘宝箱！`;
       if (drop.name === '黄金锦鲤') return `第${round}杆钓到黄金锦鲤！`;
       if (drop.name === '龙鱼') return `第${round}杆钓到龙鱼！`;
       return `第${round}杆出了传说级收获！`;
@@ -142,12 +145,10 @@ export class ResultScene extends Phaser.Scene {
     if (drop.type === 'trash') {
       if (drop.name === '内裤') return '我居然钓到内裤？？？';
       if (drop.name === '破袜子') return '我刚刚钓到一只破袜子？？？';
-      if (drop.name === '塑料袋') return '我居然钓到塑料袋？？？';
-      if (drop.name === 'iPhone') return '我从水里钓出一台 iPhone…';
-      if (drop.name === '盲盒') return '这盲盒居然是从水里捞出来的';
+      if (drop.name === '拖鞋') return '我刚刚钓到一只拖鞋？？？';
+      if (drop.name === '树枝') return '这根树枝也算渔获吗？？？';
       if (drop.name === '螃蟹') return '我刚刚钓到了螃蟹？？？';
       if (drop.name === '乌龟') return '我居然把乌龟钓上来了？？？';
-      if (drop.name === '泥鳅') return '我刚刚钓到了泥鳅？？？';
       return `我刚刚钓到了${drop.name}？？？`;
     }
 
@@ -169,9 +170,10 @@ export class ResultScene extends Phaser.Scene {
     }
 
     if (drop.type === 'trash') {
-      if (drop.name === '塑料袋') return '环保警告出现了';
+      if (drop.name === '破袜子') return '这水里到底谁丢的袜子';
+      if (drop.name === '拖鞋') return '看来另一只还在水里漂着';
+      if (drop.name === '树枝') return '这杆像是在帮河道清障';
       if (drop.name === '螃蟹') return '今晚加餐有了';
-      if (drop.name === '泥鳅') return '这也算收获吗…';
       return drop.flavor || '这也太离谱了吧？！';
     }
 
