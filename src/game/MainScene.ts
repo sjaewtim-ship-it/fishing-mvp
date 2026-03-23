@@ -5,6 +5,7 @@ import { RecordManager } from './RecordManager';
 import { DirectorSystem } from './DirectorSystem';
 import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
+import { GoalManager } from './GoalManager';
 
 type SwimVisual = {
   emoji: string;
@@ -181,6 +182,40 @@ export class MainScene extends Phaser.Scene {
 
     this.add.rectangle(L.centerX, 620, 540, 220, 0x000000, 0.06)
       .setStrokeStyle(2, 0xffffff, 0.08);
+
+    // 目标系统入口按钮（右上角，带红点提示）
+    const goalBtn = this.add.rectangle(L.width - 100, 95, 140, 50, 0x4a90d9, 0.9)
+      .setStrokeStyle(2, 0xffd700, 0.5)
+      .setInteractive({ useHandCursor: true });
+
+    this.add.text(L.width - 100, 95, '🎯 目标', {
+      fontSize: '20px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    // 红点提示
+    const goalRedDot = this.add.circle(L.width - 65, 78, 10, 0xff4444, 1);
+    goalRedDot.setDepth(100);
+
+    goalBtn.on('pointerdown', () => {
+      SimpleAudio.click();
+      this.scene.start('GoalScene');
+    });
+
+    // 更新红点状态
+    const updateGoalRedDot = () => {
+      const state = GoalManager.instance.getRedDotState();
+      goalRedDot.setVisible(state.hasClaimableGoal);
+    };
+
+    // 初始检查和定时检查
+    updateGoalRedDot();
+    this.time.addEvent({
+      delay: 5000,
+      callback: updateGoalRedDot,
+      loop: true,
+    });
 
     const startBtn = this.add.rectangle(L.centerX, L.startBtnY, 470, 106, 0xff6b6b)
       .setStrokeStyle(4, 0xffffff, 0.18)

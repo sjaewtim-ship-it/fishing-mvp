@@ -9,6 +9,7 @@ import { EnergyManager } from './EnergyManager';
 import { AnalyticsManager } from './AnalyticsManager';
 import { ShareManager } from './ShareManager';
 import { VisualMap } from './VisualMap';
+import { GoalManager } from './GoalManager';
 
 type Phase = 'idle' | 'bite' | 'resolved';
 
@@ -1096,6 +1097,13 @@ export class FishingScene extends Phaser.Scene {
     DirectorSystem.nextRound();
     SaveSync.save();
 
+    // 更新目标进度
+    GoalManager.instance.updateProgressByCondition('catch_fish', 1);
+    GoalManager.instance.updateProgressByCondition('first_catch', 1);  // 首杆成就
+    if (perfect) {
+      GoalManager.instance.updateProgressByCondition('catch_perfect', 1);
+    }
+
     this.stateText.setText(perfect ? '完美命中！' : (DirectorSystem.getCombo() >= 2 ? `命中！${DirectorSystem.getCombo()}连击` : '上钩了！'));
     this.subHintText.setText(
       perfect
@@ -1140,6 +1148,38 @@ export class FishingScene extends Phaser.Scene {
     const rewardBoost = perfect && this.currentDrop
       ? { ...this.currentDrop, reward: Math.round(this.currentDrop.reward * 1.25) }
       : this.currentDrop ?? DropDecider.generateFallback();
+
+    // 更新特殊鱼类目标进度
+    if (this.currentDrop) {
+      const dropName = this.currentDrop.name;
+      const dropType = this.currentDrop.type;
+
+      // 优质鱼
+      if (['大鲤鱼', '黑鱼', '鲈鱼'].includes(dropName)) {
+        GoalManager.instance.updateProgressByCondition('catch_good_fish', 1);
+      }
+
+      // 稀有鱼
+      if (['锦鲤', '巨型草鱼'].includes(dropName)) {
+        GoalManager.instance.updateProgressByCondition('catch_rare', 1);
+      }
+
+      // 传说鱼
+      if (dropType === 'legend') {
+        GoalManager.instance.updateProgressByCondition('catch_legend', 1);
+      }
+
+      // 离谱物
+      if (dropType === 'trash') {
+        GoalManager.instance.updateProgressByCondition('catch_trash', 1);
+      }
+    }
+
+    // 连击成就
+    const combo = DirectorSystem.getCombo();
+    if (combo >= 5) {
+      GoalManager.instance.updateProgressByCondition('combo_5', 1);
+    }
 
     this.time.delayedCall(380, () => {
       if (!this.scene.isActive()) return;

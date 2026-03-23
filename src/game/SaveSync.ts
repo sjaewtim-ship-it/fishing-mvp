@@ -5,6 +5,7 @@ import { RoundManager } from './RoundManager';
 import { StorageManager } from './StorageManager';
 import { AnalyticsManager } from './AnalyticsManager';
 import { DirectorManager } from './DirectorManager';
+import { GoalManager } from './GoalManager';
 
 export class SaveSync {
   static load() {
@@ -28,6 +29,10 @@ export class SaveSync {
       continuousNonLegendCount: data.continuousNonLegendCount ?? 0,
       recentLegendCooldown: data.recentLegendCooldown ?? 0,
     });
+
+    // 加载目标系统数据
+    const goalData = StorageManager.instance.loadGoalData();
+    GoalManager.instance.init(goalData);
   }
 
   static save() {
@@ -47,10 +52,17 @@ export class SaveSync {
       continuousFishCount: director.continuousFishCount,
       continuousNonLegendCount: director.continuousNonLegendCount,
       recentLegendCooldown: director.recentLegendCooldown,
+      // 目标系统数据
+      goalData: GoalManager.instance.getSaveData(),
+      totalCoinsEarned: AnalyticsManager.instance.getTotalCoinsEarned(),
     });
+
+    // 独立保存目标数据（确保及时性）
+    StorageManager.instance.saveGoalData(GoalManager.instance.getSaveData());
   }
 
   static reset() {
     StorageManager.instance.clear();
+    GoalManager.instance.resetAll();
   }
 }

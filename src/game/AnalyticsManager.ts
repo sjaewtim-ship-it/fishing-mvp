@@ -13,6 +13,7 @@ export class AnalyticsManager {
   private totalFailRounds: number = 0;
   private totalAdViews: number = 0;
   private lastDropName: string = '暂无';
+  private totalCoinsEarned: number = 0;  // 累计获得金币
 
   onStartRound() {
     this.totalStartRounds += 1;
@@ -35,6 +36,11 @@ export class AnalyticsManager {
     console.log('analytics:ad_view', scene, this.totalAdViews);
   }
 
+  onCoinsEarned(amount: number) {
+    this.totalCoinsEarned += amount;
+    console.log('analytics:coins_earned', amount, 'total:', this.totalCoinsEarned);
+  }
+
   getTotalStartRounds() {
     return this.totalStartRounds;
   }
@@ -55,18 +61,24 @@ export class AnalyticsManager {
     return this.lastDropName;
   }
 
+  getTotalCoinsEarned() {
+    return this.totalCoinsEarned;
+  }
+
   setData(data: {
     totalStartRounds?: number;
     totalSuccessRounds?: number;
     totalFailRounds?: number;
     totalAdViews?: number;
     lastDropName?: string;
+    totalCoinsEarned?: number;
   }) {
     this.totalStartRounds = data.totalStartRounds ?? 0;
     this.totalSuccessRounds = data.totalSuccessRounds ?? 0;
     this.totalFailRounds = data.totalFailRounds ?? 0;
     this.totalAdViews = data.totalAdViews ?? 0;
     this.lastDropName = data.lastDropName ?? '暂无';
+    this.totalCoinsEarned = data.totalCoinsEarned ?? 0;
   }
 
   reset() {
@@ -75,5 +87,6 @@ export class AnalyticsManager {
     this.totalFailRounds = 0;
     this.totalAdViews = 0;
     this.lastDropName = '暂无';
+    this.totalCoinsEarned = 0;
   }
 }
