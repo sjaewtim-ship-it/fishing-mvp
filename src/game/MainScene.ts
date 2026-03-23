@@ -19,6 +19,23 @@ type SwimVisual = {
   drift: number;
 };
 
+// ==================================================
+// 首页统一 layoutSpec - 管理所有 section 的纵向布局
+// ==================================================
+const LAYOUT_SPEC = {
+  // 基础参数
+  topMargin: 20,
+  sectionGap: 15,
+  horizontalPadding: 35,
+  contentWidth: 680, // 750 - 2*35
+
+  // 各 section 高度
+  brandHeight: 90,
+  resourceHeight: 140,
+  goalHeight: 180,
+  actionHeight: 200,
+};
+
 export class MainScene extends Phaser.Scene {
   private swimmers: Phaser.GameObjects.Text[] = [];
   private swimmerData: SwimVisual[] = [];
@@ -28,66 +45,42 @@ export class MainScene extends Phaser.Scene {
   private energyText!: Phaser.GameObjects.Text;
   private missionTaskContainers: Phaser.GameObjects.Container[] = [];
 
+  // Section 容器
+  private brandSection!: Phaser.GameObjects.Container;
+  private resourceSection!: Phaser.GameObjects.Container;
+  private goalSection!: Phaser.GameObjects.Container;
+  private actionSection!: Phaser.GameObjects.Container;
+  private oceanSection!: Phaser.GameObjects.Container;
+
   constructor() {
     super('MainScene');
   }
 
-  private getLayout() {
+  private calculateLayout() {
     const width = Number(this.scale.width) || 750;
     const height = Number(this.scale.height) || 1334;
     const centerX = width / 2;
-
     const safeBottom = Math.max(130, Math.round(height * 0.1));
 
-    // === 1. 顶部轻品牌区（高度约 100px）===
-    const titleY = 70;
-    const sloganY = 110;
-
-    // === 2. 资源区（两排两列，高度约 140px）===
-    const resourceY = 160;
-    const resourceRowGap = 12;
-
-    // === 3. 今日目标区（高度约 180px）===
-    const missionY = 315;
-
-    // === 4. 小技巧提示区（高度约 45px）===
-    const hintY = 510;
-
-    // === 5. 主行动区（高度约 230px）===
-    const startBtnY = 580;
-    const energyBtnY = 710;
-
-    // === 6. 水下氛围区（剩余高度）===
-    const waterTopY = 810;
-    const waterBottomY = height - safeBottom - 20;
-    const waterHeight = Math.max(150, waterBottomY - waterTopY);
-    const waterCenterY = waterTopY + waterHeight / 2;
-
-    const sandY = waterBottomY - 18;
-    const plantBaseY = sandY - 42;
-    const coralBaseY = sandY - 88;
+    // 从上到下计算各 section Y 位置
+    const brandY = LAYOUT_SPEC.topMargin;
+    const resourceY = brandY + LAYOUT_SPEC.brandHeight + LAYOUT_SPEC.sectionGap;
+    const goalY = resourceY + LAYOUT_SPEC.resourceHeight + LAYOUT_SPEC.sectionGap;
+    const actionY = goalY + LAYOUT_SPEC.goalHeight + LAYOUT_SPEC.sectionGap;
+    const oceanY = actionY + LAYOUT_SPEC.actionHeight + LAYOUT_SPEC.sectionGap;
+    const oceanHeight = height - oceanY - safeBottom;
 
     return {
       width,
       height,
       centerX,
       safeBottom,
-      titleY,
-      sloganY,
+      brandY,
       resourceY,
-      resourceRowGap,
-      missionY,
-      hintY,
-      startBtnY,
-      energyBtnY,
-      actionBaseY: height - safeBottom - 10,
-      waterTopY,
-      waterBottomY,
-      waterHeight,
-      waterCenterY,
-      sandY,
-      plantBaseY,
-      coralBaseY,
+      goalY,
+      actionY,
+      oceanY,
+      oceanHeight,
     };
   }
 
@@ -110,514 +103,312 @@ export class MainScene extends Phaser.Scene {
   }
 
   create() {
-    // 关键修复：每次进入场景先清空，避免重启后数组残留不同步
     this.swimmers = [];
     this.swimmerData = [];
     this.missionTaskContainers = [];
 
-    const L = this.getLayout();
-
+    const L = this.calculateLayout();
     const coins = CoinManager.instance.getCoins();
     const energy = EnergyManager.instance.getEnergy();
     const maxEnergy = EnergyManager.instance.getMaxEnergy();
     const bestCatch = this.getTodayBestCatchSafe();
     const weirdCatch = this.getTodayWeirdCatchSafe();
 
-    // 初始化日常任务
     DailyMissionManager.instance.init();
 
     this.cameras.main.setBackgroundColor('#8FD3FF');
-    this.add.rectangle(L.centerX, L.height / 2, L.width, L.height, 0x8fd3ff);
 
-    // === 顶部轻品牌区 ===
-    const cloud1 = this.add.text(80, 65, '☁️', { fontSize: '36px' }).setAlpha(0.7);
-    const cloud2 = this.add.text(540, 95, '☁️', { fontSize: '30px' }).setAlpha(0.7);
+    // === 创建 5 个 section 容器 ===
+    this.brandSection = this.add.container(0, 0);
+    this.resourceSection = this.add.container(0, 0);
+    this.goalSection = this.add.container(0, 0);
+    this.actionSection = this.add.container(0, 0);
+    this.oceanSection = this.add.container(0, 0);
 
-    this.tweens.add({
-      targets: cloud1,
-      x: 520,
-      duration: 18000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    this.tweens.add({
-      targets: cloud2,
-      x: 180,
-      duration: 22000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    this.add.text(L.centerX, L.titleY, '🎣 钓鱼小游戏', {
-      fontSize: '44px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-      stroke: '#1565C0',
-      strokeThickness: 5,
-    }).setOrigin(0.5);
-
-    this.add.text(L.centerX, L.sloganY, '看准时机，一杆出货', {
-      fontSize: '20px',
-      color: '#E0F0FF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    // === 2. 资源区（两排两列）===
-    const resCardW = 330;
-    const resCardH = 72;
-    const resGap = 16;
-    const resTotalW = resCardW * 2 + resGap;
-    const resLeftX = L.centerX - resTotalW / 2;
-
-    // 第一排（高优先级）：金币、体力
-    this.createResourceCard(
-      resLeftX, L.resourceY, resCardW, resCardH,
-      '🪙', '金币', String(coins), '#FFE082',
-      (text) => { this.coinText = text; },
-      0.20, 0.30
-    );
-    this.createResourceCard(
-      resLeftX + resCardW + resGap, L.resourceY, resCardW, resCardH,
-      '⚡', '体力', `${energy}/${maxEnergy}`, '#90EE90',
-      (text) => { this.energyText = text; },
-      0.20, 0.30
-    );
-
-    // 第二排（低优先级）：最佳渔获、最离谱战绩
-    const subCardW = 330;
-    const subCardH = 48;
-    const subY = L.resourceY + resCardH + L.resourceRowGap;
-
-    this.createSubResourceCard(
-      resLeftX, subY, subCardW, subCardH,
-      '⭐', '最佳渔获', bestCatch
-    );
-    this.createSubResourceCard(
-      resLeftX + subCardW + resGap, subY, subCardW, subCardH,
-      '🤯', '最离谱战绩', weirdCatch
-    );
-
-    // === 今日目标模块 ===
-    this.createDailyMissionPanel(L.centerX, L.missionY);
-
-    // === 玩法轻提示 ===
-    this.createHintBox(L.centerX, L.hintY);
-
-    // === 主按钮区 ===
-    this.createStartButton(L.centerX, L.startBtnY);
-    this.createEnergyButton(L.centerX, L.energyBtnY, energy >= maxEnergy);
-
-    // === 6. 水下氛围区 ===
-    this.add.rectangle(L.centerX, L.waterCenterY, L.width, L.waterHeight, 0x1e88e5);
-
-    const wave1 = this.add.ellipse(L.centerX - 100, L.waterTopY + 2, 140, 14, 0xffffff, 0.25);
-    const wave2 = this.add.ellipse(L.centerX + 50, L.waterTopY + 2, 180, 16, 0xffffff, 0.20);
-    const wave3 = this.add.ellipse(L.centerX + 200, L.waterTopY + 4, 110, 12, 0xffffff, 0.18);
-
-    this.tweens.add({
-      targets: [wave1, wave2, wave3],
-      scaleX: 1.06,
-      alpha: 0.08,
-      duration: 1200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    this.add.text(L.centerX, L.waterTopY + 28, '水下似乎有东西在游动...', {
-      fontSize: '18px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    this.createSwimmers(L);
-
-    this.add.text(120, L.coralBaseY, '🪸', { fontSize: '52px' }).setOrigin(0.5).setAlpha(0.82);
-    this.add.text(600, L.coralBaseY - 8, '🪸', { fontSize: '58px' }).setOrigin(0.5).setAlpha(0.78);
-    this.add.text(290, L.plantBaseY, '🌿', { fontSize: '42px' }).setOrigin(0.5).setAlpha(0.75);
-    this.add.text(460, L.plantBaseY - 4, '🌱', { fontSize: '38px' }).setOrigin(0.5).setAlpha(0.72);
-
-    const sandColor = 0xd8c28a;
-    this.add.ellipse(160, L.sandY, 200, 52, sandColor, 0.85);
-    this.add.ellipse(L.centerX, L.sandY + 12, 260, 66, sandColor, 0.85);
-    this.add.ellipse(585, L.sandY + 2, 200, 54, sandColor, 0.85);
-
-    const footerWavesY = L.height - 24;
-    this.add.text(L.centerX - 100, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.70);
-    this.add.text(L.centerX, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.70);
-    this.add.text(L.centerX + 100, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.70);
+    // === 渲染各 section ===
+    this.renderBrandSection(L);
+    this.renderResourceSection(L, coins, energy, maxEnergy, bestCatch, weirdCatch);
+    this.renderGoalSection(L);
+    this.renderActionSection(L, energy >= maxEnergy);
+    this.renderOceanSection(L);
   }
 
-  private createResourceCard(
-    x: number, y: number, w: number, h: number,
-    icon: string, label: string, value: string, valueColor: string,
-    registerText?: (text: Phaser.GameObjects.Text) => void,
-    bgAlpha: number = 0.20,
-    borderAlpha: number = 0.30
-  ) {
-    const card = this.add.rectangle(x, y, w, h, 0xffffff, bgAlpha)
-      .setStrokeStyle(1, 0xffffff, borderAlpha);
+  // ==================================================
+  // 1. brandSection - 顶部轻品牌区
+  // ==================================================
+  private renderBrandSection(L: ReturnType<typeof this.calculateLayout>) {
+    const x = L.centerX;
+    const y = L.brandY + LAYOUT_SPEC.brandHeight / 2;
 
-    const iconText = this.add.text(x - w / 2 + 32, y, icon, {
-      fontSize: '28px',
-    }).setOrigin(0.5);
-
-    const labelText = this.add.text(x - w / 2 + 68, y - 8, label, {
-      fontSize: '16px',
-      color: '#D0E8F0',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    const valueText = this.add.text(x + w / 2 - 20, y + 4, value, {
-      fontSize: '26px',
-      color: valueColor,
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    if (registerText) {
-      registerText(valueText);
-    }
-
-    return card;
-  }
-
-  private createSubResourceCard(
-    x: number, y: number, w: number, h: number,
-    icon: string, label: string, value: string
-  ) {
-    const card = this.add.rectangle(x, y, w, h, 0xffffff, 0.10)
-      .setStrokeStyle(1, 0xffffff, 0.15);
-
-    const iconText = this.add.text(x - w / 2 + 24, y, icon, {
-      fontSize: '22px',
-    }).setOrigin(0.5);
-
-    const labelText = this.add.text(x - w / 2 + 54, y - 4, label, {
+    // 占位背景
+    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.brandHeight, 0x6fa3d4, 0.3);
+    this.add.text(LAYOUT_SPEC.horizontalPadding, L.brandY, 'brand', {
       fontSize: '14px',
-      color: '#B8D8E8',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+      color: '#FFFFFF',
+    }).setOrigin(0, 0);
 
-    const valueText = this.add.text(x + w / 2 - 16, y + 2, value, {
-      fontSize: '18px',
-      color: '#E0F0FF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    return card;
+    // 标题占位
+    this.add.rectangle(x, L.brandY + 30, 200, 30, 0xffffff, 0.5);
+    // slogan 占位
+    this.add.rectangle(x, L.brandY + 65, 150, 18, 0xffffff, 0.3);
   }
 
-  private createDailyMissionPanel(centerX: number, centerY: number) {
-    const panelW = 680;
-    const panelH = 170;
+  // ==================================================
+  // 2. resourceSection - 资源区（两排两列）
+  // ==================================================
+  private renderResourceSection(
+    L: ReturnType<typeof this.calculateLayout>,
+    coins: number,
+    energy: number,
+    maxEnergy: number,
+    bestCatch: string,
+    weirdCatch: string
+  ) {
+    const x = L.centerX;
+    const y = L.resourceY + LAYOUT_SPEC.resourceHeight / 2;
 
-    // 背景卡片：正式任务卡
-    const panelBg = this.add.rectangle(centerX, centerY, panelW, panelH, 0x1a3a52, 0.40)
-      .setStrokeStyle(2, 0xffffff, 0.30);
+    // 占位背景
+    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.resourceHeight, 0x5a8fc4, 0.3);
+    this.add.text(LAYOUT_SPEC.horizontalPadding, L.resourceY, 'resource', {
+      fontSize: '14px',
+      color: '#FFFFFF',
+    }).setOrigin(0, 0);
 
-    // 标题行
-    const titleText = this.add.text(centerX - panelW / 2 + 24, centerY - panelH / 2 + 20, '📋 今日目标', {
-      fontSize: '18px',
+    // 第一排：金币、体力（高优先级）
+    const cardW = 330;
+    const cardH = 60;
+    const gap = 16;
+    const leftX = x - (cardW * 2 + gap) / 2;
+    const row1Y = L.resourceY + 35;
+
+    // 金币占位
+    this.add.rectangle(leftX, row1Y, cardW, cardH, 0xffd700, 0.4);
+    this.add.text(leftX + 10, row1Y - cardH / 2 + 5, '🪙 金币', { fontSize: '12px' }).setOrigin(0, 0);
+    this.add.text(leftX + cardW - 10, row1Y + cardH / 2 - 5, String(coins), { fontSize: '18px', color: '#FFE082' }).setOrigin(1, 1);
+
+    // 体力占位
+    this.add.rectangle(leftX + cardW + gap, row1Y, cardW, cardH, 0x90ee90, 0.4);
+    this.add.text(leftX + cardW + gap + 10, row1Y - cardH / 2 + 5, '⚡ 体力', { fontSize: '12px' }).setOrigin(0, 0);
+    this.add.text(leftX + cardW + gap + cardW - 10, row1Y + cardH / 2 - 5, `${energy}/${maxEnergy}`, { fontSize: '18px', color: '#90EE90' }).setOrigin(1, 1);
+
+    // 第二排：最佳渔获、最离谱战绩（低优先级）
+    const row2Y = row1Y + cardH + 12;
+
+    // 最佳渔获占位
+    this.add.rectangle(leftX, row2Y, cardW, 40, 0xffffff, 0.2);
+    this.add.text(leftX + 10, row2Y - 20 + 5, '⭐ 最佳渔获', { fontSize: '11px' }).setOrigin(0, 0);
+    this.add.text(leftX + cardW - 10, row2Y + 20 / 2 - 5, bestCatch, { fontSize: '14px', color: '#E0F0FF' }).setOrigin(1, 0.5);
+
+    // 最离谱战绩占位
+    this.add.rectangle(leftX + cardW + gap, row2Y, cardW, 40, 0xffffff, 0.2);
+    this.add.text(leftX + cardW + gap + 10, row2Y - 20 + 5, '🤯 最离谱战绩', { fontSize: '11px' }).setOrigin(0, 0);
+    this.add.text(leftX + cardW + gap + cardW - 10, row2Y + 20 / 2 - 5, weirdCatch, { fontSize: '14px', color: '#E0F0FF' }).setOrigin(1, 0.5);
+  }
+
+  // ==================================================
+  // 3. goalSection - 今日目标区（独立任务卡）
+  // ==================================================
+  private renderGoalSection(L: ReturnType<typeof this.calculateLayout>) {
+    const x = L.centerX;
+    const y = L.goalY + LAYOUT_SPEC.goalHeight / 2;
+
+    // 占位背景
+    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.goalHeight, 0x1a3a52, 0.5);
+    this.add.text(LAYOUT_SPEC.horizontalPadding, L.goalY, 'goal', {
+      fontSize: '14px',
+      color: '#FFFFFF',
+    }).setOrigin(0, 0);
+
+    // 标题占位
+    this.add.text(LAYOUT_SPEC.horizontalPadding + 10, L.goalY + 15, '📋 今日目标', {
+      fontSize: '16px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0, 0);
 
-    // 任务列表：每条任务分两层（任务名 + 进度数字 / 进度条）
-    const tasks = DailyMissionManager.instance.getTasks();
-    const taskStartY = centerY - panelH / 2 + 55;
-    const taskGap = 34;
+    // 3 条任务占位（每条分两层：任务名 + 进度数字 / 进度条）
+    const taskStartY = L.goalY + 45;
+    const taskGap = 36;
+    const barW = 120;
+    const barH = 12;
 
+    const tasks = DailyMissionManager.instance.getTasks();
     tasks.forEach((task, index) => {
-      this.createTaskRow(
-        centerX - panelW / 2 + 24,
-        taskStartY + index * taskGap,
-        panelW - 48,
-        task
-      );
+      const taskY = taskStartY + index * taskGap;
+
+      // 第一层：任务名称（左）+ 进度数字（右）
+      this.add.text(LAYOUT_SPEC.horizontalPadding + 10, taskY, task.title, {
+        fontSize: '14px',
+        color: '#F0F8FF',
+        fontStyle: 'bold',
+      }).setOrigin(0, 0.5);
+
+      this.add.text(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10, taskY, `${task.progress}/${task.target}`, {
+        fontSize: '12px',
+        color: '#FFFFFF',
+        fontStyle: 'bold',
+      }).setOrigin(1, 0.5);
+
+      // 第二层：独立进度条
+      const barY = taskY + 20;
+      const barX = LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10 - barW;
+      this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.4);
+      const progress = Math.min(1, task.progress / task.target);
+      this.add.rectangle(barX + barW / 2 * progress, barY, barW * progress, barH, 0x4CAF50);
     });
 
-    // 底部轻提示
-    const allCompleted = DailyMissionManager.instance.isAllCompleted();
-    const rewardClaimed = DailyMissionManager.instance.isRewardClaimed();
-
-    if (allCompleted && !rewardClaimed) {
-      const rewardText = this.add.text(centerX, centerY + panelH / 2 - 18, '完成全部今日目标可领取额外奖励', {
-        fontSize: '13px',
-        color: '#FFD700',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
-    } else if (allCompleted && rewardClaimed) {
-      const doneText = this.add.text(centerX, centerY + panelH / 2 - 18, '✅ 今日目标已全部完成', {
-        fontSize: '13px',
-        color: '#90EE90',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
-    }
+    // 底部轻提示占位
+    this.add.text(x, L.goalY + LAYOUT_SPEC.goalHeight - 20, '完成全部今日目标可领取额外奖励', {
+      fontSize: '11px',
+      color: '#FFD700',
+    }).setOrigin(0.5, 0);
   }
 
-  private createTaskRow(
-    x: number, y: number, w: number,
-    task: DailyTask
-  ) {
-    const container = this.add.container(x, y);
+  // ==================================================
+  // 4. actionSection - 主行动区
+  // ==================================================
+  private renderActionSection(L: ReturnType<typeof this.calculateLayout>, isFullEnergy: boolean) {
+    const x = L.centerX;
+    const y = L.actionY + LAYOUT_SPEC.actionHeight / 2;
 
-    // 第一层：任务名称（左）+ 进度数字（右）
-    const taskName = this.add.text(0, 0, task.title, {
-      fontSize: '15px',
-      color: task.claimed ? '#888888' : '#F0F8FF',
-      fontStyle: task.claimed ? 'normal' : 'bold',
-    }).setOrigin(0, 0.5);
-
-    const progressText = this.add.text(w, 0, `${task.progress}/${task.target}`, {
-      fontSize: '13px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(1, 0.5);
-
-    // 第二层：单独进度条
-    const barY = 22;
-    const barW = 120;
-    const barH = 14;
-    const barX = w - barW;
-
-    const barBg = this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.50)
-      .setStrokeStyle(1, 0xffffff, 0.20);
-
-    const progress = Math.min(1, task.progress / task.target);
-    const barFill = this.add.rectangle(barX + barW / 2 * progress, barY, barW * progress, barH, 0x4CAF50)
-      .setOrigin(0.5, 0.5);
-
-    // 完成标记
-    let checkMark: Phaser.GameObjects.Text | null = null;
-    if (task.claimed) {
-      checkMark = this.add.text(barX + barW + 18, barY, '✓', {
-        fontSize: '14px',
-        color: '#90EE90',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
-    }
-
-    container.add([taskName, progressText, barBg, barFill]);
-    if (checkMark) {
-      container.add(checkMark);
-    }
-
-    // 可领取状态：添加点击交互
-    if (!task.claimed && task.progress >= task.target) {
-      container.setSize(w, barY + 10);
-      container.setInteractive({ useHandCursor: true });
-      container.on('pointerdown', () => this.onTaskClaim(task.id, container));
-
-      // 闪烁提示
-      this.tweens.add({
-        targets: [barFill],
-        alpha: 0.6,
-        duration: 400,
-        yoyo: true,
-        repeat: -1,
-      });
-    }
-
-    this.missionTaskContainers.push(container);
-  }
-
-  private onTaskClaim(taskId: string, container: Phaser.GameObjects.Container) {
-    SimpleAudio.click();
-    
-    const claimed = DailyMissionManager.instance.claimTaskReward(taskId);
-    if (claimed) {
-      SaveSync.save();
-      // 刷新任务显示
-      this.scene.restart();
-    } else {
-      this.showToast('该任务已完成或不可领取');
-    }
-  }
-
-  // === 4. 小技巧提示区 ===
-  private createHintBox(centerX: number, y: number) {
-    const hintW = 400;
-    const hintH = 44;
-
-    const hintBg = this.add.rectangle(centerX, y, hintW, hintH, 0xffffff, 0.12)
-      .setStrokeStyle(1, 0xffffff, 0.20);
-
-    const hintText = this.add.text(centerX, y, '小技巧：浮漂明显下沉时再拉杆，更容易拿高奖励', {
+    // 占位背景
+    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.actionHeight, 0x4a7fb4, 0.3);
+    this.add.text(LAYOUT_SPEC.horizontalPadding, L.actionY, 'action', {
       fontSize: '14px',
       color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    }).setOrigin(0, 0);
 
-    return hintBg;
-  }
+    // 主按钮：开始钓鱼（占位）
+    const startBtnW = 480;
+    const startBtnH = 110;
+    const startBtnY = L.actionY + 55;
 
-  // === 5. 主行动区 ===
-  private createStartButton(centerX: number, y: number) {
-    const btnW = 480;
-    const btnH = 110;
-
-    const startBtn = this.add.rectangle(centerX, y, btnW, btnH, 0xff6b6b)
-      .setStrokeStyle(4, 0xffffff, 0.35)
-      .setInteractive({ useHandCursor: true });
-
-    // 按钮光晕（保持最强 CTA）
-    const glow = this.add.rectangle(centerX, y, btnW, btnH, 0xff8888, 0.30);
-    this.tweens.add({
-      targets: glow,
-      scaleX: 1.02,
-      scaleY: 1.02,
-      alpha: 0.20,
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-    });
-
-    this.add.text(centerX, y, '开始钓鱼', {
+    const startBtn = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0xff6b6b, 0.9);
+    this.add.text(x, startBtnY, '开始钓鱼', {
       fontSize: '42px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    startBtn.on('pointerdown', () => {
-      SimpleAudio.unlock();
-      SimpleAudio.click();
+    // 次按钮：补充体力（占位）
+    const energyBtnW = 360;
+    const energyBtnH = 80;
+    const energyBtnY = startBtnY + startBtnH / 2 + 50 + energyBtnH / 2;
 
-      if (!EnergyManager.instance.hasEnergy()) {
-        this.showToast('体力不足，先补充体力');
-        return;
-      }
-
-      AnalyticsManager.instance.onStartRound();
-      EnergyManager.instance.costEnergy();
-      SaveSync.save();
-      this.scene.start('FishingScene', {
-        round: DirectorSystem.getRoundNumber(),
-      });
-    });
-  }
-
-  private createEnergyButton(centerX: number, y: number, isFullEnergy: boolean) {
-    const btnW = 360;
-    const btnH = 80;
-    const alpha = isFullEnergy ? 0.5 : 1.0;
-
-    const energyBtn = this.add.rectangle(centerX, y, btnW, btnH, 0x9b59b6, alpha)
-      .setStrokeStyle(2, 0xffffff, 0.15)
-      .setInteractive({ useHandCursor: true });
-
-    this.add.text(centerX, y - 8, '🎬 补充体力', {
+    const energyBtn = this.add.rectangle(x, energyBtnY, energyBtnW, energyBtnH, 0x9b59b6, isFullEnergy ? 0.4 : 0.8);
+    this.add.text(x, energyBtnY - 8, '🎬 补充体力', {
       fontSize: '26px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(centerX, y + 20, '观看广告可恢复 3 点体力', {
+    this.add.text(x, energyBtnY + 22, '观看广告可恢复 3 点体力', {
       fontSize: '13px',
       color: '#F0E8FF',
     }).setOrigin(0.5);
 
-    energyBtn.on('pointerdown', () => {
-      SimpleAudio.unlock();
-      SimpleAudio.click();
+    // 按钮交互
+    startBtn.setInteractive({ useHandCursor: true });
+    startBtn.on('pointerdown', () => this.onStartFishing());
 
-      const energy = EnergyManager.instance.getEnergy();
-      const maxEnergy = EnergyManager.instance.getMaxEnergy();
+    energyBtn.setInteractive({ useHandCursor: true });
+    energyBtn.on('pointerdown', () => this.onAddEnergy(isFullEnergy));
+  }
 
-      if (energy >= maxEnergy) {
-        this.showToast('体力已满，不需要补充');
-        return;
-      }
+  // ==================================================
+  // 5. oceanSection - 水下氛围区
+  // ==================================================
+  private renderOceanSection(L: ReturnType<typeof this.calculateLayout>) {
+    const x = L.centerX;
+    const y = L.oceanY + L.oceanHeight / 2;
 
-      EnergyManager.instance.addEnergy(3);
-      SaveSync.save();
+    // 占位背景
+    this.add.rectangle(x, y, L.width, L.oceanHeight, 0x1e88e5, 0.6);
+    this.add.text(LAYOUT_SPEC.horizontalPadding, L.oceanY, 'ocean', {
+      fontSize: '14px',
+      color: '#FFFFFF',
+    }).setOrigin(0, 0);
 
-      if (EnergyManager.instance.getEnergy() >= maxEnergy) {
-        this.showToast('补充成功，体力已满！');
-      } else {
-        this.showToast('补充成功，体力 +3');
-      }
+    // 顶部弱提示（与水下文案合并）
+    const tipY = L.oceanY + 25;
+    this.add.rectangle(x, tipY + 15, 350, 32, 0xffffff, 0.1);
+    this.add.text(x, tipY, '💡 小技巧：浮漂明显下沉时再拉杆，更容易拿高奖励', {
+      fontSize: '13px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5, 0);
 
-      this.scene.restart();
+    // 水下文案占位
+    this.add.text(x, L.oceanY + 60, '水下似乎有东西在游动...', {
+      fontSize: '16px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5, 0);
+
+    // 鱼群占位
+    this.add.text(150, L.oceanY + 110, '🐟', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(300, L.oceanY + 140, '🐠', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(450, L.oceanY + 120, '🐡', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(600, L.oceanY + 150, '🐢', { fontSize: '32px' }).setOrigin(0.5);
+
+    // 底部装饰占位
+    const sandY = L.oceanY + L.oceanHeight - 30;
+    this.add.text(120, sandY, '🪸', { fontSize: '42px' }).setOrigin(0.5);
+    this.add.text(300, sandY - 10, '🌿', { fontSize: '36px' }).setOrigin(0.5);
+    this.add.text(450, sandY - 10, '🌱', { fontSize: '36px' }).setOrigin(0.5);
+    this.add.text(620, sandY, '🪸', { fontSize: '42px' }).setOrigin(0.5);
+  }
+
+  // ==================================================
+  // 按钮交互逻辑
+  // ==================================================
+  private onStartFishing() {
+    SimpleAudio.unlock();
+    SimpleAudio.click();
+
+    if (!EnergyManager.instance.hasEnergy()) {
+      this.showToast('体力不足，先补充体力');
+      return;
+    }
+
+    AnalyticsManager.instance.onStartRound();
+    EnergyManager.instance.costEnergy();
+    SaveSync.save();
+    this.scene.start('FishingScene', {
+      round: DirectorSystem.getRoundNumber(),
     });
   }
 
-  private createSwimmers(L: ReturnType<MainScene['getLayout']>) {
-    const pool: SwimVisual[] = [
-      { emoji: '🐟', x: 140, y: L.waterTopY + 100, dirX: 1, dirY: 1, speed: 0.32, scale: 1.2, drift: 16 },
-      { emoji: '🐠', x: 560, y: L.waterTopY + 150, dirX: -1, dirY: 1, speed: 0.4, scale: 1.35, drift: 20 },
-      { emoji: '🐡', x: 260, y: L.waterTopY + 200, dirX: 1, dirY: -1, speed: 0.26, scale: 1.55, drift: 14 },
-      { emoji: '🐢', x: 480, y: L.waterTopY + 240, dirX: -1, dirY: -1, speed: 0.2, scale: 1.6, drift: 10 },
-      { emoji: '🦀', x: 160, y: L.waterTopY + 270, dirX: 1, dirY: -1, speed: 0.18, scale: 1.45, drift: 8 },
-    ];
+  private onAddEnergy(isFullEnergy: boolean) {
+    SimpleAudio.unlock();
+    SimpleAudio.click();
 
-    this.swimmerData = [...pool];
+    const energy = EnergyManager.instance.getEnergy();
+    const maxEnergy = EnergyManager.instance.getMaxEnergy();
 
-    pool.forEach((item) => {
-      const t = this.add.text(item.x, item.y, item.emoji, {
-        fontSize: `${Math.round(30 * item.scale)}px`,
-      }).setOrigin(0.5);
-
-      this.swimmers.push(t);
-    });
-  }
-
-  update() {
-    if (!this.swimmers.length || !this.swimmerData.length) return;
-
-    const L = this.getLayout();
-    const minX = 60;
-    const maxX = L.width - 60;
-    const minY = L.waterTopY + 76;
-    const maxY = L.sandY - 66;
-
-    for (let i = 0; i < this.swimmers.length; i++) {
-      const sprite = this.swimmers[i];
-      const data = this.swimmerData[i];
-
-      if (!sprite || !data) continue;
-
-      sprite.x += data.dirX * data.speed;
-      sprite.y += data.dirY * (data.speed * 0.32) + Math.sin(this.time.now * 0.001 + i) * 0.06;
-
-      if (sprite.x < minX || sprite.x > maxX) data.dirX *= -1;
-      if (sprite.y < minY || sprite.y > maxY) data.dirY *= -1;
-
-      sprite.setScale(data.dirX < 0 ? -1 : 1, 1);
+    if (energy >= maxEnergy) {
+      this.showToast('体力已满，不需要补充');
+      return;
     }
 
-    for (let i = 0; i < this.swimmers.length; i++) {
-      const a = this.swimmers[i];
-      const da = this.swimmerData[i];
-      if (!a || !da) continue;
+    EnergyManager.instance.addEnergy(3);
+    SaveSync.save();
 
-      for (let j = i + 1; j < this.swimmers.length; j++) {
-        const b = this.swimmers[j];
-        const db = this.swimmerData[j];
-        if (!b || !db) continue;
-
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < 50) {
-          da.dirX *= -1;
-          db.dirX *= -1;
-          da.dirY *= -1;
-          db.dirY *= -1;
-        }
-      }
+    if (EnergyManager.instance.getEnergy() >= maxEnergy) {
+      this.showToast('补充成功，体力已满！');
+    } else {
+      this.showToast('补充成功，体力 +3');
     }
+
+    this.scene.restart();
   }
 
   private showToast(message: string) {
-    const L = this.getLayout();
-    const bg = this.add.rectangle(L.centerX, L.actionBaseY - 100, 440, 58, 0x000000, 0.54)
+    const L = this.calculateLayout();
+    const bg = this.add.rectangle(L.centerX, L.actionY - 50, 440, 58, 0x000000, 0.54)
       .setStrokeStyle(2, 0xffffff, 0.12);
 
-    const text = this.add.text(L.centerX, L.actionBaseY - 100, message, {
+    const text = this.add.text(L.centerX, L.actionY - 50, message, {
       fontSize: '22px',
       color: '#FFFFFF',
       fontStyle: 'bold',
