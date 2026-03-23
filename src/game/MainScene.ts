@@ -30,14 +30,19 @@ export class MainScene extends Phaser.Scene {
     const height = Number(this.scale.height) || 1334;
     const centerX = width / 2;
 
-    const safeBottom = Math.max(150, Math.round(height * 0.12));
-    const actionBaseY = height - safeBottom - 10;
+    const safeBottom = Math.max(130, Math.round(height * 0.1));
 
-    const waterTopY = Math.min(900, Math.max(760, height * 0.67));
-    const waterHeight = Math.max(300, actionBaseY - waterTopY - 130);
+    // 首页按钮固定在信息块下面，而不是贴近底部
+    const startBtnY = 565;
+    const energyBtnY = 675;
+
+    // 水域顶部放到按钮下面
+    const waterTopY = 760;
+    const waterBottomY = height - safeBottom - 20;
+    const waterHeight = Math.max(240, waterBottomY - waterTopY);
     const waterCenterY = waterTopY + waterHeight / 2;
 
-    const sandY = waterTopY + waterHeight - 26;
+    const sandY = waterBottomY - 18;
     const plantBaseY = sandY - 42;
     const coralBaseY = sandY - 88;
 
@@ -46,8 +51,10 @@ export class MainScene extends Phaser.Scene {
       height,
       centerX,
       safeBottom,
-      actionBaseY,
+      startBtnY,
+      energyBtnY,
       waterTopY,
+      waterBottomY,
       waterHeight,
       waterCenterY,
       sandY,
@@ -56,58 +63,25 @@ export class MainScene extends Phaser.Scene {
     };
   }
 
-  // ===== 兼容 RecordManager 不同版本 =====
-  private getTodayCountSafe(): number {
-    const rm: any = RecordManager.instance as any;
-
-    if (rm && typeof rm.getTodayCount === 'function') {
-      return Number(rm.getTodayCount()) || 0;
-    }
-    if (rm && typeof rm.getCount === 'function') {
-      return Number(rm.getCount()) || 0;
-    }
-    if (rm && typeof rm.getTotalCount === 'function') {
-      return Number(rm.getTotalCount()) || 0;
-    }
-    if (rm && typeof rm.todayCount === 'number') {
-      return Number(rm.todayCount) || 0;
-    }
-    return 0;
-  }
-
   private getTodayBestCatchSafe(): string {
     const rm: any = RecordManager.instance as any;
 
-    if (rm && typeof rm.getTodayBestCatch === 'function') {
-      return rm.getTodayBestCatch() || '暂无';
-    }
-    if (rm && typeof rm.getBestCatch === 'function') {
-      return rm.getBestCatch() || '暂无';
-    }
-    if (rm && typeof rm.getBest === 'function') {
-      return rm.getBest() || '暂无';
-    }
-    if (rm && typeof rm.bestCatch === 'string') {
-      return rm.bestCatch || '暂无';
-    }
+    if (rm && typeof rm.getTodayBestCatch === 'function') return rm.getTodayBestCatch() || '暂无';
+    if (rm && typeof rm.getBestCatch === 'function') return rm.getBestCatch() || '暂无';
+    if (rm && typeof rm.getBest === 'function') return rm.getBest() || '暂无';
+    if (rm && typeof rm.bestCatch === 'string') return rm.bestCatch || '暂无';
+
     return '暂无';
   }
 
   private getTodayWeirdCatchSafe(): string {
     const rm: any = RecordManager.instance as any;
 
-    if (rm && typeof rm.getTodayWeirdCatch === 'function') {
-      return rm.getTodayWeirdCatch() || '暂无';
-    }
-    if (rm && typeof rm.getWeirdCatch === 'function') {
-      return rm.getWeirdCatch() || '暂无';
-    }
-    if (rm && typeof rm.getWeird === 'function') {
-      return rm.getWeird() || '暂无';
-    }
-    if (rm && typeof rm.weirdCatch === 'string') {
-      return rm.weirdCatch || '暂无';
-    }
+    if (rm && typeof rm.getTodayWeirdCatch === 'function') return rm.getTodayWeirdCatch() || '暂无';
+    if (rm && typeof rm.getWeirdCatch === 'function') return rm.getWeirdCatch() || '暂无';
+    if (rm && typeof rm.getWeird === 'function') return rm.getWeird() || '暂无';
+    if (rm && typeof rm.weirdCatch === 'string') return rm.weirdCatch || '暂无';
+
     return '暂无';
   }
 
@@ -117,7 +91,6 @@ export class MainScene extends Phaser.Scene {
     const coins = CoinManager.instance.getCoins();
     const energy = EnergyManager.instance.getEnergy();
     const maxEnergy = EnergyManager.instance.getMaxEnergy();
-    const todayCount = this.getTodayCountSafe();
     const bestCatch = this.getTodayBestCatchSafe();
     const weirdCatch = this.getTodayWeirdCatchSafe();
 
@@ -160,8 +133,9 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
+    // 信息块
     const infoWrapY = 340;
-    this.add.rectangle(L.centerX, infoWrapY, 690, 260, 0x78b6dd, 0.35)
+    this.add.rectangle(L.centerX, infoWrapY, 690, 220, 0x78b6dd, 0.35)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
     const cardW = 315;
@@ -183,13 +157,13 @@ export class MainScene extends Phaser.Scene {
         fontSize: '20px',
         color: '#EAF6FF',
         fontStyle: 'bold',
-      }).setOrigin(0.5, 0.5);
+      }).setOrigin(0.5);
 
       this.add.text(x + 42, y + 16, value, {
         fontSize: '24px',
         color: valueColor,
         fontStyle: 'bold',
-      }).setOrigin(0.5, 0.5);
+      }).setOrigin(0.5);
     };
 
     drawCard(leftX, row1Y, '🪙', '金币', String(coins), '#FFE082');
@@ -197,15 +171,9 @@ export class MainScene extends Phaser.Scene {
     drawCard(leftX, row2Y, '⭐', '今日最佳渔获', bestCatch, '#FFE082');
     drawCard(rightX, row2Y, '🤯', '今日最离谱战绩', weirdCatch, '#FFD180');
 
-    this.add.text(L.centerX, 458, `今日已钓 ${todayCount} 次`, {
-      fontSize: '22px',
-      color: '#F7FBFF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
     const comboLabel = DirectorSystem.getComboLabel();
     if (comboLabel) {
-      this.add.text(L.centerX, 495, comboLabel, {
+      this.add.text(L.centerX, 468, comboLabel, {
         fontSize: '22px',
         color: '#FFE082',
         fontStyle: 'bold',
@@ -214,17 +182,15 @@ export class MainScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    const startBtnY = L.actionBaseY - 165;
-    const energyBtnY = L.actionBaseY - 45;
-
-    this.add.rectangle(L.centerX, L.actionBaseY - 105, 540, 250, 0x000000, 0.06)
+    // 按钮区：固定在信息块下方
+    this.add.rectangle(L.centerX, 620, 540, 220, 0x000000, 0.06)
       .setStrokeStyle(2, 0xffffff, 0.08);
 
-    const startBtn = this.add.rectangle(L.centerX, startBtnY, 470, 106, 0xff6b6b)
+    const startBtn = this.add.rectangle(L.centerX, L.startBtnY, 470, 106, 0xff6b6b)
       .setStrokeStyle(4, 0xffffff, 0.18)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(L.centerX, startBtnY, '开始钓鱼', {
+    this.add.text(L.centerX, L.startBtnY, '开始钓鱼', {
       fontSize: '38px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -245,17 +211,17 @@ export class MainScene extends Phaser.Scene {
       });
     });
 
-    const energyBtn = this.add.rectangle(L.centerX, energyBtnY, 470, 98, 0x9b59b6)
+    const energyBtn = this.add.rectangle(L.centerX, L.energyBtnY, 470, 98, 0x9b59b6)
       .setStrokeStyle(4, 0xffffff, 0.18)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(L.centerX, energyBtnY - 4, '🎬 补充体力', {
+    this.add.text(L.centerX, L.energyBtnY - 4, '🎬 补充体力', {
       fontSize: '34px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(L.centerX, energyBtnY + 28, '观看广告可恢复 3 点体力', {
+    this.add.text(L.centerX, L.energyBtnY + 28, '观看广告可恢复 3 点体力', {
       fontSize: '18px',
       color: '#F7EFFF',
     }).setOrigin(0.5);
@@ -280,6 +246,7 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
+    // 水域
     this.add.rectangle(L.centerX, L.waterCenterY, L.width, L.waterHeight, 0x1e88e5);
 
     const wave1 = this.add.ellipse(L.centerX - 120, L.waterTopY + 2, 160, 16, 0xffffff, 0.22);
