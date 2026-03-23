@@ -214,7 +214,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 3. goalSection - 今日目标区（真正的二层任务骨架）
+  // 3. goalSection - 今日目标区（完全重画内部子占位）
   // ==================================================
   private renderGoalSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
@@ -227,42 +227,42 @@ export class MainScene extends Phaser.Scene {
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // 标题占位
-    this.add.rectangle(LAYOUT_SPEC.horizontalPadding + 10, L.goalY + 12, 120, 20, 0xffffff, 0.3);
+    // 标题占位块
+    this.add.rectangle(LAYOUT_SPEC.horizontalPadding + 10, L.goalY + 15, 130, 22, 0xffffff, 0.35);
 
     // 3 条任务（每条严格分两层）
-    const taskStartY = L.goalY + 45;
-    const taskGap = 48;  // 增加间距
+    const taskStartY = L.goalY + 50;
+    const taskGap = 50;
 
     const tasks = DailyMissionManager.instance.getTasks();
     tasks.forEach((task, index) => {
       const taskBaseY = taskStartY + index * taskGap;
 
       // === 第一层：任务名称占位（左）+ 进度数字占位（右）===
-      // 任务名占位块（180x18）
-      this.add.rectangle(LAYOUT_SPEC.horizontalPadding + 10, taskBaseY, 180, 18, 0xffffff, 0.35);
-      // 进度数字占位块（40x18）
-      this.add.rectangle(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10, taskBaseY, 40, 18, 0xffffff, 0.35);
+      // 任务名占位块（200x20）
+      this.add.rectangle(LAYOUT_SPEC.horizontalPadding + 10, taskBaseY, 200, 20, 0xffffff, 0.40);
+      // 进度数字占位块（50x20）
+      this.add.rectangle(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10, taskBaseY, 50, 20, 0xffffff, 0.40);
 
-      // === 第二层：独立进度条占位（在任务名下方，与任务名有明显间距）===
-      const barY = taskBaseY + 28;  // 增加间距到 28px
-      const barW = 140;
-      const barH = 14;
+      // === 第二层：独立进度条占位（在任务名下方，与任务名间距 30px）===
+      const barY = taskBaseY + 32;
+      const barW = 150;
+      const barH = 16;
       const barX = LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10 - barW;
       
-      // 进度条背景占位（140x14）
-      this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.5);
+      // 进度条背景占位（150x16）
+      this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.55);
       // 进度条填充占位
       const progress = Math.min(1, task.progress / task.target);
       this.add.rectangle(barX + barW / 2 * progress, barY, barW * progress, barH, 0x4CAF50);
     });
 
     // 底部轻提示占位
-    this.add.rectangle(x, L.goalY + LAYOUT_SPEC.goalHeight - 15, 280, 14, 0xffd700, 0.2);
+    this.add.rectangle(x, L.goalY + LAYOUT_SPEC.goalHeight - 18, 300, 16, 0xffd700, 0.25);
   }
 
   // ==================================================
-  // 4. actionSection - 主行动区（补充体力按钮彻底上提）
+  // 4. actionSection - 主行动区（补充体力按钮整体上移 50px）
   // ==================================================
   private renderActionSection(L: ReturnType<typeof this.calculateLayout>, isFullEnergy: boolean) {
     const x = L.centerX;
@@ -278,7 +278,7 @@ export class MainScene extends Phaser.Scene {
     // 主按钮：开始钓鱼（最强 CTA）
     const startBtnW = 480;
     const startBtnH = 110;
-    const startBtnY = L.actionY + 45;  // 再上移 5px
+    const startBtnY = L.actionY + 20;  // 从 45 减少到 20，上移 25px
 
     const startBtn = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0xff6b6b, 0.9);
     this.add.text(x, startBtnY, '开始钓鱼', {
@@ -287,10 +287,10 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 次按钮：补充体力（降级，再上提）
+    // 次按钮：补充体力（降级，整体上移 50px）
     const energyBtnW = 360;
     const energyBtnH = 80;
-    const energyBtnY = startBtnY + startBtnH / 2 + 40 + energyBtnH / 2;  // 间距从 50 减少到 40px，让按钮整体上提
+    const energyBtnY = startBtnY + startBtnH / 2 + 20 + energyBtnH / 2;  // 间距从 40 减少到 20px，再上移 25px
 
     const energyBtn = this.add.rectangle(x, energyBtnY, energyBtnW, energyBtnH, 0x9b59b6, isFullEnergy ? 0.4 : 0.8);
     this.add.text(x, energyBtnY - 8, '🎬 补充体力', {
@@ -313,7 +313,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 5. oceanSection - 水下氛围区（顶部弱信息大幅下沉）
+  // 5. oceanSection - 水下氛围区（顶部弱信息下移 40px）
   // ==================================================
   private renderOceanSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
@@ -326,26 +326,26 @@ export class MainScene extends Phaser.Scene {
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // === 顶部弱信息容器（大幅下沉到 80px，彻底脱离 actionSection）===
-    const infoBoxY = L.oceanY + 80;  // 从 55 大幅增加到 80px
-    const infoBoxW = 400;
-    const infoBoxH = 36;
+    // === 顶部弱信息容器（下移 40px，从 80 到 120）===
+    const infoBoxY = L.oceanY + 120;  // 从 80 增加到 120px
+    const infoBoxW = 380;
+    const infoBoxH = 32;
     
     // 弱信息背景（更透明）
-    this.add.rectangle(x, infoBoxY, infoBoxW, infoBoxH, 0x000000, 0.12);  // alpha 从 0.15 降到 0.12
+    this.add.rectangle(x, infoBoxY, infoBoxW, infoBoxH, 0x000000, 0.10);  // alpha 从 0.12 降到 0.10
     
     // 合并后的弱提示文案（更小更淡）
     this.add.text(x, infoBoxY, '💡 浮漂明显下沉时再拉杆 · 水下有东西在游动...', {
-      fontSize: '11px',  // 从 12px 降到 11px
+      fontSize: '10px',  // 从 11px 降到 10px
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 鱼群占位
-    this.add.text(150, L.oceanY + 130, '🐟', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(300, L.oceanY + 160, '🐠', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(450, L.oceanY + 140, '🐡', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(600, L.oceanY + 170, '🐢', { fontSize: '32px' }).setOrigin(0.5);
+    // 鱼群占位（下移）
+    this.add.text(150, L.oceanY + 150, '🐟', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(300, L.oceanY + 180, '🐠', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(450, L.oceanY + 160, '🐡', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(600, L.oceanY + 190, '🐢', { fontSize: '32px' }).setOrigin(0.5);
 
     // 底部装饰占位
     const sandY = L.oceanY + L.oceanHeight - 30;
