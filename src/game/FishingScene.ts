@@ -45,11 +45,9 @@ export class FishingScene extends Phaser.Scene {
     const height = Number(this.scale.height) || 1334;
     const centerX = width / 2;
 
-    // 给移动浏览器底栏预留更大的安全区
     const safeBottom = Math.max(150, Math.round(height * 0.12));
     const actionBaseY = height - safeBottom;
 
-    // 水底区域跟着上移，避免挤压按钮
     const sandY = actionBaseY - 92;
     const plantBaseY = sandY - 78;
     const coralBaseY = sandY - 138;
@@ -58,13 +56,10 @@ export class FishingScene extends Phaser.Scene {
       width,
       height,
       centerX,
-      safeBottom,
       actionBaseY,
       sandY,
       plantBaseY,
       coralBaseY,
-      waterTopY: 560,
-      deepWaterCenterY: Math.min(height - 280, 1015),
     };
   }
 
@@ -74,7 +69,7 @@ export class FishingScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#8FD3FF');
 
     this.add.rectangle(L.centerX, L.height / 2, L.width, L.height, 0x8fd3ff);
-    this.add.rectangle(L.centerX, L.deepWaterCenterY, L.width, Math.max(420, L.height - 700), 0x1e88e5);
+    this.add.rectangle(L.centerX, 1015, L.width, 640, 0x1e88e5);
 
     this.titleText = this.add.text(L.centerX, 95, '🎣 正在钓鱼', {
       fontSize: '46px',
@@ -115,7 +110,7 @@ export class FishingScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    this.add.rectangle(L.centerX, L.waterTopY, L.width, 6, 0xeafcff).setAlpha(0.9);
+    this.add.rectangle(L.centerX, 560, L.width, 6, 0xeafcff).setAlpha(0.9);
 
     const ripple1 = this.add.ellipse(L.centerX, 585, 90, 20, 0xffffff, 0.16);
     const ripple2 = this.add.ellipse(L.centerX, 600, 130, 24, 0xffffff, 0.10);
@@ -176,7 +171,6 @@ export class FishingScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // 水底装饰：跟随安全区整体上移
     this.add.text(135, L.plantBaseY, '🌿', { fontSize: '54px' }).setOrigin(0.5).setAlpha(0.90);
     this.add.text(610, L.plantBaseY - 10, '🌱', { fontSize: '48px' }).setOrigin(0.5).setAlpha(0.88);
     this.add.text(178, L.coralBaseY, '🪸', { fontSize: '56px' }).setOrigin(0.5).setAlpha(0.92);
@@ -187,7 +181,6 @@ export class FishingScene extends Phaser.Scene {
     this.add.ellipse(392, L.sandY + 15, 260, 72, sandColor, 0.95);
     this.add.ellipse(575, L.sandY + 2, 220, 60, sandColor, 0.95);
 
-    // 安全操作区
     this.add.rectangle(L.centerX, L.actionBaseY, 520, 132, 0x000000, 0.10)
       .setStrokeStyle(2, 0xffffff, 0.10);
 
@@ -297,10 +290,10 @@ export class FishingScene extends Phaser.Scene {
     }
 
     this.stateText.setText('咬钩了！快拉杆');
-    this.subHintText.setText('现在是最佳时机，慢了就跑鱼');
+    this.subHintText.setText('红色甜区命中最爽，太早或太晚都会跑鱼');
     this.pullBtnBg.setFillStyle(0xff7a45, 1);
     this.pullBtnText.setText('现在拉！');
-    this.pullBtnHint.setText('太早或太晚都会跑鱼');
+    this.pullBtnHint.setText('甜区更赚，拖太久会跑鱼');
 
     const visual = DirectorSystem.decideVisualType(this.currentDrop.type);
     this.playVisualSignal(visual);
@@ -308,18 +301,33 @@ export class FishingScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.floatBobber,
       y: 560,
-      duration: 100,
+      duration: 90,
       yoyo: true,
-      repeat: 5,
+      repeat: 6,
     });
 
-    this.tweens.add({
-      targets: this.pullBtnBg,
-      scaleX: DirectorSystem.hasComboBonus() ? 1.06 : 1.03,
-      scaleY: DirectorSystem.hasComboBonus() ? 1.06 : 1.03,
-      duration: 180,
-      yoyo: true,
-      repeat: 5,
+    // 甜区提示：按钮先橙再红，形成节奏
+    this.time.delayedCall(Math.max(60, this.config.earlyToleranceMs), () => {
+      if (this.phase !== 'bite') return;
+      this.pullBtnBg.setFillStyle(0xff3b30, 1);
+      this.pullBtnText.setText('甜区！');
+      this.pullBtnHint.setText('现在拉最稳');
+      this.tweens.add({
+        targets: [this.pullBtnBg, this.pullBtnText],
+        scaleX: 1.08,
+        scaleY: 1.08,
+        duration: 120,
+        yoyo: true,
+        repeat: 2,
+      });
+    });
+
+    // 甜区结束，进入普通成功区
+    this.time.delayedCall(this.config.perfectWindowMs, () => {
+      if (this.phase !== 'bite') return;
+      this.pullBtnBg.setFillStyle(0xff9f0a, 1);
+      this.pullBtnText.setText('快拉！');
+      this.pullBtnHint.setText('再慢就危险了');
     });
 
     this.time.delayedCall(this.config.goodWindowMs + this.config.lateToleranceMs, () => {
@@ -405,31 +413,38 @@ export class FishingScene extends Phaser.Scene {
       return;
     }
 
+    if (elapsed <= this.config.perfectWindowMs) {
+      this.successAndGo(true);
+      return;
+    }
+
     if (elapsed <= this.config.goodWindowMs) {
-      this.successAndGo();
+      this.successAndGo(false);
       return;
     }
 
     this.failAndGo('late');
   }
 
-  private successAndGo() {
+  private successAndGo(perfect: boolean) {
     this.phase = 'resolved';
     DirectorSystem.recordSuccess();
     DirectorSystem.nextRound();
     SaveSync.save();
 
-    this.stateText.setText(DirectorSystem.getCombo() >= 2 ? `命中！${DirectorSystem.getCombo()}连击` : '上钩了！');
+    this.stateText.setText(perfect ? '完美命中！' : (DirectorSystem.getCombo() >= 2 ? `命中！${DirectorSystem.getCombo()}连击` : '上钩了！'));
     this.subHintText.setText(
-      DirectorSystem.getCombo() >= 3
-        ? '状态火热，下一杆更有机会出节目效果'
-        : '看看这一杆到底捞到了什么'
+      perfect
+        ? '这一下拉得很准，奖励感更强'
+        : DirectorSystem.getCombo() >= 3
+          ? '状态火热，下一杆更有机会出节目效果'
+          : '看看这一杆到底捞到了什么'
     );
 
     this.tweens.add({
       targets: this.floatBobber,
       y: 450,
-      duration: 260,
+      duration: 240,
       ease: 'Back.easeIn',
     });
 
@@ -439,7 +454,16 @@ export class FishingScene extends Phaser.Scene {
       duration: 180,
     });
 
-    if (DirectorSystem.getCombo() >= 2) {
+    if (perfect) {
+      this.tweens.add({
+        targets: [this.titleText, this.stateText, this.pullBtnBg],
+        scaleX: 1.08,
+        scaleY: 1.08,
+        duration: 140,
+        yoyo: true,
+        repeat: 1,
+      });
+    } else if (DirectorSystem.getCombo() >= 2) {
       this.tweens.add({
         targets: [this.titleText, this.stateText],
         scaleX: 1.05,
@@ -449,10 +473,14 @@ export class FishingScene extends Phaser.Scene {
       });
     }
 
+    const rewardBoost = perfect && this.currentDrop
+      ? { ...this.currentDrop, reward: Math.round(this.currentDrop.reward * 1.25) }
+      : this.currentDrop ?? DropGenerator.generate();
+
     this.time.delayedCall(380, () => {
       this.scene.start('ResultScene', {
         success: true,
-        drop: this.currentDrop ?? DropGenerator.generate(),
+        drop: rewardBoost,
         round: this.roundNumber,
       });
     });
@@ -464,15 +492,36 @@ export class FishingScene extends Phaser.Scene {
     DirectorSystem.nextRound();
     SaveSync.save();
 
-    this.stateText.setText(reason === 'late' ? '慢了半拍…' : '这一杆失手了');
-    this.subHintText.setText('别急，再来一杆更容易中');
+    this.stateText.setText(
+      reason === 'late'
+        ? '慢了半拍…'
+        : reason === 'early'
+          ? '拉早了一点…'
+          : '这一杆失手了'
+    );
+
+    this.subHintText.setText(
+      reason === 'too_early'
+        ? '鱼还没咬钩就出手了'
+        : reason === 'early'
+          ? '鱼刚咬钩，你出手太急了'
+          : '咬钩后拖太久，鱼跑了'
+    );
 
     this.tweens.add({
       targets: [this.fishShadow, this.fishGlow],
       x: this.getLayout().width - 140,
       alpha: 0,
-      duration: 260,
+      duration: 220,
       ease: 'Sine.easeIn',
+    });
+
+    this.tweens.add({
+      targets: this.floatBobber,
+      y: 535,
+      duration: 120,
+      yoyo: true,
+      repeat: 1,
     });
 
     this.time.delayedCall(320, () => {
