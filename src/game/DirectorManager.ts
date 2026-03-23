@@ -1,3 +1,4 @@
+// 兼容保留：当前主玩法节奏以 DirectorSystem 为准，本文件仍用于存档兼容。
 import type { DropItem } from './DropGenerator';
 
 export class DirectorManager {

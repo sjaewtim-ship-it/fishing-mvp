@@ -1,3 +1,4 @@
+// 遗留未接线文件：当前主流程实际使用 SimpleAudio，本文件保留作历史参考。
 export class GameAudio {
   static play(type: 'bite' | 'success' | 'fail') {
     try {

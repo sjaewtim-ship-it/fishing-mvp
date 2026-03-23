@@ -1,3 +1,4 @@
+// 兼容保留：这是模板示例场景，不属于当前真实运行链路。
 import { Scene } from 'phaser';
 
 export class Game extends Scene

@@ -166,8 +166,8 @@ export class MainScene extends Phaser.Scene {
 
     drawCard(leftX, row1Y, '🪙', '金币', String(coins), '#FFE082');
     drawCard(rightX, row1Y, '⚡', '体力值', `${energy}/${maxEnergy}`, '#FFFFFF');
-    drawCard(leftX, row2Y, '⭐', '今日最佳渔获', bestCatch, '#FFE082');
-    drawCard(rightX, row2Y, '🤯', '今日最离谱战绩', weirdCatch, '#FFD180');
+    drawCard(leftX, row2Y, '⭐', '最佳渔获', bestCatch, '#FFE082');
+    drawCard(rightX, row2Y, '🤯', '最离谱战绩', weirdCatch, '#FFD180');
 
     const comboLabel = DirectorSystem.getComboLabel();
     if (comboLabel) {

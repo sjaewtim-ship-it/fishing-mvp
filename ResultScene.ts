@@ -1,3 +1,4 @@
+// 遗留未接线文件：这是旧版场景副本，不参与当前入口和构建主链路。
 import Phaser from 'phaser';
 import { CoinManager } from './CoinManager';
 import { SaveSync } from './SaveSync';

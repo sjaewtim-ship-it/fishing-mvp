@@ -1,3 +1,4 @@
+// 遗留未接线文件：当前主流程实际使用 WeChatHelper，本文件保留作历史参考。
 export class MobileHelper {
   static ensurePortraitOverlay() {
     let overlay = document.getElementById('portrait-overlay');

@@ -1,3 +1,4 @@
+// 兼容保留：这是 Phaser 模板入口，不属于当前真实运行链路。
 import { Game as MainGame } from './scenes/Game';
 import { AUTO, Game, Scale,Types } from 'phaser';
 

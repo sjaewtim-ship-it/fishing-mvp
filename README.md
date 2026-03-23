@@ -36,6 +36,28 @@ The local development server runs on `http://localhost:8080` by default. Please 
 
 Once the server is running you can edit any of the files in the `src` folder. Vite will automatically recompile your code and then reload the browser.
 
+## Current Runtime Path
+
+The current production and development runtime entry is:
+
+`index.html` -> `src/main.ts` -> `MainScene` -> `FishingScene` -> `ResultScene`
+
+Notes:
+
+- `src/main.ts` is the real bootstrap used by the current game.
+- `src/game/MainScene.ts`, `src/game/FishingScene.ts`, and `src/game/ResultScene.ts` are the active Phaser scenes.
+- `DirectorSystem` is the active gameplay pacing system used by the current fishing loop.
+
+## Legacy And Template Paths
+
+The repository still contains some legacy or template files that are **not** part of the current runtime path:
+
+- `src/game/main.ts` and `src/game/scenes/Game.ts`: original Phaser template entry and demo scene.
+- `FishingScene.ts` and `ResultScene.ts` in the repository root: older scene copies, not used by the current build entry.
+- `src/game/AdButton_Patch.ts` and `src/game/ResultScene_FailButtons_Patch.ts`: patch/snippet files for historical reference, not runtime modules.
+- `src/game/RoundManager.ts` and `src/game/DirectorManager.ts`: compatibility managers still referenced by save/reset flow, but they are not the active gameplay state source.
+- `src/game/GameAudio.ts` and `src/game/MobileHelper.ts`: currently not wired into the active scene flow.
+
 ## Template Project Structure
 
 We have provided a default project structure to get you started. This is as follows:
