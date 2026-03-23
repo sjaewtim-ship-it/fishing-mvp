@@ -4,6 +4,9 @@ import { DropGenerator, type DropItem } from './DropGenerator';
 import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
 import { AnalyticsManager } from './AnalyticsManager';
+import { ResultModal } from './ResultModal';
+import { EnergyModal } from './EnergyModal';
+import { EnergyManager } from './EnergyManager';
 
 type Phase = 'idle' | 'bite' | 'resolved';
 
@@ -450,6 +453,7 @@ export class FishingScene extends Phaser.Scene {
   }
 
   private successAndGo(perfect: boolean) {
+    // === 1. 先完成成功结算逻辑（导演系统、埋点、存档、奖励）===
     this.phase = 'resolved';
     const finalDrop = perfect && this.currentDrop
       ? { ...this.currentDrop, reward: Math.round(this.currentDrop.reward * 1.25) }
@@ -469,6 +473,7 @@ export class FishingScene extends Phaser.Scene {
           : '看看这一杆到底捞到了什么'
     );
 
+    // === 2. 播放成功动画 ===
     this.tweens.add({
       targets: this.floatBobber,
       y: 450,
@@ -501,23 +506,21 @@ export class FishingScene extends Phaser.Scene {
       });
     }
 
+    // === 3. 动画结束后显示成功弹窗（不再跳转 ResultScene）===
     this.time.delayedCall(380, () => {
-      this.scene.start('ResultScene', {
-        success: true,
-        drop: finalDrop,
-        round: this.roundNumber,
-        settled: false,
-      });
+      this.showResultModal('success', finalDrop, perfect);
     });
   }
 
   private failAndGo(reason: 'early' | 'too_early' | 'late') {
+    // === 1. 先完成失败结算逻辑（导演系统、埋点、存档）===
     this.phase = 'resolved';
     DirectorSystem.recordFail();
     AnalyticsManager.instance.onRoundFail();
     DirectorSystem.nextRound();
     SaveSync.save();
 
+    // === 2. 播放失败动画 ===
     this.stateText.setText(
       reason === 'late'
         ? '慢了半拍…'
@@ -550,12 +553,116 @@ export class FishingScene extends Phaser.Scene {
       repeat: 1,
     });
 
+    // === 3. 动画结束后显示失败弹窗（不再跳转 ResultScene）===
     this.time.delayedCall(320, () => {
-      this.scene.start('ResultScene', {
-        success: false,
-        round: this.roundNumber,
-        failReason: reason,
-      });
+      this.showResultModal('fail', undefined, undefined, reason);
     });
+  }
+
+  private currentResultModal: ResultModal | null = null;
+
+  private showResultModal(
+    resultType: 'success' | 'fail',
+    drop?: DropItem,
+    perfect?: boolean,
+    failReason?: 'early' | 'too_early' | 'late'
+  ) {
+    const combo = DirectorSystem.getCombo();
+
+    this.currentResultModal = new ResultModal(this, {
+      resultType,
+      drop,
+      round: this.roundNumber,
+      perfect,
+      combo,
+      failReason,
+      onContinue: () => {
+        // 先判断体力
+        if (!EnergyManager.instance.hasEnergy()) {
+          this.showEnergyModalFromFishingScene();
+          return;
+        }
+
+        // 体力充足，扣体力并重启
+        EnergyManager.instance.costEnergy();
+        SaveSync.save();
+        this.currentResultModal?.hide();
+        this.restartFlow();
+      },
+      onBack: () => {
+        this.currentResultModal?.hide();
+        this.scene.start('MainScene');
+      },
+    });
+    this.currentResultModal.show();
+  }
+
+  private showEnergyModalFromFishingScene() {
+    const currentEnergy = EnergyManager.instance.getEnergy();
+    const maxEnergy = EnergyManager.instance.getMaxEnergy();
+
+    const modal = new EnergyModal(this, {
+      currentEnergy,
+      maxEnergy,
+      underlyingContainer: this.currentResultModal?.getContainer() ?? undefined,
+      onRecharge: () => {
+        EnergyManager.instance.addEnergy(3);
+        SaveSync.save();
+        modal.hide();
+      },
+      onCancel: () => {
+        modal.hide();
+      },
+    });
+    modal.show();
+  }
+
+  private restartFlow() {
+    // 重置状态到初始钓鱼流程
+    this.phase = 'idle';
+    this.currentDrop = null;
+    this.biteStartAt = 0;
+
+    // 重置浮漂位置
+    this.floatBobber.setPosition(this.getLayout().centerX, 520);
+    this.floatBobber.setScale(1);
+
+    // 重置鱼影位置和状态
+    const L = this.getLayout();
+    const shadowRange = DirectorSystem.getShadowScaleRange();
+    const shadowW = Phaser.Math.Between(
+      Math.floor(95 * shadowRange.min),
+      Math.floor(95 * shadowRange.max)
+    );
+    const shadowH = Phaser.Math.Between(
+      Math.floor(34 * shadowRange.min),
+      Math.floor(34 * shadowRange.max)
+    );
+
+    this.fishShadow.setPosition(L.centerX + 15, 760);
+    this.fishShadow.setSize(shadowW, shadowH);
+    this.fishShadow.setAlpha(0.22);
+    this.fishShadow.setScale(1);
+
+    this.fishGlow.setPosition(L.centerX + 15, 760);
+    this.fishGlow.setSize(shadowW + 22, shadowH + 10);
+    this.fishGlow.setAlpha(0.08);
+    this.fishGlow.setScale(1);
+
+    // 重置按钮状态
+    this.pullBtnBg.setFillStyle(0xff5f5f, 1);
+    this.pullBtnBg.setScale(1);
+    this.pullBtnText.setText('立刻拉杆');
+    this.pullBtnText.setScale(1);
+    this.pullBtnHint.setText('看到明显动静再拉');
+    this.pullBtnHint.setScale(1);
+
+    // 重置 UI 文案
+    this.refreshHintUI();
+    this.stateText.setText('等待鱼咬钩...');
+    this.subHintText.setText('鱼影和浮漂有明显变化时再拉杆');
+
+    // 重新开始钓鱼流程
+    this.startFishingFlow();
   }
 }

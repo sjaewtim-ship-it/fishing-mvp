@@ -7,6 +7,7 @@ import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
 import { AnalyticsManager } from './AnalyticsManager';
 import { DailyMissionManager, type DailyTask } from './DailyMissionManager';
+import { EnergyModal } from './EnergyModal';
 
 type SwimVisual = {
   emoji: string;
@@ -200,13 +201,13 @@ export class MainScene extends Phaser.Scene {
     const coinCardX = leftX;
     this.add.rectangle(coinCardX + cardW / 2, row1Y, cardW, cardH1, 0xffd700, 0.45);
     this.add.text(coinCardX + 12, row1Y - cardH1 / 2 + 6, '🪙 金币', { fontSize: '13px' }).setOrigin(0, 0);
-    this.add.text(coinCardX + cardW - 12, row1Y + cardH1 / 2 - 6, String(coins), { fontSize: '20px', color: '#FFE082', fontStyle: 'bold' }).setOrigin(1, 1);
+    this.coinText = this.add.text(coinCardX + cardW - 12, row1Y + cardH1 / 2 - 6, String(coins), { fontSize: '20px', color: '#FFE082', fontStyle: 'bold' }).setOrigin(1, 1);
 
     // 体力卡片
     const energyCardX = leftX + cardW + gap;
     this.add.rectangle(energyCardX + cardW / 2, row1Y, cardW, cardH1, 0x90ee90, 0.45);
     this.add.text(energyCardX + 12, row1Y - cardH1 / 2 + 6, '⚡ 体力', { fontSize: '13px' }).setOrigin(0, 0);
-    this.add.text(energyCardX + cardW - 12, row1Y + cardH1 / 2 - 6, `${energy}/${maxEnergy}`, { fontSize: '20px', color: '#90EE90', fontStyle: 'bold' }).setOrigin(1, 1);
+    this.energyText = this.add.text(energyCardX + cardW - 12, row1Y + cardH1 / 2 - 6, `${energy}/${maxEnergy}`, { fontSize: '20px', color: '#90EE90', fontStyle: 'bold' }).setOrigin(1, 1);
 
     // === 第二排：最佳渔获、最离谱战绩（低优先级）===
     const row2Y = row1Y + cardH1 + rowGap;
@@ -372,17 +373,57 @@ export class MainScene extends Phaser.Scene {
     SimpleAudio.unlock();
     SimpleAudio.click();
 
+    const energyBefore = EnergyManager.instance.getEnergy();
+    console.log('[MainScene] onStartFishing - energy before:', energyBefore);
+
     if (!EnergyManager.instance.hasEnergy()) {
-      this.showToast('体力不足，先补充体力');
+      console.log('[MainScene] no energy, show EnergyModal');
+      this.showEnergyModal();
       return;
     }
 
     AnalyticsManager.instance.onStartRound();
     EnergyManager.instance.costEnergy();
+    
+    const energyAfter = EnergyManager.instance.getEnergy();
+    console.log('[MainScene] energy after costEnergy:', energyAfter);
+    
     SaveSync.save();
+    console.log('[MainScene] save called');
+    
     this.scene.start('FishingScene', {
       round: DirectorSystem.getRoundNumber(),
     });
+  }
+
+  private showEnergyModal() {
+    const currentEnergy = EnergyManager.instance.getEnergy();
+    const maxEnergy = EnergyManager.instance.getMaxEnergy();
+
+    const modal = new EnergyModal(this, {
+      currentEnergy,
+      maxEnergy,
+      onRecharge: () => {
+        // 补充体力（本轮模拟，不接真实广告）
+        EnergyManager.instance.addEnergy(3);
+        SaveSync.save();
+        modal.hide();
+        // 刷新首页体力显示
+        this.refreshEnergyUI();
+      },
+      onCancel: () => {
+        modal.hide();
+      },
+    });
+    modal.show();
+  }
+
+  private refreshEnergyUI() {
+    const energy = EnergyManager.instance.getEnergy();
+    const maxEnergy = EnergyManager.instance.getMaxEnergy();
+    if (this.energyText) {
+      this.energyText.setText(`${energy}/${maxEnergy}`);
+    }
   }
 
   private onAddEnergy(isFullEnergy: boolean) {
