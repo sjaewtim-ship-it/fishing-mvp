@@ -33,7 +33,7 @@ const LAYOUT_SPEC = {
   brandHeight: 90,
   resourceHeight: 150,     // 容纳完整 2x2 卡组
   goalHeight: 200,         // 容纳三层任务结构
-  actionHeight: 250,       // 确保与 ocean 有清晰边界
+  actionHeight: 280,       // 大幅增加以确保与 ocean 彻底断开
 };
 
 export class MainScene extends Phaser.Scene {
@@ -313,7 +313,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 5. oceanSection - 水下氛围区（顶部弱信息下沉）
+  // 5. oceanSection - 水下氛围区（顶部弱信息大幅下沉）
   // ==================================================
   private renderOceanSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
@@ -326,26 +326,26 @@ export class MainScene extends Phaser.Scene {
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // === 顶部弱信息容器（下沉，更弱）===
-    const infoBoxY = L.oceanY + 55;  // 下沉到 55px（从 35 增加）
-    const infoBoxW = 450;
-    const infoBoxH = 40;
+    // === 顶部弱信息容器（大幅下沉到 80px，彻底脱离 actionSection）===
+    const infoBoxY = L.oceanY + 80;  // 从 55 大幅增加到 80px
+    const infoBoxW = 400;
+    const infoBoxH = 36;
     
     // 弱信息背景（更透明）
-    this.add.rectangle(x, infoBoxY, infoBoxW, infoBoxH, 0x000000, 0.15);  // alpha 从 0.2 降到 0.15
+    this.add.rectangle(x, infoBoxY, infoBoxW, infoBoxH, 0x000000, 0.12);  // alpha 从 0.15 降到 0.12
     
     // 合并后的弱提示文案（更小更淡）
     this.add.text(x, infoBoxY, '💡 浮漂明显下沉时再拉杆 · 水下有东西在游动...', {
-      fontSize: '12px',  // 从 13px 降到 12px
+      fontSize: '11px',  // 从 12px 降到 11px
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     // 鱼群占位
-    this.add.text(150, L.oceanY + 110, '🐟', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(300, L.oceanY + 140, '🐠', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(450, L.oceanY + 120, '🐡', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(600, L.oceanY + 150, '🐢', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(150, L.oceanY + 130, '🐟', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(300, L.oceanY + 160, '🐠', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(450, L.oceanY + 140, '🐡', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(600, L.oceanY + 170, '🐢', { fontSize: '32px' }).setOrigin(0.5);
 
     // 底部装饰占位
     const sandY = L.oceanY + L.oceanHeight - 30;
