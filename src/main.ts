@@ -3,8 +3,10 @@ import { MainScene } from './game/MainScene';
 import { FishingScene } from './game/FishingScene';
 import { ResultScene } from './game/ResultScene';
 import { WeChatHelper } from './game/WeChatHelper';
+import { SaveSync } from './game/SaveSync';
 
 WeChatHelper.setup();
+SaveSync.load();
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,

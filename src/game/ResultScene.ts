@@ -6,6 +6,7 @@ import { ShareManager } from './ShareManager';
 import { SimpleAudio } from './SimpleAudio';
 import { VisualMap } from './VisualMap';
 import { DirectorSystem } from './DirectorSystem';
+import { RecordManager } from './RecordManager';
 import type { DropItem } from './DropGenerator';
 
 type ResultData = {
@@ -14,6 +15,7 @@ type ResultData = {
   round?: number;
   newbie?: boolean;
   rewarded?: boolean;
+  settled?: boolean;
   failReason?: 'early' | 'too_early' | 'late';
 };
 
@@ -26,6 +28,7 @@ type PosterStyle = {
 
 export class ResultScene extends Phaser.Scene {
   private shareRewardClaimed = false;
+  private doubleRewardPending = false;
 
   constructor() {
     super('ResultScene');
@@ -216,7 +219,9 @@ export class ResultScene extends Phaser.Scene {
     const drop = data.drop;
     const round = data.round ?? 0;
     const rewarded = data.rewarded ?? false;
+    const settled = data.settled ?? false;
     const failReason = data.failReason;
+    this.doubleRewardPending = false;
 
     this.cameras.main.setBackgroundColor(success ? '#8FD3FF' : '#34495E');
     this.add.rectangle(375, 667, 750, 1334, success ? 0x8fd3ff : 0x34495e);
@@ -260,6 +265,7 @@ export class ResultScene extends Phaser.Scene {
 
       retry.on('pointerdown', () => {
         SimpleAudio.click();
+        AnalyticsManager.instance.onStartRound();
         SaveSync.save();
         this.scene.start('FishingScene');
       });
@@ -281,7 +287,8 @@ export class ResultScene extends Phaser.Scene {
       return;
     }
 
-    if (!rewarded && drop) {
+    if (!settled && drop) {
+      RecordManager.instance.update(drop);
       CoinManager.instance.addCoins(drop.reward);
       SaveSync.save();
     }
@@ -404,6 +411,9 @@ export class ResultScene extends Phaser.Scene {
 
     if (!rewarded && drop) {
       doubleBtn.on('pointerdown', () => {
+        if (this.doubleRewardPending) return;
+        this.doubleRewardPending = true;
+
         SimpleAudio.click();
         AnalyticsManager.instance.onAdView('double_reward');
         CoinManager.instance.addCoins(drop.reward);
@@ -413,6 +423,7 @@ export class ResultScene extends Phaser.Scene {
           success: true,
           round,
           rewarded: true,
+          settled: true,
           drop: {
             ...drop,
             reward: drop.reward * 2,
@@ -422,7 +433,7 @@ export class ResultScene extends Phaser.Scene {
     }
 
     const shareRewardKey = this.getShareRewardKey(round, drop);
-    this.shareRewardClaimed = localStorage.getItem(shareRewardKey) === '1';
+    this.shareRewardClaimed = SaveSync.hasShareRewardClaimed(shareRewardKey);
 
     const shareBtn = this.add.rectangle(375, 875, 470, 110, 0x9b59b6)
       .setInteractive({ useHandCursor: true })
@@ -460,7 +471,7 @@ export class ResultScene extends Phaser.Scene {
 
       if (!this.shareRewardClaimed) {
         CoinManager.instance.addCoins(50);
-        localStorage.setItem(shareRewardKey, '1');
+        SaveSync.markShareRewardClaimed(shareRewardKey);
         this.shareRewardClaimed = true;
         SaveSync.save();
         this.showToast('首次分享奖励 +50 金币');
@@ -470,6 +481,7 @@ export class ResultScene extends Phaser.Scene {
           drop,
           round,
           rewarded,
+          settled: true,
         });
       } else {
         this.showToast('本次结果的分享奖励已领取');

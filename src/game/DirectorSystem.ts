@@ -15,6 +15,12 @@ export type TimingAssistConfig = {
 };
 
 export type VisualType = 'big' | 'normal' | 'small' | 'weird';
+export type DirectorSystemState = {
+  round: number;
+  failStreak: number;
+  successStreak: number;
+  combo: number;
+};
 
 export class DirectorSystem {
   private static round = 0;
@@ -44,6 +50,29 @@ export class DirectorSystem {
 
   static getCombo(): number {
     return this.combo;
+  }
+
+  static getState(): DirectorSystemState {
+    return {
+      round: this.round,
+      failStreak: this.failStreak,
+      successStreak: this.successStreak,
+      combo: this.combo,
+    };
+  }
+
+  static setState(state?: Partial<DirectorSystemState>) {
+    this.round = Math.max(0, state?.round ?? 0);
+    this.failStreak = Math.max(0, state?.failStreak ?? 0);
+    this.successStreak = Math.max(0, state?.successStreak ?? 0);
+    this.combo = Math.max(0, state?.combo ?? 0);
+  }
+
+  static reset() {
+    this.round = 0;
+    this.failStreak = 0;
+    this.successStreak = 0;
+    this.combo = 0;
   }
 
   static hasComboBonus(): boolean {

@@ -5,6 +5,7 @@ import { RecordManager } from './RecordManager';
 import { DirectorSystem } from './DirectorSystem';
 import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
+import { AnalyticsManager } from './AnalyticsManager';
 
 type SwimVisual = {
   emoji: string;
@@ -200,6 +201,7 @@ export class MainScene extends Phaser.Scene {
         return;
       }
 
+      AnalyticsManager.instance.onStartRound();
       EnergyManager.instance.costEnergy();
       SaveSync.save();
       this.scene.start('FishingScene', {

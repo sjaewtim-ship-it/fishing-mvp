@@ -3,6 +3,7 @@ import { DirectorSystem, type VisualType } from './DirectorSystem';
 import { DropGenerator, type DropItem } from './DropGenerator';
 import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
+import { AnalyticsManager } from './AnalyticsManager';
 
 type Phase = 'idle' | 'bite' | 'resolved';
 
@@ -428,7 +429,12 @@ export class FishingScene extends Phaser.Scene {
 
   private successAndGo(perfect: boolean) {
     this.phase = 'resolved';
+    const finalDrop = perfect && this.currentDrop
+      ? { ...this.currentDrop, reward: Math.round(this.currentDrop.reward * 1.25) }
+      : this.currentDrop ?? DropGenerator.generate();
+
     DirectorSystem.recordSuccess();
+    AnalyticsManager.instance.onRoundSuccess(finalDrop.name);
     DirectorSystem.nextRound();
     SaveSync.save();
 
@@ -473,15 +479,12 @@ export class FishingScene extends Phaser.Scene {
       });
     }
 
-    const rewardBoost = perfect && this.currentDrop
-      ? { ...this.currentDrop, reward: Math.round(this.currentDrop.reward * 1.25) }
-      : this.currentDrop ?? DropGenerator.generate();
-
     this.time.delayedCall(380, () => {
       this.scene.start('ResultScene', {
         success: true,
-        drop: rewardBoost,
+        drop: finalDrop,
         round: this.roundNumber,
+        settled: false,
       });
     });
   }
@@ -489,6 +492,7 @@ export class FishingScene extends Phaser.Scene {
   private failAndGo(reason: 'early' | 'too_early' | 'late') {
     this.phase = 'resolved';
     DirectorSystem.recordFail();
+    AnalyticsManager.instance.onRoundFail();
     DirectorSystem.nextRound();
     SaveSync.save();
 

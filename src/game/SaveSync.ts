@@ -5,8 +5,42 @@ import { RoundManager } from './RoundManager';
 import { StorageManager } from './StorageManager';
 import { AnalyticsManager } from './AnalyticsManager';
 import { DirectorManager } from './DirectorManager';
+import { DirectorSystem } from './DirectorSystem';
 
 export class SaveSync {
+  private static getDirectorSystemStateFromSave(data: ReturnType<typeof StorageManager.instance.load>) {
+    if (!data) {
+      return {
+        round: 0,
+        failStreak: 0,
+        successStreak: 0,
+        combo: 0,
+      };
+    }
+
+    // 优先使用当前活跃系统自己的存档字段；旧存档再回退到历史字段。
+    if (
+      typeof data.directorRound === 'number'
+      || typeof data.directorFailStreak === 'number'
+      || typeof data.directorSuccessStreak === 'number'
+      || typeof data.directorCombo === 'number'
+    ) {
+      return {
+        round: data.directorRound ?? 0,
+        failStreak: data.directorFailStreak ?? 0,
+        successStreak: data.directorSuccessStreak ?? 0,
+        combo: data.directorCombo ?? 0,
+      };
+    }
+
+    return {
+      round: data.roundCount ?? 0,
+      failStreak: 0,
+      successStreak: 0,
+      combo: 0,
+    };
+  }
+
   static load() {
     const data = StorageManager.instance.load();
     if (!data) return;
@@ -28,10 +62,12 @@ export class SaveSync {
       continuousNonLegendCount: data.continuousNonLegendCount ?? 0,
       recentLegendCooldown: data.recentLegendCooldown ?? 0,
     });
+    DirectorSystem.setState(this.getDirectorSystemStateFromSave(data));
   }
 
   static save() {
     const director = DirectorManager.instance.getDebugInfo();
+    const directorSystem = DirectorSystem.getState();
 
     StorageManager.instance.save({
       coins: CoinManager.instance.getCoins(),
@@ -47,10 +83,29 @@ export class SaveSync {
       continuousFishCount: director.continuousFishCount,
       continuousNonLegendCount: director.continuousNonLegendCount,
       recentLegendCooldown: director.recentLegendCooldown,
+      directorRound: directorSystem.round,
+      directorFailStreak: directorSystem.failStreak,
+      directorSuccessStreak: directorSystem.successStreak,
+      directorCombo: directorSystem.combo,
     });
+  }
+
+  static hasShareRewardClaimed(key: string) {
+    return StorageManager.instance.hasShareRewardClaimed(key);
+  }
+
+  static markShareRewardClaimed(key: string) {
+    StorageManager.instance.markShareRewardClaimed(key);
   }
 
   static reset() {
     StorageManager.instance.clear();
+    CoinManager.instance.reset();
+    EnergyManager.instance.reset();
+    RecordManager.instance.reset();
+    AnalyticsManager.instance.reset();
+    RoundManager.instance.reset();
+    DirectorManager.instance.reset();
+    DirectorSystem.reset();
   }
 }
