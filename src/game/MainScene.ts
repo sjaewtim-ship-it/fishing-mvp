@@ -31,9 +31,9 @@ const LAYOUT_SPEC = {
 
   // 各 section 高度
   brandHeight: 90,
-  resourceHeight: 140,
-  goalHeight: 180,
-  actionHeight: 200,
+  resourceHeight: 150,     // 增加以容纳完整 2x2 卡组
+  goalHeight: 190,         // 增加以容纳三层任务结构
+  actionHeight: 220,       // 增加以确保与 ocean 有清晰边界
 };
 
 export class MainScene extends Phaser.Scene {
@@ -154,7 +154,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 2. resourceSection - 资源区（两排两列）
+  // 2. resourceSection - 资源区（两排两列完整卡组）
   // ==================================================
   private renderResourceSection(
     L: ReturnType<typeof this.calculateLayout>,
@@ -166,6 +166,11 @@ export class MainScene extends Phaser.Scene {
   ) {
     const x = L.centerX;
     const y = L.resourceY + LAYOUT_SPEC.resourceHeight / 2;
+    const cardW = 330;
+    const cardH1 = 65;  // 第一排高度
+    const cardH2 = 50;  // 第二排高度
+    const gap = 16;
+    const rowGap = 10;
 
     // 占位背景
     this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.resourceHeight, 0x5a8fc4, 0.3);
@@ -174,114 +179,121 @@ export class MainScene extends Phaser.Scene {
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // 第一排：金币、体力（高优先级）
-    const cardW = 330;
-    const cardH = 60;
-    const gap = 16;
-    const leftX = x - (cardW * 2 + gap) / 2;
-    const row1Y = L.resourceY + 35;
+    // 计算左对齐位置
+    const leftX = LAYOUT_SPEC.horizontalPadding;
 
-    // 金币占位
-    this.add.rectangle(leftX, row1Y, cardW, cardH, 0xffd700, 0.4);
-    this.add.text(leftX + 10, row1Y - cardH / 2 + 5, '🪙 金币', { fontSize: '12px' }).setOrigin(0, 0);
-    this.add.text(leftX + cardW - 10, row1Y + cardH / 2 - 5, String(coins), { fontSize: '18px', color: '#FFE082' }).setOrigin(1, 1);
+    // === 第一排：金币、体力（高优先级）===
+    const row1Y = L.resourceY + 30;
 
-    // 体力占位
-    this.add.rectangle(leftX + cardW + gap, row1Y, cardW, cardH, 0x90ee90, 0.4);
-    this.add.text(leftX + cardW + gap + 10, row1Y - cardH / 2 + 5, '⚡ 体力', { fontSize: '12px' }).setOrigin(0, 0);
-    this.add.text(leftX + cardW + gap + cardW - 10, row1Y + cardH / 2 - 5, `${energy}/${maxEnergy}`, { fontSize: '18px', color: '#90EE90' }).setOrigin(1, 1);
+    // 金币卡片
+    const coinCardX = leftX;
+    this.add.rectangle(coinCardX + cardW / 2, row1Y, cardW, cardH1, 0xffd700, 0.45);
+    this.add.text(coinCardX + 12, row1Y - cardH1 / 2 + 6, '🪙 金币', { fontSize: '13px' }).setOrigin(0, 0);
+    this.add.text(coinCardX + cardW - 12, row1Y + cardH1 / 2 - 6, String(coins), { fontSize: '20px', color: '#FFE082', fontStyle: 'bold' }).setOrigin(1, 1);
 
-    // 第二排：最佳渔获、最离谱战绩（低优先级）
-    const row2Y = row1Y + cardH + 12;
+    // 体力卡片
+    const energyCardX = leftX + cardW + gap;
+    this.add.rectangle(energyCardX + cardW / 2, row1Y, cardW, cardH1, 0x90ee90, 0.45);
+    this.add.text(energyCardX + 12, row1Y - cardH1 / 2 + 6, '⚡ 体力', { fontSize: '13px' }).setOrigin(0, 0);
+    this.add.text(energyCardX + cardW - 12, row1Y + cardH1 / 2 - 6, `${energy}/${maxEnergy}`, { fontSize: '20px', color: '#90EE90', fontStyle: 'bold' }).setOrigin(1, 1);
 
-    // 最佳渔获占位
-    this.add.rectangle(leftX, row2Y, cardW, 40, 0xffffff, 0.2);
-    this.add.text(leftX + 10, row2Y - 20 + 5, '⭐ 最佳渔获', { fontSize: '11px' }).setOrigin(0, 0);
-    this.add.text(leftX + cardW - 10, row2Y + 20 / 2 - 5, bestCatch, { fontSize: '14px', color: '#E0F0FF' }).setOrigin(1, 0.5);
+    // === 第二排：最佳渔获、最离谱战绩（低优先级）===
+    const row2Y = row1Y + cardH1 + rowGap;
 
-    // 最离谱战绩占位
-    this.add.rectangle(leftX + cardW + gap, row2Y, cardW, 40, 0xffffff, 0.2);
-    this.add.text(leftX + cardW + gap + 10, row2Y - 20 + 5, '🤯 最离谱战绩', { fontSize: '11px' }).setOrigin(0, 0);
-    this.add.text(leftX + cardW + gap + cardW - 10, row2Y + 20 / 2 - 5, weirdCatch, { fontSize: '14px', color: '#E0F0FF' }).setOrigin(1, 0.5);
+    // 最佳渔获卡片
+    const bestCardX = leftX;
+    this.add.rectangle(bestCardX + cardW / 2, row2Y, cardW, cardH2, 0xffffff, 0.25);
+    this.add.text(bestCardX + 12, row2Y - cardH2 / 2 + 5, '⭐ 最佳渔获', { fontSize: '12px', fontStyle: 'bold' }).setOrigin(0, 0.5);
+    this.add.text(bestCardX + cardW - 12, row2Y, bestCatch, { fontSize: '15px', color: '#E0F0FF', fontStyle: 'bold' }).setOrigin(1, 0.5);
+
+    // 最离谱战绩卡片
+    const weirdCardX = leftX + cardW + gap;
+    this.add.rectangle(weirdCardX + cardW / 2, row2Y, cardW, cardH2, 0xffffff, 0.25);
+    this.add.text(weirdCardX + 12, row2Y - cardH2 / 2 + 5, '🤯 最离谱战绩', { fontSize: '12px', fontStyle: 'bold' }).setOrigin(0, 0.5);
+    this.add.text(weirdCardX + cardW - 12, row2Y, weirdCatch, { fontSize: '15px', color: '#E0F0FF', fontStyle: 'bold' }).setOrigin(1, 0.5);
   }
 
   // ==================================================
-  // 3. goalSection - 今日目标区（独立任务卡）
+  // 3. goalSection - 今日目标区（独立任务卡，每条任务两层结构）
   // ==================================================
   private renderGoalSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
     const y = L.goalY + LAYOUT_SPEC.goalHeight / 2;
 
     // 占位背景
-    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.goalHeight, 0x1a3a52, 0.5);
+    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.goalHeight, 0x1a3a52, 0.55);
     this.add.text(LAYOUT_SPEC.horizontalPadding, L.goalY, 'goal', {
       fontSize: '14px',
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // 标题占位
-    this.add.text(LAYOUT_SPEC.horizontalPadding + 10, L.goalY + 15, '📋 今日目标', {
-      fontSize: '16px',
+    // 标题
+    this.add.text(LAYOUT_SPEC.horizontalPadding + 10, L.goalY + 12, '📋 今日目标', {
+      fontSize: '17px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0, 0);
 
-    // 3 条任务占位（每条分两层：任务名 + 进度数字 / 进度条）
-    const taskStartY = L.goalY + 45;
-    const taskGap = 36;
-    const barW = 120;
+    // 3 条任务（每条分两层：第一行任务名 + 进度数字 / 第二行独立进度条）
+    const taskStartY = L.goalY + 42;
+    const taskGap = 42;  // 增加间距以容纳两层结构
+    const barW = 130;
     const barH = 12;
 
     const tasks = DailyMissionManager.instance.getTasks();
     tasks.forEach((task, index) => {
-      const taskY = taskStartY + index * taskGap;
+      const taskBaseY = taskStartY + index * taskGap;
 
-      // 第一层：任务名称（左）+ 进度数字（右）
-      this.add.text(LAYOUT_SPEC.horizontalPadding + 10, taskY, task.title, {
+      // === 第一层：任务名称（左）+ 进度数字（右）===
+      this.add.text(LAYOUT_SPEC.horizontalPadding + 10, taskBaseY, task.title, {
         fontSize: '14px',
         color: '#F0F8FF',
         fontStyle: 'bold',
       }).setOrigin(0, 0.5);
 
-      this.add.text(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10, taskY, `${task.progress}/${task.target}`, {
-        fontSize: '12px',
+      this.add.text(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10, taskBaseY, `${task.progress}/${task.target}`, {
+        fontSize: '13px',
         color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(1, 0.5);
 
-      // 第二层：独立进度条
-      const barY = taskY + 20;
+      // === 第二层：独立进度条（在任务名下方）===
+      const barY = taskBaseY + 22;
       const barX = LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10 - barW;
-      this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.4);
+      
+      // 进度条背景
+      this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.5);
+      // 进度条填充
       const progress = Math.min(1, task.progress / task.target);
       this.add.rectangle(barX + barW / 2 * progress, barY, barW * progress, barH, 0x4CAF50);
     });
 
-    // 底部轻提示占位
-    this.add.text(x, L.goalY + LAYOUT_SPEC.goalHeight - 20, '完成全部今日目标可领取额外奖励', {
+    // 底部轻提示
+    this.add.text(x, L.goalY + LAYOUT_SPEC.goalHeight - 18, '完成全部今日目标可领取额外奖励', {
       fontSize: '11px',
       color: '#FFD700',
+      fontStyle: 'bold',
     }).setOrigin(0.5, 0);
   }
 
   // ==================================================
-  // 4. actionSection - 主行动区
+  // 4. actionSection - 主行动区（与 ocean 有清晰边界）
   // ==================================================
   private renderActionSection(L: ReturnType<typeof this.calculateLayout>, isFullEnergy: boolean) {
     const x = L.centerX;
     const y = L.actionY + LAYOUT_SPEC.actionHeight / 2;
 
     // 占位背景
-    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.actionHeight, 0x4a7fb4, 0.3);
+    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.actionHeight, 0x4a7fb4, 0.35);
     this.add.text(LAYOUT_SPEC.horizontalPadding, L.actionY, 'action', {
       fontSize: '14px',
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // 主按钮：开始钓鱼（占位）
+    // 主按钮：开始钓鱼（最强 CTA）
     const startBtnW = 480;
     const startBtnH = 110;
-    const startBtnY = L.actionY + 55;
+    const startBtnY = L.actionY + 60;
 
     const startBtn = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0xff6b6b, 0.9);
     this.add.text(x, startBtnY, '开始钓鱼', {
@@ -290,10 +302,10 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 次按钮：补充体力（占位）
+    // 次按钮：补充体力（降级）
     const energyBtnW = 360;
     const energyBtnH = 80;
-    const energyBtnY = startBtnY + startBtnH / 2 + 50 + energyBtnH / 2;
+    const energyBtnY = startBtnY + startBtnH / 2 + 60 + energyBtnH / 2;  // 增加间距到 60px
 
     const energyBtn = this.add.rectangle(x, energyBtnY, energyBtnW, energyBtnH, 0x9b59b6, isFullEnergy ? 0.4 : 0.8);
     this.add.text(x, energyBtnY - 8, '🎬 补充体力', {
@@ -316,7 +328,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 5. oceanSection - 水下氛围区
+  // 5. oceanSection - 水下氛围区（顶部合并成单一弱信息容器）
   // ==================================================
   private renderOceanSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
@@ -329,27 +341,26 @@ export class MainScene extends Phaser.Scene {
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // 顶部弱提示（与水下文案合并）
-    const tipY = L.oceanY + 25;
-    this.add.rectangle(x, tipY + 15, 350, 32, 0xffffff, 0.1);
-    this.add.text(x, tipY, '💡 小技巧：浮漂明显下沉时再拉杆，更容易拿高奖励', {
+    // === 顶部弱信息容器（合并 tips + 水下文案）===
+    const infoBoxY = L.oceanY + 35;
+    const infoBoxW = 500;
+    const infoBoxH = 50;
+    
+    // 弱信息背景
+    this.add.rectangle(x, infoBoxY, infoBoxW, infoBoxH, 0x000000, 0.2);
+    
+    // 合并后的弱提示文案（只保留一条）
+    this.add.text(x, infoBoxY - 5, '💡 浮漂明显下沉时再拉杆 · 水下似乎有东西在游动...', {
       fontSize: '13px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5, 0);
 
-    // 水下文案占位
-    this.add.text(x, L.oceanY + 60, '水下似乎有东西在游动...', {
-      fontSize: '16px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5, 0);
-
     // 鱼群占位
-    this.add.text(150, L.oceanY + 110, '🐟', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(300, L.oceanY + 140, '🐠', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(450, L.oceanY + 120, '🐡', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(600, L.oceanY + 150, '🐢', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(150, L.oceanY + 100, '🐟', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(300, L.oceanY + 130, '🐠', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(450, L.oceanY + 110, '🐡', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(600, L.oceanY + 140, '🐢', { fontSize: '32px' }).setOrigin(0.5);
 
     // 底部装饰占位
     const sandY = L.oceanY + L.oceanHeight - 30;
