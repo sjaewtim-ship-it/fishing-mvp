@@ -43,24 +43,24 @@ export class MainScene extends Phaser.Scene {
     const titleY = 70;
     const sloganY = 110;
 
-    // === 2. 资源区（两排两列，高度约 150px）===
-    const resourceY = 170;
-    const resourceRowGap = 14;
+    // === 2. 资源区（两排两列，高度约 140px）===
+    const resourceY = 160;
+    const resourceRowGap = 12;
 
-    // === 3. 今日目标区（高度约 170px）===
-    const missionY = 335;
+    // === 3. 今日目标区（高度约 180px）===
+    const missionY = 315;
 
-    // === 4. 小技巧提示区（高度约 50px）===
-    const hintY = 520;
+    // === 4. 小技巧提示区（高度约 45px）===
+    const hintY = 510;
 
-    // === 5. 主行动区（高度约 220px）===
-    const startBtnY = 595;
-    const energyBtnY = 725;
+    // === 5. 主行动区（高度约 230px）===
+    const startBtnY = 580;
+    const energyBtnY = 710;
 
     // === 6. 水下氛围区（剩余高度）===
-    const waterTopY = 820;
+    const waterTopY = 810;
     const waterBottomY = height - safeBottom - 20;
-    const waterHeight = Math.max(160, waterBottomY - waterTopY);
+    const waterHeight = Math.max(150, waterBottomY - waterTopY);
     const waterCenterY = waterTopY + waterHeight / 2;
 
     const sandY = waterBottomY - 18;
