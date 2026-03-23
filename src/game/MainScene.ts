@@ -131,16 +131,15 @@ export class MainScene extends Phaser.Scene {
   // ==================================================
   private renderBrandSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
-    const y = L.brandY + LAYOUT_SPEC.brandHeight / 2;
 
-    // 云朵装饰（弱化）
-    const cloud1 = this.add.text(80, L.brandY + 10, '☁️', { fontSize: '36px' }).setAlpha(0.7);
-    const cloud2 = this.add.text(540, L.brandY + 30, '☁️', { fontSize: '30px' }).setAlpha(0.7);
+    // 云朵装饰（更弱化）
+    const cloud1 = this.add.text(90, L.brandY + 15, '☁️', { fontSize: '32px' }).setAlpha(0.5);
+    const cloud2 = this.add.text(530, L.brandY + 35, '☁️', { fontSize: '28px' }).setAlpha(0.5);
 
     this.tweens.add({
       targets: cloud1,
-      x: 520,
-      duration: 18000,
+      x: 500,
+      duration: 20000,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -148,26 +147,26 @@ export class MainScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: cloud2,
-      x: 180,
-      duration: 22000,
+      x: 200,
+      duration: 24000,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
-    // 主标题
-    this.add.text(x, L.brandY + 35, '🎣 钓鱼小游戏', {
-      fontSize: '44px',
+    // 主标题（更稳）
+    this.add.text(x, L.brandY + 40, '🎣 钓鱼小游戏', {
+      fontSize: '46px',
       color: '#FFFFFF',
       fontStyle: 'bold',
       stroke: '#1565C0',
-      strokeThickness: 5,
+      strokeThickness: 6,
     }).setOrigin(0.5);
 
-    // 副标题
-    this.add.text(x, L.brandY + 75, '看准时机，一杆出货', {
-      fontSize: '20px',
-      color: '#E0F0FF',
+    // slogan（更清晰）
+    this.add.text(x, L.brandY + 78, '看准时机，一杆出货', {
+      fontSize: '22px',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
   }
@@ -226,51 +225,60 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 3. goalSection - 今日目标区（二层任务骨架）
+  // 3. goalSection - 今日目标区（正式任务卡样式）
   // ==================================================
   private renderGoalSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
     const y = L.goalY + LAYOUT_SPEC.goalHeight / 2;
 
-    // 占位背景
-    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.goalHeight, 0x1a3a52, 0.55);
+    // 卡片背景（更深色，增强正式感）
+    this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.goalHeight, 0x1a3a52, 0.65)
+      .setStrokeStyle(2, 0xffffff, 0.25);
 
-    // 标题
-    this.add.text(LAYOUT_SPEC.horizontalPadding + 10, L.goalY + 15, '📋 今日目标', {
-      fontSize: '17px',
+    // 标题（增强层级）
+    this.add.text(LAYOUT_SPEC.horizontalPadding + 15, L.goalY + 18, '📋 今日目标', {
+      fontSize: '18px',
       color: '#FFFFFF',
       fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
     }).setOrigin(0, 0);
 
     // 3 条任务（每条严格分两层）
-    const taskStartY = L.goalY + 50;
-    const taskGap = 50;
+    const taskStartY = L.goalY + 52;
+    const taskGap = 48;
 
     const tasks = DailyMissionManager.instance.getTasks();
     tasks.forEach((task, index) => {
       const taskBaseY = taskStartY + index * taskGap;
 
       // === 第一层：任务名称（左）+ 进度数字（右）===
-      this.add.text(LAYOUT_SPEC.horizontalPadding + 10, taskBaseY, task.title, {
-        fontSize: '14px',
+      // 任务名（增强可读性）
+      this.add.text(LAYOUT_SPEC.horizontalPadding + 15, taskBaseY, task.title, {
+        fontSize: '15px',
         color: '#F0F8FF',
         fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2,
       }).setOrigin(0, 0.5);
 
-      this.add.text(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10, taskBaseY, `${task.progress}/${task.target}`, {
-        fontSize: '13px',
-        color: '#FFFFFF',
+      // 进度数字（更清晰）
+      this.add.text(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 15, taskBaseY, `${task.progress}/${task.target}`, {
+        fontSize: '14px',
+        color: '#FFD700',
         fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2,
       }).setOrigin(1, 0.5);
 
-      // === 第二层：独立进度条（在任务名下方，间距 32px）===
-      const barY = taskBaseY + 32;
-      const barW = 150;
-      const barH = 16;
-      const barX = LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10 - barW;
+      // === 第二层：独立进度条（在任务名下方，间距 28px）===
+      const barY = taskBaseY + 28;
+      const barW = 140;
+      const barH = 14;
+      const barX = LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 15 - barW;
       
-      // 进度条背景
-      this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.55);
+      // 进度条背景（圆角效果）
+      this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.6);
       // 进度条填充
       const progress = Math.min(1, task.progress / task.target);
       this.add.rectangle(barX + barW / 2 * progress, barY, barW * progress, barH, 0x4CAF50);
@@ -281,16 +289,20 @@ export class MainScene extends Phaser.Scene {
     const rewardClaimed = DailyMissionManager.instance.isRewardClaimed();
 
     if (allCompleted && !rewardClaimed) {
-      this.add.text(x, L.goalY + LAYOUT_SPEC.goalHeight - 18, '完成全部今日目标可领取额外奖励', {
-        fontSize: '11px',
+      this.add.text(x, L.goalY + LAYOUT_SPEC.goalHeight - 16, '🎁 完成全部目标可领取额外奖励', {
+        fontSize: '12px',
         color: '#FFD700',
         fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2,
       }).setOrigin(0.5, 0);
     } else if (allCompleted && rewardClaimed) {
-      this.add.text(x, L.goalY + LAYOUT_SPEC.goalHeight - 18, '✅ 今日目标已全部完成', {
-        fontSize: '11px',
+      this.add.text(x, L.goalY + LAYOUT_SPEC.goalHeight - 16, '✅ 今日目标已全部完成', {
+        fontSize: '12px',
         color: '#90EE90',
         fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2,
       }).setOrigin(0.5, 0);
     }
   }
@@ -329,22 +341,17 @@ export class MainScene extends Phaser.Scene {
     // 水下背景
     this.add.rectangle(x, y, L.width, L.oceanHeight, 0x1e88e5);
 
-    // === 顶部弱提示（静态，不滚动）===
-    const infoBoxY = L.oceanY + 120;
-    this.add.text(x, infoBoxY, '💡 浮漂明显下沉时再拉杆 · 水下有东西在游动...', {
-      fontSize: '11px',
+    // === 顶部弱提示（只保留一条，简化）===
+    const infoBoxY = L.oceanY + 100;
+    this.add.text(x, infoBoxY, '💡 浮漂明显下沉时再拉杆，更容易拿高奖励', {
+      fontSize: '12px',
       color: '#FFFFFF',
       fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
     }).setOrigin(0.5);
 
-    // 水下文案
-    this.add.text(x, L.oceanY + 60, '水下似乎有东西在游动...', {
-      fontSize: '16px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    // 鱼群（静态占位，后续可加游动动画）
+    // 鱼群
     this.add.text(150, L.oceanY + 150, '🐟', { fontSize: '32px' }).setOrigin(0.5);
     this.add.text(300, L.oceanY + 180, '🐠', { fontSize: '32px' }).setOrigin(0.5);
     this.add.text(450, L.oceanY + 160, '🐡', { fontSize: '32px' }).setOrigin(0.5);
