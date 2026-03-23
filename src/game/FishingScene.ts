@@ -58,6 +58,9 @@ export class FishingScene extends Phaser.Scene {
   private doubleRewardClaimed: boolean = false;
   private shareRewardClaimed: boolean = false;
 
+  // ========== 分享首奖状态（全局持久化）==========
+  private hasClaimedFirstShareReward: boolean = false;
+
   // ========== 弹窗 UI 引用 ==========
   private modalTitleText!: Phaser.GameObjects.Text;
   private modalIconText!: Phaser.GameObjects.Text;
@@ -78,6 +81,9 @@ export class FishingScene extends Phaser.Scene {
   create(data?: { round?: number }) {
     this.roundNumber = data?.round ?? DirectorSystem.getRoundNumber();
     this.config = DirectorSystem.getTimingAssist();
+
+    // 读取全局分享首奖状态
+    this.hasClaimedFirstShareReward = localStorage.getItem('fishing_has_claimed_first_share_reward') === '1';
 
     this.buildScene();
     this.startFishingFlow();
@@ -324,14 +330,21 @@ export class FishingScene extends Phaser.Scene {
   private buildResultModal() {
     const L = this.getLayout();
 
-    // 1. 创建遮罩层（全屏半透明黑）
+    // 1. 创建遮罩层（全屏黑色半透明，强化 modal 感）
+    //    使用 scale.width/height 确保覆盖整个屏幕，不使用 L.width/L.height
+    //    depth = 9999，确保在所有游戏 UI 之上
     this.modalOverlay = this.add.rectangle(
-      L.centerX, L.height / 2, L.width, L.height, 0x000000, 0
-    ).setDepth(999);
+      this.scale.width / 2,
+      this.scale.height / 2,
+      this.scale.width,
+      this.scale.height,
+      0x000000,
+      0
+    ).setDepth(9999);
 
     // 2. 创建卡片容器
     this.modalCard = this.add.container(L.centerX, L.height / 2);
-    this.modalCard.setDepth(1000);
+    this.modalCard.setDepth(10000);
     this.modalCard.setVisible(false);
     this.modalCard.setScale(0.9);
     this.modalCard.setAlpha(0);
@@ -452,24 +465,27 @@ export class FishingScene extends Phaser.Scene {
     
     // 3. 重置领取状态
     this.doubleRewardClaimed = false;
-    
-    // 4. 检查分享是否已领过（持久化）
+
+    // 4. 每次打开弹窗时重新同步全局分享首奖状态
+    this.hasClaimedFirstShareReward = localStorage.getItem('fishing_has_claimed_first_share_reward') === '1';
+
+    // 5. 检查分享是否已领过（持久化）
     const shareKey = `fishing_share_reward_${data.round}_${data.drop?.name ?? 'none'}`;
     this.shareRewardClaimed = localStorage.getItem(shareKey) === '1';
-    
-    // 5. 【关键】立即发放基础奖励（仅成功时）
+
+    // 6. 【关键】立即发放基础奖励（仅成功时）
     if (data.success && data.baseReward && data.baseReward > 0) {
       CoinManager.instance.addCoins(data.baseReward);
       this.baseRewardClaimed = true;
     }
-    
-    // 6. 更新 UI
+
+    // 7. 更新 UI
     this.updateModalUI(data);
-    
-    // 7. 更新按钮状态
+
+    // 8. 更新按钮状态
     this.updateButtonStates();
-    
-    // 8. 显示弹窗动画
+
+    // 9. 显示弹窗动画
     this.showModalAnimation();
   }
 
@@ -500,40 +516,63 @@ export class FishingScene extends Phaser.Scene {
   }
 
   /**
-   * 更新按钮状态（已领取置灰/改文案）
+   * 更新按钮状态（显示/隐藏 + 布局重排）
    */
   private updateButtonStates() {
-    // 翻倍按钮：已领取则隐藏
-    if (this.doubleRewardClaimed) {
-      this.doubleBtn.setVisible(false);
-    } else {
-      this.doubleBtn.setVisible(true);
-    }
+    const result = this.pendingResult;
 
-    // 分享按钮：已领取则改文案 + 置灰
-    const shareBtnText = this.shareBtn.getData('label') as Phaser.GameObjects.Text;
-    if (shareBtnText) {
-      if (this.shareRewardClaimed) {
-        shareBtnText.setText('✅ 分享奖励已领取');
-        shareBtnText.setColor('#cccccc');
-        this.shareBtn.setAlpha(0.5);  // 降低透明度
-      } else {
-        shareBtnText.setText('🎁 分享送 50 金币（首次）');
-        shareBtnText.setColor('#FFFFFF');
-        this.shareBtn.setAlpha(1);
-      }
-    }
+    // 1. 奖励翻倍按钮：仅当 成功 + 基础奖励 > 0 + 未领取翻倍
+    const showDoubleReward = result?.success && (result.baseReward ?? 0) > 0 && !this.doubleRewardClaimed;
+    this.doubleBtn.setVisible(showDoubleReward);
+
+    // 2. 分享首奖按钮：仅当 用户从未领取过全局首奖
+    const showFirstShare = !this.hasClaimedFirstShareReward;
+    this.shareBtn.setVisible(showFirstShare);
+
+    // 3. 再来一杆：永远显示
+    this.againBtn.setVisible(true);
+
+    // 4. 布局重排
+    this.layoutModalButtons();
+  }
+
+  /**
+   * 根据可见按钮数量动态布局
+   */
+  private layoutModalButtons() {
+    const baseY = 200;       // 最上方按钮基准 y 坐标
+    const buttonHeight = 80;
+    const gap = 18;          // 按钮间距
+
+    const visibleButtons: Phaser.GameObjects.Container[] = [];
+
+    // 收集可见按钮（按从上到下顺序：翻倍 > 分享 > 再来一杆）
+    if (this.doubleBtn.visible) visibleButtons.push(this.doubleBtn);
+    if (this.shareBtn.visible) visibleButtons.push(this.shareBtn);
+    // 再来一杆永远可见，放最下方
+    if (this.againBtn.visible) visibleButtons.push(this.againBtn);
+
+    // 计算总高度，让按钮组整体居中
+    const totalHeight = visibleButtons.length * buttonHeight + (visibleButtons.length - 1) * gap;
+    let currentY = baseY - Math.floor((totalHeight - buttonHeight) / 2);
+
+    // 依次布局
+    visibleButtons.forEach((btn) => {
+      btn.setY(currentY);
+      currentY += buttonHeight + gap;
+    });
   }
 
   /**
    * 显示弹窗动画
    */
   private showModalAnimation() {
-    // 显示遮罩层（淡入到 0.5 透明度）
+    // 显示遮罩层：先重置 alpha，再淡入到 0.55
+    this.modalOverlay?.setAlpha(0);
     this.modalOverlay?.setVisible(true);
     this.tweens.add({
       targets: this.modalOverlay,
-      alpha: 0.5,
+      alpha: 0.55,
       duration: 150,
     });
 
@@ -662,28 +701,32 @@ export class FishingScene extends Phaser.Scene {
     // 防重入
     if (this.modalActionLocked) return;
     this.modalActionLocked = true;
-    
+
     try {
       // 检查条件
       if (!this.pendingResult || this.shareRewardClaimed) return;
-      
+
       // Mock 分享（截图下载）
       ShareManager.saveResultPoster(this, 0, 0, 750, 1334);
-      
+
       // 发放分享奖励
       CoinManager.instance.addCoins(50);
       this.shareRewardClaimed = true;
-      
-      // 持久化标记
+
+      // 持久化标记：当前结果的分享奖励已领取
       const shareKey = `fishing_share_reward_${this.pendingResult.round}_${this.pendingResult.drop?.name ?? 'none'}`;
       localStorage.setItem(shareKey, '1');
-      
+
+      // 持久化标记：全局分享首奖已领取
+      localStorage.setItem('fishing_has_claimed_first_share_reward', '1');
+      this.hasClaimedFirstShareReward = true;
+
       AnalyticsManager.instance.onAdView('share');
       SaveSync.save();
-      
+
       this.showToast('分享成功！+50 金币');
-      
-      // 更新按钮文案
+
+      // 更新按钮状态（隐藏分享首奖按钮）
       this.updateButtonStates();
     } finally {
       // 分享后不关闭弹窗，直接解锁
