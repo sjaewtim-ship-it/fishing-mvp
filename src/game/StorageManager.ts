@@ -16,6 +16,12 @@ type SaveData = {
   directorFailStreak?: number;
   directorSuccessStreak?: number;
   directorCombo?: number;
+  dailyMission?: {
+    date: string;
+    tasks: Array<{ id: string; title: string; target: number; progress: number; claimed: boolean }>;
+    allCompleted: boolean;
+    rewardClaimed: boolean;
+  };
   _version?: number;
 };
 
@@ -100,6 +106,9 @@ export class StorageManager {
     if (typeof data.directorFailStreak === 'number' && data.directorFailStreak >= 0) recovered.directorFailStreak = data.directorFailStreak;
     if (typeof data.directorSuccessStreak === 'number' && data.directorSuccessStreak >= 0) recovered.directorSuccessStreak = data.directorSuccessStreak;
     if (typeof data.directorCombo === 'number' && data.directorCombo >= 0) recovered.directorCombo = data.directorCombo;
+    if (data.dailyMission && typeof data.dailyMission === 'object') {
+      recovered.dailyMission = data.dailyMission;
+    }
     if (typeof data._version === 'number') recovered._version = data._version;
 
     return recovered;

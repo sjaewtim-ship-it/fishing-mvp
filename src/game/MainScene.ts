@@ -6,6 +6,7 @@ import { DirectorSystem } from './DirectorSystem';
 import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
 import { AnalyticsManager } from './AnalyticsManager';
+import { DailyMissionManager, type DailyTask } from './DailyMissionManager';
 
 type SwimVisual = {
   emoji: string;
@@ -22,6 +23,11 @@ export class MainScene extends Phaser.Scene {
   private swimmers: Phaser.GameObjects.Text[] = [];
   private swimmerData: SwimVisual[] = [];
 
+  // UI 引用
+  private coinText!: Phaser.GameObjects.Text;
+  private energyText!: Phaser.GameObjects.Text;
+  private missionTaskContainers: Phaser.GameObjects.Container[] = [];
+
   constructor() {
     super('MainScene');
   }
@@ -33,12 +39,27 @@ export class MainScene extends Phaser.Scene {
 
     const safeBottom = Math.max(130, Math.round(height * 0.1));
 
-    const startBtnY = 565;
-    const energyBtnY = 675;
+    // 压缩顶部空间，标题区下移
+    const titleY = 75;
+    const sloganY = 115;
 
-    const waterTopY = 760;
+    // 资源区紧凑布局
+    const resourceY = 175;
+
+    // 今日目标模块
+    const missionY = 290;
+
+    // 玩法提示
+    const hintY = 410;
+
+    // 主按钮区
+    const startBtnY = 475;
+    const energyBtnY = 570;
+
+    // 水下区域
+    const waterTopY = 660;
     const waterBottomY = height - safeBottom - 20;
-    const waterHeight = Math.max(240, waterBottomY - waterTopY);
+    const waterHeight = Math.max(200, waterBottomY - waterTopY);
     const waterCenterY = waterTopY + waterHeight / 2;
 
     const sandY = waterBottomY - 18;
@@ -50,6 +71,11 @@ export class MainScene extends Phaser.Scene {
       height,
       centerX,
       safeBottom,
+      titleY,
+      sloganY,
+      resourceY,
+      missionY,
+      hintY,
       startBtnY,
       energyBtnY,
       actionBaseY: height - safeBottom - 10,
@@ -85,6 +111,7 @@ export class MainScene extends Phaser.Scene {
     // 关键修复：每次进入场景先清空，避免重启后数组残留不同步
     this.swimmers = [];
     this.swimmerData = [];
+    this.missionTaskContainers = [];
 
     const L = this.getLayout();
 
@@ -94,15 +121,19 @@ export class MainScene extends Phaser.Scene {
     const bestCatch = this.getTodayBestCatchSafe();
     const weirdCatch = this.getTodayWeirdCatchSafe();
 
+    // 初始化日常任务
+    DailyMissionManager.instance.init();
+
     this.cameras.main.setBackgroundColor('#8FD3FF');
     this.add.rectangle(L.centerX, L.height / 2, L.width, L.height, 0x8fd3ff);
 
-    const cloud1 = this.add.text(95, 92, '☁️', { fontSize: '42px' }).setAlpha(0.9);
-    const cloud2 = this.add.text(555, 126, '☁️ ☁️', { fontSize: '34px' }).setAlpha(0.82);
+    // === 顶部标题区（压缩）===
+    const cloud1 = this.add.text(80, 65, '☁️', { fontSize: '36px' }).setAlpha(0.85);
+    const cloud2 = this.add.text(540, 95, '☁️', { fontSize: '30px' }).setAlpha(0.8);
 
     this.tweens.add({
       targets: cloud1,
-      x: 560,
+      x: 520,
       duration: 18000,
       yoyo: true,
       repeat: -1,
@@ -111,68 +142,75 @@ export class MainScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: cloud2,
-      x: 150,
+      x: 180,
       duration: 22000,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
-    this.add.text(L.centerX, 105, '🎣 钓鱼小游戏', {
-      fontSize: '54px',
+    this.add.text(L.centerX, L.titleY, '🎣 钓鱼小游戏', {
+      fontSize: '44px',
       color: '#FFFFFF',
       fontStyle: 'bold',
       stroke: '#1565C0',
-      strokeThickness: 6,
+      strokeThickness: 5,
     }).setOrigin(0.5);
 
-    this.add.text(L.centerX, 168, '看准时机，一杆出货', {
-      fontSize: '24px',
-      color: '#F7FBFF',
+    this.add.text(L.centerX, L.sloganY, '看准时机，一杆出货', {
+      fontSize: '20px',
+      color: '#F0F8FF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const infoWrapY = 340;
-    this.add.rectangle(L.centerX, infoWrapY, 690, 220, 0x78b6dd, 0.35)
-      .setStrokeStyle(2, 0xffffff, 0.10);
+    // === 资源区（分层展示）===
+    const resCardW = 330;
+    const resCardH = 72;
+    const resGap = 16;
+    const resTotalW = resCardW * 2 + resGap;
+    const resLeftX = L.centerX - resTotalW / 2;
 
-    const cardW = 315;
-    const cardH = 88;
-    const leftX = L.centerX - 172;
-    const rightX = L.centerX + 172;
-    const row1Y = 300;
-    const row2Y = 392;
+    // 第一优先级：金币、体力
+    this.createResourceCard(
+      resLeftX, L.resourceY, resCardW, resCardH,
+      '🪙', '金币', String(coins), '#FFE082',
+      (text) => { this.coinText = text; }
+    );
+    this.createResourceCard(
+      resLeftX + resCardW + resGap, L.resourceY, resCardW, resCardH,
+      '⚡', '体力', `${energy}/${maxEnergy}`, '#90EE90',
+      (text) => { this.energyText = text; }
+    );
 
-    const drawCard = (x: number, y: number, icon: string, title: string, value: string, valueColor = '#FFFFFF') => {
-      this.add.rectangle(x, y, cardW, cardH, 0xffffff, 0.08)
-        .setStrokeStyle(1, 0xffffff, 0.08);
+    // 第二优先级：最佳渔获、最离谱战绩（更小更淡）
+    const subCardW = 330;
+    const subCardH = 48;
+    const subY = L.resourceY + 84;
+    
+    this.createSubResourceCard(
+      resLeftX, subY, subCardW, subCardH,
+      '⭐', '最佳渔获', bestCatch
+    );
+    this.createSubResourceCard(
+      resLeftX + subCardW + resGap, subY, subCardW, subCardH,
+      '🤯', '最离谱', weirdCatch
+    );
 
-      this.add.text(x - 120, y, icon, {
-        fontSize: '34px',
-      }).setOrigin(0.5);
+    // === 今日目标模块 ===
+    this.createDailyMissionPanel(L.centerX, L.missionY);
 
-      this.add.text(x - 52, y - 14, title, {
-        fontSize: '20px',
-        color: '#EAF6FF',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
+    // === 玩法轻提示 ===
+    this.createHintBox(L.centerX, L.hintY);
 
-      this.add.text(x + 42, y + 16, value, {
-        fontSize: '24px',
-        color: valueColor,
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
-    };
+    // === 主按钮区 ===
+    this.createStartButton(L.centerX, L.startBtnY);
+    this.createEnergyButton(L.centerX, L.energyBtnY, energy >= maxEnergy);
 
-    drawCard(leftX, row1Y, '🪙', '金币', String(coins), '#FFE082');
-    drawCard(rightX, row1Y, '⚡', '体力值', `${energy}/${maxEnergy}`, '#FFFFFF');
-    drawCard(leftX, row2Y, '⭐', '最佳渔获', bestCatch, '#FFE082');
-    drawCard(rightX, row2Y, '🤯', '最离谱战绩', weirdCatch, '#FFD180');
-
+    // === 连击提示（如果有）===
     const comboLabel = DirectorSystem.getComboLabel();
     if (comboLabel) {
-      this.add.text(L.centerX, 468, comboLabel, {
-        fontSize: '22px',
+      this.add.text(L.centerX, L.energyBtnY + 90, comboLabel, {
+        fontSize: '20px',
         color: '#FFE082',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -180,15 +218,289 @@ export class MainScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    this.add.rectangle(L.centerX, 620, 540, 220, 0x000000, 0.06)
-      .setStrokeStyle(2, 0xffffff, 0.08);
+    // === 水下区域（保留但简化）===
+    this.add.rectangle(L.centerX, L.waterCenterY, L.width, L.waterHeight, 0x1e88e5);
 
-    const startBtn = this.add.rectangle(L.centerX, L.startBtnY, 470, 106, 0xff6b6b)
-      .setStrokeStyle(4, 0xffffff, 0.18)
+    const wave1 = this.add.ellipse(L.centerX - 100, L.waterTopY + 2, 140, 14, 0xffffff, 0.2);
+    const wave2 = this.add.ellipse(L.centerX + 50, L.waterTopY + 2, 180, 16, 0xffffff, 0.16);
+    const wave3 = this.add.ellipse(L.centerX + 200, L.waterTopY + 4, 110, 12, 0xffffff, 0.14);
+
+    this.tweens.add({
+      targets: [wave1, wave2, wave3],
+      scaleX: 1.06,
+      alpha: 0.06,
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    this.add.text(L.centerX, L.waterTopY + 28, '水下似乎有东西在游动...', {
+      fontSize: '18px',
+      color: '#EAF6FF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    this.createSwimmers(L);
+
+    this.add.text(120, L.coralBaseY, '🪸', { fontSize: '52px' }).setOrigin(0.5).setAlpha(0.88);
+    this.add.text(600, L.coralBaseY - 8, '🪸', { fontSize: '58px' }).setOrigin(0.5).setAlpha(0.86);
+    this.add.text(290, L.plantBaseY, '🌿', { fontSize: '42px' }).setOrigin(0.5).setAlpha(0.84);
+    this.add.text(460, L.plantBaseY - 4, '🌱', { fontSize: '38px' }).setOrigin(0.5).setAlpha(0.82);
+
+    const sandColor = 0xd8c28a;
+    this.add.ellipse(160, L.sandY, 200, 52, sandColor, 0.9);
+    this.add.ellipse(L.centerX, L.sandY + 12, 260, 66, sandColor, 0.9);
+    this.add.ellipse(585, L.sandY + 2, 200, 54, sandColor, 0.9);
+
+    const footerWavesY = L.height - 24;
+    this.add.text(L.centerX - 100, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.8);
+    this.add.text(L.centerX, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.8);
+    this.add.text(L.centerX + 100, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.8);
+  }
+
+  private createResourceCard(
+    x: number, y: number, w: number, h: number,
+    icon: string, label: string, value: string, valueColor: string,
+    registerText?: (text: Phaser.GameObjects.Text) => void
+  ) {
+    const card = this.add.rectangle(x, y, w, h, 0xffffff, 0.12)
+      .setStrokeStyle(1, 0xffffff, 0.15);
+
+    const iconText = this.add.text(x - w / 2 + 32, y, icon, {
+      fontSize: '28px',
+    }).setOrigin(0.5);
+
+    const labelText = this.add.text(x - w / 2 + 68, y - 8, label, {
+      fontSize: '16px',
+      color: '#D0E8F0',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const valueText = this.add.text(x + w / 2 - 20, y + 4, value, {
+      fontSize: '26px',
+      color: valueColor,
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    if (registerText) {
+      registerText(valueText);
+    }
+
+    return card;
+  }
+
+  private createSubResourceCard(
+    x: number, y: number, w: number, h: number,
+    icon: string, label: string, value: string
+  ) {
+    const card = this.add.rectangle(x, y, w, h, 0xffffff, 0.06)
+      .setStrokeStyle(1, 0xffffff, 0.08);
+
+    const iconText = this.add.text(x - w / 2 + 24, y, icon, {
+      fontSize: '22px',
+    }).setOrigin(0.5);
+
+    const labelText = this.add.text(x - w / 2 + 54, y - 4, label, {
+      fontSize: '14px',
+      color: '#B8D8E8',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const valueText = this.add.text(x + w / 2 - 16, y + 2, value, {
+      fontSize: '18px',
+      color: '#E0F0FF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    return card;
+  }
+
+  private createDailyMissionPanel(centerX: number, centerY: number) {
+    const panelW = 680;
+    const panelH = 140;
+
+    // 背景卡片
+    const panelBg = this.add.rectangle(centerX, centerY, panelW, panelH, 0x000000, 0.18)
+      .setStrokeStyle(2, 0xffffff, 0.12);
+
+    // 标题
+    const titleText = this.add.text(centerX - panelW / 2 + 24, centerY - panelH / 2 + 22, '📋 今日目标', {
+      fontSize: '18px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0, 0);
+
+    // 任务列表
+    const tasks = DailyMissionManager.instance.getTasks();
+    const taskStartY = centerY - panelH / 2 + 50;
+    const taskGap = 26;
+
+    tasks.forEach((task, index) => {
+      this.createTaskRow(
+        centerX - panelW / 2 + 20,
+        taskStartY + index * taskGap,
+        panelW - 40,
+        20,
+        task
+      );
+    });
+
+    // 全部完成奖励提示
+    const allCompleted = DailyMissionManager.instance.isAllCompleted();
+    const rewardClaimed = DailyMissionManager.instance.isRewardClaimed();
+
+    if (allCompleted && !rewardClaimed) {
+      const rewardText = this.add.text(centerX, centerY + panelH / 2 - 14, '🎁 全部完成！点击任意任务领取奖励', {
+        fontSize: '14px',
+        color: '#FFD700',
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+
+      this.tweens.add({
+        targets: rewardText,
+        alpha: 0.5,
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+      });
+    } else if (allCompleted && rewardClaimed) {
+      const doneText = this.add.text(centerX, centerY + panelH / 2 - 14, '✅ 今日目标已全部完成', {
+        fontSize: '14px',
+        color: '#90EE90',
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+    }
+  }
+
+  private createTaskRow(
+    x: number, y: number, w: number, h: number,
+    task: DailyTask
+  ) {
+    const container = this.add.container(x, y);
+
+    // 任务名称
+    const taskName = this.add.text(0, 0, task.title, {
+      fontSize: '14px',
+      color: task.claimed ? '#888888' : '#E8F4FF',
+      fontStyle: task.claimed ? 'normal' : 'bold',
+    }).setOrigin(0, 0.5);
+
+    // 进度条背景
+    const barW = 110;
+    const barH = 12;
+    const barX = w - barW;
+    
+    const barBg = this.add.rectangle(barX + barW / 2, 0, barW, barH, 0x000000, 0.4)
+      .setStrokeStyle(1, 0xffffff, 0.15);
+
+    // 进度条填充
+    const progress = Math.min(1, task.progress / task.target);
+    const barFill = this.add.rectangle(barX + barW / 2 * progress, 0, barW * progress, barH, 0x4CAF50)
+      .setOrigin(0.5, 0.5);
+
+    // 进度文字
+    const progressText = this.add.text(barX + barW / 2, 0, `${task.progress}/${task.target}`, {
+      fontSize: '11px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    // 完成标记
+    let checkMark: Phaser.GameObjects.Text | null = null;
+    if (task.claimed) {
+      checkMark = this.add.text(barX + barW + 18, 0, '✓', {
+        fontSize: '16px',
+        color: '#90EE90',
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+    }
+
+    container.add([taskName, barBg, barFill, progressText]);
+    if (checkMark) {
+      container.add(checkMark);
+    }
+
+    // 可领取状态：添加点击交互
+    if (!task.claimed && task.progress >= task.target) {
+      container.setSize(w, h);
+      container.setInteractive({ useHandCursor: true });
+      container.on('pointerdown', () => this.onTaskClaim(task.id, container));
+      
+      // 闪烁提示
+      this.tweens.add({
+        targets: [barFill, progressText],
+        alpha: 0.6,
+        duration: 400,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+
+    this.missionTaskContainers.push(container);
+  }
+
+  private onTaskClaim(taskId: string, container: Phaser.GameObjects.Container) {
+    SimpleAudio.click();
+    
+    const claimed = DailyMissionManager.instance.claimTaskReward(taskId);
+    if (claimed) {
+      SaveSync.save();
+      // 刷新任务显示
+      this.scene.restart();
+    } else {
+      this.showToast('该任务已完成或不可领取');
+    }
+  }
+
+  private createHintBox(centerX: number, y: number) {
+    const hintW = 520;
+    const hintH = 44;
+
+    const hintBg = this.add.rectangle(centerX, y, hintW, hintH, 0xffffff, 0.08)
+      .setStrokeStyle(1, 0xffffff, 0.1);
+
+    // 第一杆新手引导
+    const round = DirectorSystem.getRoundNumber();
+    let hintText = '看到浮漂明显下沉时再拉杆，越准奖励越高';
+    
+    if (round === 1) {
+      hintText = '👋 新手：第一杆先试试手感，别太急';
+    } else if (DirectorSystem.getCombo() >= 3) {
+      hintText = '🔥 手气不错！连击状态下更容易出好货';
+    }
+
+    const hintTextObj = this.add.text(centerX, y, hintText, {
+      fontSize: '15px',
+      color: '#E8F0FF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    return hintBg;
+  }
+
+  private createStartButton(centerX: number, y: number) {
+    const btnW = 480;
+    const btnH = 110;
+
+    const startBtn = this.add.rectangle(centerX, y, btnW, btnH, 0xff6b6b)
+      .setStrokeStyle(4, 0xffffff, 0.22)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(L.centerX, L.startBtnY, '开始钓鱼', {
-      fontSize: '38px',
+    // 按钮光晕
+    const glow = this.add.rectangle(centerX, y, btnW, btnH, 0xff8888, 0.3);
+    this.tweens.add({
+      targets: glow,
+      scaleX: 1.02,
+      scaleY: 1.02,
+      alpha: 0.2,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    this.add.text(centerX, y, '开始钓鱼', {
+      fontSize: '42px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -210,125 +522,67 @@ export class MainScene extends Phaser.Scene {
         round: DirectorSystem.getRoundNumber(),
       });
     });
+  }
 
-    // 第一杆新手引导提示
-    const round = DirectorSystem.getRoundNumber();
-    if (round === 1) {
-      const guideBubble = this.add.container(0, 0);
-      
-      const bubbleBg = this.add.rectangle(L.centerX, L.startBtnY - 140, 520, 80, 0x000000, 0.7)
-        .setStrokeStyle(2, 0xffe082, 0.9);
-      
-      const guideText = this.add.text(L.centerX, L.startBtnY - 140, '看到浮漂明显下沉时再拉杆，越准奖励越高', {
-        fontSize: '22px',
-        color: '#FFE082',
-        fontStyle: 'bold',
-        wordWrap: { width: 480 },
-        align: 'center',
-      }).setOrigin(0.5);
+  private createEnergyButton(centerX: number, y: number, isFullEnergy: boolean) {
+    const btnW = isFullEnergy ? 320 : 420;
+    const btnH = 80;
+    const alpha = isFullEnergy ? 0.6 : 1;
 
-      guideBubble.add([bubbleBg, guideText]);
-
-      this.tweens.add({
-        targets: guideBubble,
-        alpha: 0,
-        y: -10,
-        delay: 5000,
-        duration: 300,
-        onComplete: () => guideBubble.destroy(),
-      });
-    }
-
-    const energyBtn = this.add.rectangle(L.centerX, L.energyBtnY, 470, 98, 0x9b59b6)
-      .setStrokeStyle(4, 0xffffff, 0.18)
+    const energyBtn = this.add.rectangle(centerX, y, btnW, btnH, 0x9b59b6, alpha)
+      .setStrokeStyle(2, 0xffffff, 0.14)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(L.centerX, L.energyBtnY - 4, '🎬 补充体力', {
-      fontSize: '34px',
+    this.add.text(centerX, y - 6, '🎬 补充体力', {
+      fontSize: '28px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(L.centerX, L.energyBtnY + 28, '观看广告可恢复 3 点体力', {
-      fontSize: '18px',
-      color: '#F7EFFF',
+    this.add.text(centerX, y + 22, '观看广告可恢复 3 点体力', {
+      fontSize: '15px',
+      color: '#F0E8FF',
     }).setOrigin(0.5);
 
     energyBtn.on('pointerdown', () => {
       SimpleAudio.unlock();
       SimpleAudio.click();
 
-      if (EnergyManager.instance.getEnergy() >= EnergyManager.instance.getMaxEnergy()) {
-        this.showToast('补充成功，体力已满！');
+      const energy = EnergyManager.instance.getEnergy();
+      const maxEnergy = EnergyManager.instance.getMaxEnergy();
+
+      if (energy >= maxEnergy) {
+        this.showToast('体力已满，不需要补充');
         return;
       }
 
       EnergyManager.instance.addEnergy(3);
       SaveSync.save();
 
-      if (EnergyManager.instance.getEnergy() >= EnergyManager.instance.getMaxEnergy()) {
+      if (EnergyManager.instance.getEnergy() >= maxEnergy) {
         this.showToast('补充成功，体力已满！');
       } else {
-        this.showToast('补充成功，体力+3');
+        this.showToast('补充成功，体力 +3');
       }
 
       this.scene.restart();
     });
-
-    this.add.rectangle(L.centerX, L.waterCenterY, L.width, L.waterHeight, 0x1e88e5);
-
-    const wave1 = this.add.ellipse(L.centerX - 120, L.waterTopY + 2, 160, 16, 0xffffff, 0.22);
-    const wave2 = this.add.ellipse(L.centerX + 40, L.waterTopY + 2, 210, 18, 0xffffff, 0.18);
-    const wave3 = this.add.ellipse(L.centerX + 220, L.waterTopY + 4, 130, 14, 0xffffff, 0.16);
-
-    this.tweens.add({
-      targets: [wave1, wave2, wave3],
-      scaleX: 1.08,
-      alpha: 0.08,
-      duration: 1200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    this.add.text(L.centerX, L.waterTopY + 36, '水下似乎有东西在游动...', {
-      fontSize: '20px',
-      color: '#EAF6FF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    this.createSwimmers(L);
-
-    this.add.text(120, L.coralBaseY, '🪸', { fontSize: '58px' }).setOrigin(0.5).setAlpha(0.92);
-    this.add.text(610, L.coralBaseY - 8, '🪸', { fontSize: '64px' }).setOrigin(0.5).setAlpha(0.9);
-    this.add.text(285, L.plantBaseY, '🌿', { fontSize: '46px' }).setOrigin(0.5).setAlpha(0.88);
-    this.add.text(470, L.plantBaseY - 4, '🌱', { fontSize: '42px' }).setOrigin(0.5).setAlpha(0.86);
-
-    const sandColor = 0xd8c28a;
-    this.add.ellipse(150, L.sandY, 220, 58, sandColor, 0.95);
-    this.add.ellipse(L.centerX, L.sandY + 14, 280, 72, sandColor, 0.95);
-    this.add.ellipse(595, L.sandY + 2, 220, 60, sandColor, 0.95);
-
-    const footerWavesY = L.height - 26;
-    this.add.text(L.centerX - 120, footerWavesY, '🌊', { fontSize: '36px' }).setOrigin(0.5).setAlpha(0.85);
-    this.add.text(L.centerX, footerWavesY, '🌊', { fontSize: '36px' }).setOrigin(0.5).setAlpha(0.85);
-    this.add.text(L.centerX + 120, footerWavesY, '🌊', { fontSize: '36px' }).setOrigin(0.5).setAlpha(0.85);
   }
 
   private createSwimmers(L: ReturnType<MainScene['getLayout']>) {
     const pool: SwimVisual[] = [
-      { emoji: '🐟', x: 140, y: L.waterTopY + 120, dirX: 1, dirY: 1, speed: 0.34, scale: 1.25, drift: 18 },
-      { emoji: '🐠', x: 560, y: L.waterTopY + 180, dirX: -1, dirY: 1, speed: 0.44, scale: 1.4, drift: 22 },
-      { emoji: '🐡', x: 260, y: L.waterTopY + 250, dirX: 1, dirY: -1, speed: 0.28, scale: 1.65, drift: 16 },
-      { emoji: '🐢', x: 480, y: L.waterTopY + 300, dirX: -1, dirY: -1, speed: 0.22, scale: 1.7, drift: 12 },
-      { emoji: '🦀', x: 160, y: L.waterTopY + 330, dirX: 1, dirY: -1, speed: 0.20, scale: 1.55, drift: 10 },
+      { emoji: '🐟', x: 140, y: L.waterTopY + 100, dirX: 1, dirY: 1, speed: 0.32, scale: 1.2, drift: 16 },
+      { emoji: '🐠', x: 560, y: L.waterTopY + 150, dirX: -1, dirY: 1, speed: 0.4, scale: 1.35, drift: 20 },
+      { emoji: '🐡', x: 260, y: L.waterTopY + 200, dirX: 1, dirY: -1, speed: 0.26, scale: 1.55, drift: 14 },
+      { emoji: '🐢', x: 480, y: L.waterTopY + 240, dirX: -1, dirY: -1, speed: 0.2, scale: 1.6, drift: 10 },
+      { emoji: '🦀', x: 160, y: L.waterTopY + 270, dirX: 1, dirY: -1, speed: 0.18, scale: 1.45, drift: 8 },
     ];
 
     this.swimmerData = [...pool];
 
     pool.forEach((item) => {
       const t = this.add.text(item.x, item.y, item.emoji, {
-        fontSize: `${Math.round(32 * item.scale)}px`,
+        fontSize: `${Math.round(30 * item.scale)}px`,
       }).setOrigin(0.5);
 
       this.swimmers.push(t);
@@ -341,18 +595,17 @@ export class MainScene extends Phaser.Scene {
     const L = this.getLayout();
     const minX = 60;
     const maxX = L.width - 60;
-    const minY = L.waterTopY + 86;
-    const maxY = L.sandY - 76;
+    const minY = L.waterTopY + 76;
+    const maxY = L.sandY - 66;
 
     for (let i = 0; i < this.swimmers.length; i++) {
       const sprite = this.swimmers[i];
       const data = this.swimmerData[i];
 
-      // 关键修复：数组不同步时直接跳过，避免报错
       if (!sprite || !data) continue;
 
       sprite.x += data.dirX * data.speed;
-      sprite.y += data.dirY * (data.speed * 0.35) + Math.sin(this.time.now * 0.001 + i) * 0.08;
+      sprite.y += data.dirY * (data.speed * 0.32) + Math.sin(this.time.now * 0.001 + i) * 0.06;
 
       if (sprite.x < minX || sprite.x > maxX) data.dirX *= -1;
       if (sprite.y < minY || sprite.y > maxY) data.dirY *= -1;
@@ -374,7 +627,7 @@ export class MainScene extends Phaser.Scene {
         const dy = a.y - b.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < 54) {
+        if (dist < 50) {
           da.dirX *= -1;
           db.dirX *= -1;
           da.dirY *= -1;
@@ -386,11 +639,11 @@ export class MainScene extends Phaser.Scene {
 
   private showToast(message: string) {
     const L = this.getLayout();
-    const bg = this.add.rectangle(L.centerX, L.actionBaseY - 120, 460, 64, 0x000000, 0.56)
-      .setStrokeStyle(2, 0xffffff, 0.14);
+    const bg = this.add.rectangle(L.centerX, L.actionBaseY - 100, 440, 58, 0x000000, 0.54)
+      .setStrokeStyle(2, 0xffffff, 0.12);
 
-    const text = this.add.text(L.centerX, L.actionBaseY - 120, message, {
-      fontSize: '24px',
+    const text = this.add.text(L.centerX, L.actionBaseY - 100, message, {
+      fontSize: '22px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -400,9 +653,9 @@ export class MainScene extends Phaser.Scene {
     this.tweens.add({
       targets: container,
       alpha: 0,
-      y: -14,
-      delay: 900,
-      duration: 260,
+      y: -12,
+      delay: 800,
+      duration: 240,
       onComplete: () => container.destroy(),
     });
   }

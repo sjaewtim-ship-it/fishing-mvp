@@ -7,6 +7,7 @@ import { SimpleAudio } from './SimpleAudio';
 import { VisualMap } from './VisualMap';
 import { DirectorSystem } from './DirectorSystem';
 import { RecordManager } from './RecordManager';
+import { DailyMissionManager } from './DailyMissionManager';
 import type { DropItem } from './DropGenerator';
 
 type ResultData = {
@@ -81,6 +82,16 @@ export class ResultScene extends Phaser.Scene {
 
   private isPremiumTrash(name?: string) {
     return ['内裤', '螃蟹', '乌龟'].includes(name || '');
+  }
+
+  // 高品质鱼：goodFish + rareFish + mythFish
+  private isQualityFish(name?: string): boolean {
+    const qualityFishList = [
+      '大鲤鱼', '黑鱼', '鲈鱼', '金鲫鱼', // goodFish
+      '锦鲤', '巨型草鱼', // rareFish
+      '龙鱼', '黄金锦鲤', // mythFish
+    ];
+    return qualityFishList.includes(name || '');
   }
 
   private getRarityText(drop?: DropItem) {
@@ -292,6 +303,10 @@ export class ResultScene extends Phaser.Scene {
     if (!settled && drop) {
       RecordManager.instance.update(drop);
       CoinManager.instance.addCoins(drop.reward);
+      // 日常任务：高品质鱼
+      if (this.isQualityFish(drop.name)) {
+        DailyMissionManager.instance.advanceTask('quality_1', 1);
+      }
       SaveSync.save();
     }
 
