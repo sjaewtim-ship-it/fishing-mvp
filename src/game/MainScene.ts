@@ -39,27 +39,28 @@ export class MainScene extends Phaser.Scene {
 
     const safeBottom = Math.max(130, Math.round(height * 0.1));
 
-    // 压缩顶部空间，标题区下移
-    const titleY = 75;
-    const sloganY = 115;
+    // === 顶部轻品牌区 ===
+    const titleY = 70;
+    const sloganY = 110;
 
-    // 资源区紧凑布局
-    const resourceY = 175;
+    // === 第一层：资源区（分层展示）===
+    const resourceY = 165;
+    const resourceRowGap = 16;
 
-    // 今日目标模块
-    const missionY = 290;
+    // === 第二层：今日目标区 ===
+    const missionY = 310;
 
-    // 玩法提示
-    const hintY = 410;
+    // === 第三层：提示区 ===
+    const hintY = 485;
 
-    // 主按钮区
-    const startBtnY = 475;
-    const energyBtnY = 570;
+    // === 第四层：按钮区 ===
+    const startBtnY = 555;
+    const energyBtnY = 685;
 
-    // 水下区域
-    const waterTopY = 660;
+    // === 第五层：水下氛围区 ===
+    const waterTopY = 780;
     const waterBottomY = height - safeBottom - 20;
-    const waterHeight = Math.max(200, waterBottomY - waterTopY);
+    const waterHeight = Math.max(180, waterBottomY - waterTopY);
     const waterCenterY = waterTopY + waterHeight / 2;
 
     const sandY = waterBottomY - 18;
@@ -74,6 +75,7 @@ export class MainScene extends Phaser.Scene {
       titleY,
       sloganY,
       resourceY,
+      resourceRowGap,
       missionY,
       hintY,
       startBtnY,
@@ -127,9 +129,9 @@ export class MainScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#8FD3FF');
     this.add.rectangle(L.centerX, L.height / 2, L.width, L.height, 0x8fd3ff);
 
-    // === 顶部标题区（压缩）===
-    const cloud1 = this.add.text(80, 65, '☁️', { fontSize: '36px' }).setAlpha(0.85);
-    const cloud2 = this.add.text(540, 95, '☁️', { fontSize: '30px' }).setAlpha(0.8);
+    // === 顶部轻品牌区 ===
+    const cloud1 = this.add.text(80, 65, '☁️', { fontSize: '36px' }).setAlpha(0.7);
+    const cloud2 = this.add.text(540, 95, '☁️', { fontSize: '30px' }).setAlpha(0.7);
 
     this.tweens.add({
       targets: cloud1,
@@ -159,7 +161,7 @@ export class MainScene extends Phaser.Scene {
 
     this.add.text(L.centerX, L.sloganY, '看准时机，一杆出货', {
       fontSize: '20px',
-      color: '#F0F8FF',
+      color: '#E0F0FF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -170,23 +172,25 @@ export class MainScene extends Phaser.Scene {
     const resTotalW = resCardW * 2 + resGap;
     const resLeftX = L.centerX - resTotalW / 2;
 
-    // 第一优先级：金币、体力
+    // 第一优先级：金币、体力（实卡片）
     this.createResourceCard(
       resLeftX, L.resourceY, resCardW, resCardH,
       '🪙', '金币', String(coins), '#FFE082',
-      (text) => { this.coinText = text; }
+      (text) => { this.coinText = text; },
+      0.20, 0.30
     );
     this.createResourceCard(
       resLeftX + resCardW + resGap, L.resourceY, resCardW, resCardH,
       '⚡', '体力', `${energy}/${maxEnergy}`, '#90EE90',
-      (text) => { this.energyText = text; }
+      (text) => { this.energyText = text; },
+      0.20, 0.30
     );
 
-    // 第二优先级：最佳渔获、最离谱战绩（更小更淡）
+    // 第二优先级：最佳渔获、最离谱战绩（淡卡片）
     const subCardW = 330;
     const subCardH = 48;
-    const subY = L.resourceY + 84;
-    
+    const subY = L.resourceY + resCardH + L.resourceRowGap;
+
     this.createSubResourceCard(
       resLeftX, subY, subCardW, subCardH,
       '⭐', '最佳渔获', bestCatch
@@ -206,29 +210,17 @@ export class MainScene extends Phaser.Scene {
     this.createStartButton(L.centerX, L.startBtnY);
     this.createEnergyButton(L.centerX, L.energyBtnY, energy >= maxEnergy);
 
-    // === 连击提示（如果有）===
-    const comboLabel = DirectorSystem.getComboLabel();
-    if (comboLabel) {
-      this.add.text(L.centerX, L.energyBtnY + 90, comboLabel, {
-        fontSize: '20px',
-        color: '#FFE082',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }).setOrigin(0.5);
-    }
-
     // === 水下区域（保留但简化）===
     this.add.rectangle(L.centerX, L.waterCenterY, L.width, L.waterHeight, 0x1e88e5);
 
-    const wave1 = this.add.ellipse(L.centerX - 100, L.waterTopY + 2, 140, 14, 0xffffff, 0.2);
-    const wave2 = this.add.ellipse(L.centerX + 50, L.waterTopY + 2, 180, 16, 0xffffff, 0.16);
-    const wave3 = this.add.ellipse(L.centerX + 200, L.waterTopY + 4, 110, 12, 0xffffff, 0.14);
+    const wave1 = this.add.ellipse(L.centerX - 100, L.waterTopY + 2, 140, 14, 0xffffff, 0.25);
+    const wave2 = this.add.ellipse(L.centerX + 50, L.waterTopY + 2, 180, 16, 0xffffff, 0.20);
+    const wave3 = this.add.ellipse(L.centerX + 200, L.waterTopY + 4, 110, 12, 0xffffff, 0.18);
 
     this.tweens.add({
       targets: [wave1, wave2, wave3],
       scaleX: 1.06,
-      alpha: 0.06,
+      alpha: 0.08,
       duration: 1200,
       yoyo: true,
       repeat: -1,
@@ -237,35 +229,37 @@ export class MainScene extends Phaser.Scene {
 
     this.add.text(L.centerX, L.waterTopY + 28, '水下似乎有东西在游动...', {
       fontSize: '18px',
-      color: '#EAF6FF',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     this.createSwimmers(L);
 
-    this.add.text(120, L.coralBaseY, '🪸', { fontSize: '52px' }).setOrigin(0.5).setAlpha(0.88);
-    this.add.text(600, L.coralBaseY - 8, '🪸', { fontSize: '58px' }).setOrigin(0.5).setAlpha(0.86);
-    this.add.text(290, L.plantBaseY, '🌿', { fontSize: '42px' }).setOrigin(0.5).setAlpha(0.84);
-    this.add.text(460, L.plantBaseY - 4, '🌱', { fontSize: '38px' }).setOrigin(0.5).setAlpha(0.82);
+    this.add.text(120, L.coralBaseY, '🪸', { fontSize: '52px' }).setOrigin(0.5).setAlpha(0.85);
+    this.add.text(600, L.coralBaseY - 8, '🪸', { fontSize: '58px' }).setOrigin(0.5).setAlpha(0.82);
+    this.add.text(290, L.plantBaseY, '🌿', { fontSize: '42px' }).setOrigin(0.5).setAlpha(0.80);
+    this.add.text(460, L.plantBaseY - 4, '🌱', { fontSize: '38px' }).setOrigin(0.5).setAlpha(0.78);
 
     const sandColor = 0xd8c28a;
-    this.add.ellipse(160, L.sandY, 200, 52, sandColor, 0.9);
-    this.add.ellipse(L.centerX, L.sandY + 12, 260, 66, sandColor, 0.9);
-    this.add.ellipse(585, L.sandY + 2, 200, 54, sandColor, 0.9);
+    this.add.ellipse(160, L.sandY, 200, 52, sandColor, 0.88);
+    this.add.ellipse(L.centerX, L.sandY + 12, 260, 66, sandColor, 0.88);
+    this.add.ellipse(585, L.sandY + 2, 200, 54, sandColor, 0.88);
 
     const footerWavesY = L.height - 24;
-    this.add.text(L.centerX - 100, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.8);
-    this.add.text(L.centerX, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.8);
-    this.add.text(L.centerX + 100, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.8);
+    this.add.text(L.centerX - 100, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.75);
+    this.add.text(L.centerX, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.75);
+    this.add.text(L.centerX + 100, footerWavesY, '🌊', { fontSize: '32px' }).setOrigin(0.5).setAlpha(0.75);
   }
 
   private createResourceCard(
     x: number, y: number, w: number, h: number,
     icon: string, label: string, value: string, valueColor: string,
-    registerText?: (text: Phaser.GameObjects.Text) => void
+    registerText?: (text: Phaser.GameObjects.Text) => void,
+    bgAlpha: number = 0.20,
+    borderAlpha: number = 0.30
   ) {
-    const card = this.add.rectangle(x, y, w, h, 0xffffff, 0.12)
-      .setStrokeStyle(1, 0xffffff, 0.15);
+    const card = this.add.rectangle(x, y, w, h, 0xffffff, bgAlpha)
+      .setStrokeStyle(1, 0xffffff, borderAlpha);
 
     const iconText = this.add.text(x - w / 2 + 32, y, icon, {
       fontSize: '28px',
@@ -294,8 +288,8 @@ export class MainScene extends Phaser.Scene {
     x: number, y: number, w: number, h: number,
     icon: string, label: string, value: string
   ) {
-    const card = this.add.rectangle(x, y, w, h, 0xffffff, 0.06)
-      .setStrokeStyle(1, 0xffffff, 0.08);
+    const card = this.add.rectangle(x, y, w, h, 0xffffff, 0.10)
+      .setStrokeStyle(1, 0xffffff, 0.15);
 
     const iconText = this.add.text(x - w / 2 + 24, y, icon, {
       fontSize: '22px',
@@ -318,14 +312,14 @@ export class MainScene extends Phaser.Scene {
 
   private createDailyMissionPanel(centerX: number, centerY: number) {
     const panelW = 680;
-    const panelH = 140;
+    const panelH = 160;
 
-    // 背景卡片
-    const panelBg = this.add.rectangle(centerX, centerY, panelW, panelH, 0x000000, 0.18)
-      .setStrokeStyle(2, 0xffffff, 0.12);
+    // 背景卡片：更实的深色卡片，增强正式感
+    const panelBg = this.add.rectangle(centerX, centerY, panelW, panelH, 0x1a3a52, 0.40)
+      .setStrokeStyle(2, 0xffffff, 0.30);
 
     // 标题
-    const titleText = this.add.text(centerX - panelW / 2 + 24, centerY - panelH / 2 + 22, '📋 今日目标', {
+    const titleText = this.add.text(centerX - panelW / 2 + 24, centerY - panelH / 2 + 24, '📋 今日目标', {
       fontSize: '18px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -333,14 +327,14 @@ export class MainScene extends Phaser.Scene {
 
     // 任务列表
     const tasks = DailyMissionManager.instance.getTasks();
-    const taskStartY = centerY - panelH / 2 + 50;
-    const taskGap = 26;
+    const taskStartY = centerY - panelH / 2 + 56;
+    const taskGap = 32;
 
     tasks.forEach((task, index) => {
       this.createTaskRow(
-        centerX - panelW / 2 + 20,
+        centerX - panelW / 2 + 24,
         taskStartY + index * taskGap,
-        panelW - 40,
+        panelW - 48,
         20,
         task
       );
@@ -351,7 +345,7 @@ export class MainScene extends Phaser.Scene {
     const rewardClaimed = DailyMissionManager.instance.isRewardClaimed();
 
     if (allCompleted && !rewardClaimed) {
-      const rewardText = this.add.text(centerX, centerY + panelH / 2 - 14, '🎁 全部完成！点击任意任务领取奖励', {
+      const rewardText = this.add.text(centerX, centerY + panelH / 2 - 18, '🎁 全部完成！点击任意任务领取', {
         fontSize: '14px',
         color: '#FFD700',
         fontStyle: 'bold',
@@ -365,7 +359,7 @@ export class MainScene extends Phaser.Scene {
         repeat: -1,
       });
     } else if (allCompleted && rewardClaimed) {
-      const doneText = this.add.text(centerX, centerY + panelH / 2 - 14, '✅ 今日目标已全部完成', {
+      const doneText = this.add.text(centerX, centerY + panelH / 2 - 18, '✅ 今日目标已全部完成', {
         fontSize: '14px',
         color: '#90EE90',
         fontStyle: 'bold',
@@ -381,18 +375,18 @@ export class MainScene extends Phaser.Scene {
 
     // 任务名称
     const taskName = this.add.text(0, 0, task.title, {
-      fontSize: '14px',
-      color: task.claimed ? '#888888' : '#E8F4FF',
+      fontSize: '16px',
+      color: task.claimed ? '#888888' : '#F0F8FF',
       fontStyle: task.claimed ? 'normal' : 'bold',
     }).setOrigin(0, 0.5);
 
     // 进度条背景
-    const barW = 110;
-    const barH = 12;
+    const barW = 120;
+    const barH = 16;
     const barX = w - barW;
-    
-    const barBg = this.add.rectangle(barX + barW / 2, 0, barW, barH, 0x000000, 0.4)
-      .setStrokeStyle(1, 0xffffff, 0.15);
+
+    const barBg = this.add.rectangle(barX + barW / 2, 0, barW, barH, 0x000000, 0.50)
+      .setStrokeStyle(1, 0xffffff, 0.20);
 
     // 进度条填充
     const progress = Math.min(1, task.progress / task.target);
@@ -401,7 +395,7 @@ export class MainScene extends Phaser.Scene {
 
     // 进度文字
     const progressText = this.add.text(barX + barW / 2, 0, `${task.progress}/${task.target}`, {
-      fontSize: '11px',
+      fontSize: '13px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -426,7 +420,7 @@ export class MainScene extends Phaser.Scene {
       container.setSize(w, h);
       container.setInteractive({ useHandCursor: true });
       container.on('pointerdown', () => this.onTaskClaim(task.id, container));
-      
+
       // 闪烁提示
       this.tweens.add({
         targets: [barFill, progressText],
@@ -454,16 +448,16 @@ export class MainScene extends Phaser.Scene {
   }
 
   private createHintBox(centerX: number, y: number) {
-    const hintW = 520;
-    const hintH = 44;
+    const hintW = 460;
+    const hintH = 48;
 
-    const hintBg = this.add.rectangle(centerX, y, hintW, hintH, 0xffffff, 0.08)
-      .setStrokeStyle(1, 0xffffff, 0.1);
+    const hintBg = this.add.rectangle(centerX, y, hintW, hintH, 0xffffff, 0.15)
+      .setStrokeStyle(1, 0xffffff, 0.25);
 
     // 第一杆新手引导
     const round = DirectorSystem.getRoundNumber();
-    let hintText = '看到浮漂明显下沉时再拉杆，越准奖励越高';
-    
+    let hintText = '💡 小技巧：浮漂明显下沉时再拉杆，更容易拿高奖励';
+
     if (round === 1) {
       hintText = '👋 新手：第一杆先试试手感，别太急';
     } else if (DirectorSystem.getCombo() >= 3) {
@@ -472,7 +466,7 @@ export class MainScene extends Phaser.Scene {
 
     const hintTextObj = this.add.text(centerX, y, hintText, {
       fontSize: '15px',
-      color: '#E8F0FF',
+      color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -484,16 +478,16 @@ export class MainScene extends Phaser.Scene {
     const btnH = 110;
 
     const startBtn = this.add.rectangle(centerX, y, btnW, btnH, 0xff6b6b)
-      .setStrokeStyle(4, 0xffffff, 0.22)
+      .setStrokeStyle(4, 0xffffff, 0.30)
       .setInteractive({ useHandCursor: true });
 
     // 按钮光晕
-    const glow = this.add.rectangle(centerX, y, btnW, btnH, 0xff8888, 0.3);
+    const glow = this.add.rectangle(centerX, y, btnW, btnH, 0xff8888, 0.30);
     this.tweens.add({
       targets: glow,
       scaleX: 1.02,
       scaleY: 1.02,
-      alpha: 0.2,
+      alpha: 0.20,
       duration: 800,
       yoyo: true,
       repeat: -1,
@@ -525,22 +519,22 @@ export class MainScene extends Phaser.Scene {
   }
 
   private createEnergyButton(centerX: number, y: number, isFullEnergy: boolean) {
-    const btnW = isFullEnergy ? 320 : 420;
+    const btnW = 360;
     const btnH = 80;
-    const alpha = isFullEnergy ? 0.6 : 1;
+    const alpha = isFullEnergy ? 0.5 : 1.0;
 
     const energyBtn = this.add.rectangle(centerX, y, btnW, btnH, 0x9b59b6, alpha)
-      .setStrokeStyle(2, 0xffffff, 0.14)
+      .setStrokeStyle(2, 0xffffff, 0.15)
       .setInteractive({ useHandCursor: true });
 
     this.add.text(centerX, y - 6, '🎬 补充体力', {
-      fontSize: '28px',
+      fontSize: '26px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     this.add.text(centerX, y + 22, '观看广告可恢复 3 点体力', {
-      fontSize: '15px',
+      fontSize: '14px',
       color: '#F0E8FF',
     }).setOrigin(0.5);
 
