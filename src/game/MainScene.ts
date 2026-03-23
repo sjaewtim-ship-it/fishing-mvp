@@ -32,11 +32,9 @@ export class MainScene extends Phaser.Scene {
 
     const safeBottom = Math.max(130, Math.round(height * 0.1));
 
-    // 首页按钮固定在信息块下面，而不是贴近底部
     const startBtnY = 565;
     const energyBtnY = 675;
 
-    // 水域顶部放到按钮下面
     const waterTopY = 760;
     const waterBottomY = height - safeBottom - 20;
     const waterHeight = Math.max(240, waterBottomY - waterTopY);
@@ -53,6 +51,7 @@ export class MainScene extends Phaser.Scene {
       safeBottom,
       startBtnY,
       energyBtnY,
+      actionBaseY: height - safeBottom - 10,
       waterTopY,
       waterBottomY,
       waterHeight,
@@ -65,27 +64,27 @@ export class MainScene extends Phaser.Scene {
 
   private getTodayBestCatchSafe(): string {
     const rm: any = RecordManager.instance as any;
-
     if (rm && typeof rm.getTodayBestCatch === 'function') return rm.getTodayBestCatch() || '暂无';
     if (rm && typeof rm.getBestCatch === 'function') return rm.getBestCatch() || '暂无';
     if (rm && typeof rm.getBest === 'function') return rm.getBest() || '暂无';
     if (rm && typeof rm.bestCatch === 'string') return rm.bestCatch || '暂无';
-
     return '暂无';
   }
 
   private getTodayWeirdCatchSafe(): string {
     const rm: any = RecordManager.instance as any;
-
     if (rm && typeof rm.getTodayWeirdCatch === 'function') return rm.getTodayWeirdCatch() || '暂无';
     if (rm && typeof rm.getWeirdCatch === 'function') return rm.getWeirdCatch() || '暂无';
     if (rm && typeof rm.getWeird === 'function') return rm.getWeird() || '暂无';
     if (rm && typeof rm.weirdCatch === 'string') return rm.weirdCatch || '暂无';
-
     return '暂无';
   }
 
   create() {
+    // 关键修复：每次进入场景先清空，避免重启后数组残留不同步
+    this.swimmers = [];
+    this.swimmerData = [];
+
     const L = this.getLayout();
 
     const coins = CoinManager.instance.getCoins();
@@ -95,7 +94,6 @@ export class MainScene extends Phaser.Scene {
     const weirdCatch = this.getTodayWeirdCatchSafe();
 
     this.cameras.main.setBackgroundColor('#8FD3FF');
-
     this.add.rectangle(L.centerX, L.height / 2, L.width, L.height, 0x8fd3ff);
 
     const cloud1 = this.add.text(95, 92, '☁️', { fontSize: '42px' }).setAlpha(0.9);
@@ -133,7 +131,6 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 信息块
     const infoWrapY = 340;
     this.add.rectangle(L.centerX, infoWrapY, 690, 220, 0x78b6dd, 0.35)
       .setStrokeStyle(2, 0xffffff, 0.10);
@@ -182,7 +179,6 @@ export class MainScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    // 按钮区：固定在信息块下方
     this.add.rectangle(L.centerX, 620, 540, 220, 0x000000, 0.06)
       .setStrokeStyle(2, 0xffffff, 0.08);
 
@@ -246,7 +242,6 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // 水域
     this.add.rectangle(L.centerX, L.waterCenterY, L.width, L.waterHeight, 0x1e88e5);
 
     const wave1 = this.add.ellipse(L.centerX - 120, L.waterTopY + 2, 160, 16, 0xffffff, 0.22);
@@ -296,7 +291,7 @@ export class MainScene extends Phaser.Scene {
       { emoji: '🦀', x: 160, y: L.waterTopY + 330, dirX: 1, dirY: -1, speed: 0.20, scale: 1.55, drift: 10 },
     ];
 
-    this.swimmerData = pool;
+    this.swimmerData = [...pool];
 
     pool.forEach((item) => {
       const t = this.add.text(item.x, item.y, item.emoji, {
@@ -308,7 +303,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   update() {
-    if (!this.swimmers.length) return;
+    if (!this.swimmers.length || !this.swimmerData.length) return;
 
     const L = this.getLayout();
     const minX = 60;
@@ -320,6 +315,9 @@ export class MainScene extends Phaser.Scene {
       const sprite = this.swimmers[i];
       const data = this.swimmerData[i];
 
+      // 关键修复：数组不同步时直接跳过，避免报错
+      if (!sprite || !data) continue;
+
       sprite.x += data.dirX * data.speed;
       sprite.y += data.dirY * (data.speed * 0.35) + Math.sin(this.time.now * 0.001 + i) * 0.08;
 
@@ -330,18 +328,24 @@ export class MainScene extends Phaser.Scene {
     }
 
     for (let i = 0; i < this.swimmers.length; i++) {
+      const a = this.swimmers[i];
+      const da = this.swimmerData[i];
+      if (!a || !da) continue;
+
       for (let j = i + 1; j < this.swimmers.length; j++) {
-        const a = this.swimmers[i];
         const b = this.swimmers[j];
+        const db = this.swimmerData[j];
+        if (!b || !db) continue;
+
         const dx = a.x - b.x;
         const dy = a.y - b.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 54) {
-          this.swimmerData[i].dirX *= -1;
-          this.swimmerData[j].dirX *= -1;
-          this.swimmerData[i].dirY *= -1;
-          this.swimmerData[j].dirY *= -1;
+          da.dirX *= -1;
+          db.dirX *= -1;
+          da.dirY *= -1;
+          db.dirY *= -1;
         }
       }
     }
