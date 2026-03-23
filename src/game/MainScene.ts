@@ -30,11 +30,9 @@ export class MainScene extends Phaser.Scene {
     const height = Number(this.scale.height) || 1334;
     const centerX = width / 2;
 
-    // 给移动浏览器底栏预留安全区
     const safeBottom = Math.max(150, Math.round(height * 0.12));
     const actionBaseY = height - safeBottom - 10;
 
-    // 水域顶部和底部
     const waterTopY = Math.min(900, Math.max(760, height * 0.67));
     const waterHeight = Math.max(300, actionBaseY - waterTopY - 130);
     const waterCenterY = waterTopY + waterHeight / 2;
@@ -58,22 +56,75 @@ export class MainScene extends Phaser.Scene {
     };
   }
 
+  // ===== 兼容 RecordManager 不同版本 =====
+  private getTodayCountSafe(): number {
+    const rm: any = RecordManager.instance as any;
+
+    if (rm && typeof rm.getTodayCount === 'function') {
+      return Number(rm.getTodayCount()) || 0;
+    }
+    if (rm && typeof rm.getCount === 'function') {
+      return Number(rm.getCount()) || 0;
+    }
+    if (rm && typeof rm.getTotalCount === 'function') {
+      return Number(rm.getTotalCount()) || 0;
+    }
+    if (rm && typeof rm.todayCount === 'number') {
+      return Number(rm.todayCount) || 0;
+    }
+    return 0;
+  }
+
+  private getTodayBestCatchSafe(): string {
+    const rm: any = RecordManager.instance as any;
+
+    if (rm && typeof rm.getTodayBestCatch === 'function') {
+      return rm.getTodayBestCatch() || '暂无';
+    }
+    if (rm && typeof rm.getBestCatch === 'function') {
+      return rm.getBestCatch() || '暂无';
+    }
+    if (rm && typeof rm.getBest === 'function') {
+      return rm.getBest() || '暂无';
+    }
+    if (rm && typeof rm.bestCatch === 'string') {
+      return rm.bestCatch || '暂无';
+    }
+    return '暂无';
+  }
+
+  private getTodayWeirdCatchSafe(): string {
+    const rm: any = RecordManager.instance as any;
+
+    if (rm && typeof rm.getTodayWeirdCatch === 'function') {
+      return rm.getTodayWeirdCatch() || '暂无';
+    }
+    if (rm && typeof rm.getWeirdCatch === 'function') {
+      return rm.getWeirdCatch() || '暂无';
+    }
+    if (rm && typeof rm.getWeird === 'function') {
+      return rm.getWeird() || '暂无';
+    }
+    if (rm && typeof rm.weirdCatch === 'string') {
+      return rm.weirdCatch || '暂无';
+    }
+    return '暂无';
+  }
+
   create() {
     const L = this.getLayout();
 
     const coins = CoinManager.instance.getCoins();
     const energy = EnergyManager.instance.getEnergy();
     const maxEnergy = EnergyManager.instance.getMaxEnergy();
-    const todayCount = RecordManager.instance.getTodayCount();
-    const bestCatch = RecordManager.instance.getTodayBestCatch() || '暂无';
-    const weirdCatch = RecordManager.instance.getTodayWeirdCatch() || '暂无';
+    const todayCount = this.getTodayCountSafe();
+    const bestCatch = this.getTodayBestCatchSafe();
+    const weirdCatch = this.getTodayWeirdCatchSafe();
 
     this.cameras.main.setBackgroundColor('#8FD3FF');
 
-    // 背景
     this.add.rectangle(L.centerX, L.height / 2, L.width, L.height, 0x8fd3ff);
 
-    // 云
     const cloud1 = this.add.text(95, 92, '☁️', { fontSize: '42px' }).setAlpha(0.9);
     const cloud2 = this.add.text(555, 126, '☁️ ☁️', { fontSize: '34px' }).setAlpha(0.82);
 
@@ -95,7 +146,6 @@ export class MainScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // 标题
     this.add.text(L.centerX, 105, '🎣 钓鱼小游戏', {
       fontSize: '54px',
       color: '#FFFFFF',
@@ -110,7 +160,6 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 信息块
     const infoWrapY = 340;
     this.add.rectangle(L.centerX, infoWrapY, 690, 260, 0x78b6dd, 0.35)
       .setStrokeStyle(2, 0xffffff, 0.10);
@@ -165,7 +214,6 @@ export class MainScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    // 按钮安全区
     const startBtnY = L.actionBaseY - 165;
     const energyBtnY = L.actionBaseY - 45;
 
@@ -176,7 +224,7 @@ export class MainScene extends Phaser.Scene {
       .setStrokeStyle(4, 0xffffff, 0.18)
       .setInteractive({ useHandCursor: true });
 
-    const startText = this.add.text(L.centerX, startBtnY, '开始钓鱼', {
+    this.add.text(L.centerX, startBtnY, '开始钓鱼', {
       fontSize: '38px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -201,13 +249,13 @@ export class MainScene extends Phaser.Scene {
       .setStrokeStyle(4, 0xffffff, 0.18)
       .setInteractive({ useHandCursor: true });
 
-    const energyText = this.add.text(L.centerX, energyBtnY - 4, '🎬 补充体力', {
+    this.add.text(L.centerX, energyBtnY - 4, '🎬 补充体力', {
       fontSize: '34px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const energySub = this.add.text(L.centerX, energyBtnY + 28, '观看广告可恢复 3 点体力', {
+    this.add.text(L.centerX, energyBtnY + 28, '观看广告可恢复 3 点体力', {
       fontSize: '18px',
       color: '#F7EFFF',
     }).setOrigin(0.5);
@@ -232,7 +280,6 @@ export class MainScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // 水域
     this.add.rectangle(L.centerX, L.waterCenterY, L.width, L.waterHeight, 0x1e88e5);
 
     const wave1 = this.add.ellipse(L.centerX - 120, L.waterTopY + 2, 160, 16, 0xffffff, 0.22);
@@ -255,10 +302,8 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 游动生物
     this.createSwimmers(L);
 
-    // 珊瑚 / 水草 / 沙地
     this.add.text(120, L.coralBaseY, '🪸', { fontSize: '58px' }).setOrigin(0.5).setAlpha(0.92);
     this.add.text(610, L.coralBaseY - 8, '🪸', { fontSize: '64px' }).setOrigin(0.5).setAlpha(0.9);
     this.add.text(285, L.plantBaseY, '🌿', { fontSize: '46px' }).setOrigin(0.5).setAlpha(0.88);
@@ -317,7 +362,6 @@ export class MainScene extends Phaser.Scene {
       sprite.setScale(data.dirX < 0 ? -1 : 1, 1);
     }
 
-    // 简单碰撞反向，避免重叠太明显
     for (let i = 0; i < this.swimmers.length; i++) {
       for (let j = i + 1; j < this.swimmers.length; j++) {
         const a = this.swimmers[i];
