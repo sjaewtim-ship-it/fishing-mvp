@@ -1,3 +1,5 @@
+import { DailyMissionManager } from './DailyMissionManager';
+
 export class AnalyticsManager {
   private static _instance: AnalyticsManager;
 
@@ -16,12 +18,16 @@ export class AnalyticsManager {
 
   onStartRound() {
     this.totalStartRounds += 1;
+    // 日常任务：完成钓鱼次数
+    DailyMissionManager.instance.advanceTask('cast_3', 1);
     console.log('analytics:start_round', this.totalStartRounds);
   }
 
   onRoundSuccess(dropName: string) {
     this.totalSuccessRounds += 1;
     this.lastDropName = dropName;
+    // 日常任务：成功钓到鱼
+    DailyMissionManager.instance.advanceTask('success_2', 1);
     console.log('analytics:success', this.totalSuccessRounds, dropName);
   }
 

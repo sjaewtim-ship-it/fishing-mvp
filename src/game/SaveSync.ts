@@ -6,6 +6,7 @@ import { StorageManager } from './StorageManager';
 import { AnalyticsManager } from './AnalyticsManager';
 import { DirectorManager } from './DirectorManager';
 import { DirectorSystem } from './DirectorSystem';
+import { DailyMissionManager } from './DailyMissionManager';
 
 export class SaveSync {
   private static getDirectorSystemStateFromSave(data: ReturnType<typeof StorageManager.instance.load>) {
@@ -47,7 +48,10 @@ export class SaveSync {
 
   static load() {
     const data = StorageManager.instance.load();
-    if (!data) return;
+    if (!data) {
+      DailyMissionManager.instance.init();
+      return;
+    }
 
     const directorSystemState = this.getDirectorSystemStateFromSave(data);
 
@@ -69,11 +73,19 @@ export class SaveSync {
       recentLegendCooldown: data.recentLegendCooldown ?? 0,
     });
     DirectorSystem.setState(directorSystemState);
+
+    // 加载日常任务
+    if (data.dailyMission) {
+      DailyMissionManager.instance.setState(data.dailyMission);
+    } else {
+      DailyMissionManager.instance.init();
+    }
   }
 
   static save() {
     const director = DirectorManager.instance.getDebugInfo();
     const directorSystem = DirectorSystem.getState();
+    const dailyMission = DailyMissionManager.instance.getSaveData();
     this.syncCompatibilityRound(directorSystem.round);
 
     StorageManager.instance.save({
@@ -94,6 +106,7 @@ export class SaveSync {
       directorFailStreak: directorSystem.failStreak,
       directorSuccessStreak: directorSystem.successStreak,
       directorCombo: directorSystem.combo,
+      dailyMission: dailyMission ?? undefined,
     });
   }
 
@@ -114,5 +127,6 @@ export class SaveSync {
     RoundManager.instance.reset();
     DirectorManager.instance.reset();
     DirectorSystem.reset();
+    DailyMissionManager.instance.reset();
   }
 }
