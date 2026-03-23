@@ -51,9 +51,10 @@ export class DirectorSystem {
   }
 
   static getComboLabel(): string {
-    if (this.combo >= 5) return `🔥 ${this.combo}连击，手气爆了`;
-    if (this.combo >= 3) return `⚡ ${this.combo}连击，状态火热`;
-    if (this.combo >= 2) return `✨ ${this.combo}连击，继续上头`;
+    if (this.combo >= 5) return `💥 ${this.combo}连击，现在停下有点亏了`;
+    if (this.combo >= 4) return `🔥 ${this.combo}连击，再来一杆会发生什么？`;
+    if (this.combo >= 3) return `⚡ ${this.combo}连击，今天运气不正常`;
+    if (this.combo >= 2) return `✨ ${this.combo}连击，有点不对劲了`;
     return '';
   }
 
@@ -65,9 +66,10 @@ export class DirectorSystem {
   }
 
   static getComboEmotionLine(): string {
-    if (this.combo >= 5) return '这波真的有点挡不住了';
+    if (this.combo >= 5) return '已经停不下来了，再来！';
+    if (this.combo >= 4) return '这波真的有点挡不住了';
     if (this.combo >= 3) return '状态起来了，越钓越上头';
-    if (this.combo >= 2) return '连着中，手感已经热起来了';
+    if (this.combo >= 2) return '这手感，不像巧合了';
     return '';
   }
 

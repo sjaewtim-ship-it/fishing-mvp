@@ -137,6 +137,8 @@ export class ResultScene extends Phaser.Scene {
     }
 
     if (drop.type === 'trash') {
+      // 手机专属爆点文案（优先级最高）
+      if (drop.name === '手机') return '我从水里钓出一台手机…';
       if (drop.name === '内裤') return '我居然钓到内裤？？？';
       if (drop.name === '破袜子') return '我刚刚钓到一只破袜子？？？';
       if (drop.name === '塑料袋') return '我居然钓到塑料袋？？？';
@@ -159,6 +161,10 @@ export class ResultScene extends Phaser.Scene {
     const comboLine = DirectorSystem.getComboEmotionLine();
 
     if (drop.type === 'legend') {
+      // 神秘宝箱专属二段式事件文案（优先级高于其他 legend）
+      if (drop.name === '神秘宝箱') {
+        return '打开之前我手心在出汗…里面居然真有东西！';
+      }
       if (this.isLegendFish(drop.name)) {
         return comboLine || '这条鱼已经够拿出来炫耀了';
       }
@@ -166,8 +172,19 @@ export class ResultScene extends Phaser.Scene {
     }
 
     if (drop.type === 'trash') {
-      if (drop.name === '塑料袋') return '环保警告出现了';
+      // 手机专属剧情文案（优先级最高，不能被覆盖）
+      if (drop.name === '手机') {
+        return '屏幕还亮着，未接来电：妈妈 (3 次)';
+      }
+      // 袜子/拖鞋/内裤统一离谱物系列感文案
+      if (drop.name === '破袜子' || drop.name === '拖鞋' || drop.name === '内裤') {
+        return '这片水域不太对劲…';
+      }
+      // 螃蟹/乌龟生物奇遇文案
       if (drop.name === '螃蟹') return '今晚加餐有了';
+      if (drop.name === '乌龟') return '这水里到底生活着什么？';
+      // 其他默认逻辑
+      if (drop.name === '塑料袋') return '环保警告出现了';
       if (drop.name === '泥鳅') return '这也算收获吗…';
       return drop.flavor || '这也太离谱了吧？！';
     }

@@ -10,55 +10,51 @@ export type DropItem = {
 export type DropCategory = 'fish' | 'trash' | 'legend' | 'random';
 
 // --------------------
-// 鱼类分层（MVP版）
+// 掉落池（MVP 精简版 · 吐槽风）
+// 总计 13 个物品，每一杆都有情绪波动
 // --------------------
 
-// 普通鱼：稳定出货
+// 普通鱼：稳但也要有情绪
 const commonFish: DropItem[] = [
-  { name: '小鲫鱼', type: 'fish', reward: 6, flavor: '这一杆挺稳' },
-  { name: '小鲤鱼', type: 'fish', reward: 7, flavor: '开局还不错' },
-  { name: '罗非鱼', type: 'fish', reward: 8, flavor: '今天有点手感' },
-  { name: '草鱼', type: 'fish', reward: 9, flavor: '正常发挥' },
-  { name: '鲶鱼', type: 'fish', reward: 10, flavor: '有点分量了' },
+  { name: '小鲫鱼', type: 'fish', reward: 6, flavor: '行吧，至少不是空气' },
+  { name: '小鲤鱼', type: 'fish', reward: 7, flavor: '开局就这样，能忍' },
+  { name: '罗非鱼', type: 'fish', reward: 8, flavor: '今天手感就这？' },
+  { name: '草鱼', type: 'fish', reward: 9, flavor: '菜市场见多了' },
 ];
 
-// 优质鱼：小爽点
+// 优质鱼：小爽点，带点惊喜
 const goodFish: DropItem[] = [
-  { name: '大鲤鱼', type: 'fish', reward: 16, flavor: '这一杆明显更值钱' },
-  { name: '黑鱼', type: 'fish', reward: 18, flavor: '手气开始起来了' },
-  { name: '鲈鱼', type: 'fish', reward: 20, flavor: '这杆不亏' },
-  { name: '金鲫鱼', type: 'fish', reward: 24, flavor: '金色的，有点东西' },
+  { name: '大鲤鱼', type: 'fish', reward: 16, flavor: '这货能卖个好价钱' },
+  { name: '黑鱼', type: 'fish', reward: 18, flavor: '有点凶相，我喜欢' },
+  { name: '鲈鱼', type: 'fish', reward: 20, flavor: '今晚加个硬菜' },
 ];
 
-// 稀有鱼：中爽点
+// 稀有鱼：中爽点，值得截图
 const rareFish: DropItem[] = [
-  { name: '锦鲤', type: 'fish', reward: 36, flavor: '这条有点稀有' },
-  { name: '巨型草鱼', type: 'fish', reward: 42, flavor: '这体型有点夸张' },
+  { name: '锦鲤', type: 'fish', reward: 36, flavor: '转发这条能转运吗' },
+  { name: '巨型草鱼', type: 'fish', reward: 42, flavor: '这体型是吃激素长大的？' },
 ];
 
-// 传说鱼：鱼类里的大爽点
+// 传说鱼：大爽点，必须发朋友圈
 const mythFish: DropItem[] = [
-  { name: '龙鱼', type: 'legend', reward: 120, flavor: '这条鱼不一般' },
-  { name: '黄金锦鲤', type: 'legend', reward: 200, flavor: '我直接欧皇了？？？' },
+  { name: '龙鱼', type: 'legend', reward: 120, flavor: '这鱼鳞能吹一年' },
+  { name: '黄金锦鲤', type: 'legend', reward: 200, flavor: '我宣布今天是我的幸运日' },
 ];
 
-// 离谱物：精简版
-const lightTrashItems: DropItem[] = [
-  { name: '破袜子', type: 'trash', reward: 15, flavor: '这谁的袜子？？？' },
-  { name: '拖鞋', type: 'trash', reward: 16, flavor: '另一只去哪了？' },
-  { name: '树枝', type: 'trash', reward: 10, flavor: '这也算收获吗…' },
+// 离谱物：情绪爆点，传播担当
+const trashItems: DropItem[] = [
+  { name: '破袜子', type: 'trash', reward: 15, flavor: '谁把脚伸过来了？？' },
+  { name: '拖鞋', type: 'trash', reward: 16, flavor: '另一只还在等我' },
+  { name: '内裤', type: 'trash', reward: 18, flavor: '这水里有变态吧？？' },
+  { name: '手机', type: 'trash', reward: 50, flavor: '等等，这屏幕还亮着？？' },
+  { name: '螃蟹', type: 'trash', reward: 40, flavor: '夹住了，是真的夹住了' },
+  { name: '乌龟', type: 'trash', reward: 45, flavor: '它看我的眼神充满嘲讽' },
 ];
 
-const strongTrashItems: DropItem[] = [
-  { name: '内裤', type: 'trash', reward: 18, flavor: '这水里到底发生过什么…' },
-  { name: '螃蟹', type: 'trash', reward: 40, flavor: '今晚加餐有了' },
-  { name: '乌龟', type: 'trash', reward: 45, flavor: '这也能钓上来？？？' },
-];
-
-// 神物：去掉金条
+// 神物：事件型文案，制造话题
 const legendItems: DropItem[] = [
-  { name: '钻石戒指', type: 'legend', reward: 320, flavor: '我直接欧皇了？？？' },
-  { name: '神秘宝箱', type: 'legend', reward: 280, flavor: '命运开始改变了' },
+  { name: '钻石戒指', type: 'legend', reward: 320, flavor: '我是不是该去失物招领处问问' },
+  { name: '神秘宝箱', type: 'legend', reward: 280, flavor: '打开之前我手心在出汗' },
 ];
 
 function randomFrom<T>(list: T[]): T {
@@ -113,9 +109,7 @@ export class DropGenerator {
   }
 
   static generateTrash(): DropItem {
-    return Math.random() < 0.45
-      ? randomFrom(lightTrashItems)
-      : randomFrom(strongTrashItems);
+    return randomFrom(trashItems);
   }
 
   static generateLegend(): DropItem {
@@ -137,7 +131,7 @@ export class DropGenerator {
       return DirectorSystem.pickWeighted<DropItem>([
         { item: randomFrom(goodFish), weight: 18 },
         { item: randomFrom(rareFish), weight: 24 },
-        { item: randomFrom(strongTrashItems), weight: 36 },
+        { item: randomFrom(trashItems), weight: 36 },
         { item: randomFrom(allLegendPool()), weight: 22 },
       ]);
     }
@@ -145,7 +139,7 @@ export class DropGenerator {
     return DirectorSystem.pickWeighted<DropItem>([
       { item: randomFrom(goodFish), weight: 20 },
       { item: randomFrom(rareFish), weight: 14 },
-      { item: randomFrom(strongTrashItems), weight: 46 },
+      { item: randomFrom(trashItems), weight: 46 },
       { item: randomFrom(allLegendPool()), weight: 20 },
     ]);
   }
@@ -158,7 +152,7 @@ export class DropGenerator {
         { item: randomFrom(goodFish), weight: 36 },
         { item: randomFrom(rareFish), weight: 28 },
         { item: randomFrom(mythFish), weight: 18 },
-        { item: randomFrom(strongTrashItems), weight: 12 },
+        { item: randomFrom(trashItems), weight: 12 },
         { item: randomFrom(legendItems), weight: 6 },
       ]);
     }
@@ -167,7 +161,7 @@ export class DropGenerator {
       { item: randomFrom(goodFish), weight: 42 },
       { item: randomFrom(rareFish), weight: 24 },
       { item: randomFrom(mythFish), weight: 10 },
-      { item: randomFrom(strongTrashItems), weight: 18 },
+      { item: randomFrom(trashItems), weight: 18 },
       { item: randomFrom(legendItems), weight: 6 },
     ]);
   }
@@ -180,8 +174,7 @@ export class DropGenerator {
         { item: randomFrom(commonFish), weight: 24 },
         { item: randomFrom(goodFish), weight: 28 },
         { item: randomFrom(rareFish), weight: 18 },
-        { item: randomFrom(lightTrashItems), weight: 8 },
-        { item: randomFrom(strongTrashItems), weight: 14 },
+        { item: randomFrom(trashItems), weight: 22 },
         { item: randomFrom(allLegendPool()), weight: 8 },
       ]);
     }
@@ -191,8 +184,7 @@ export class DropGenerator {
         { item: randomFrom(commonFish), weight: 32 },
         { item: randomFrom(goodFish), weight: 24 },
         { item: randomFrom(rareFish), weight: 14 },
-        { item: randomFrom(lightTrashItems), weight: 8 },
-        { item: randomFrom(strongTrashItems), weight: 16 },
+        { item: randomFrom(trashItems), weight: 24 },
         { item: randomFrom(allLegendPool()), weight: 6 },
       ]);
     }
@@ -201,8 +193,7 @@ export class DropGenerator {
       { item: randomFrom(commonFish), weight: 44 },
       { item: randomFrom(goodFish), weight: 18 },
       { item: randomFrom(rareFish), weight: 8 },
-      { item: randomFrom(lightTrashItems), weight: 8 },
-      { item: randomFrom(strongTrashItems), weight: 16 },
+      { item: randomFrom(trashItems), weight: 24 },
       { item: randomFrom(allLegendPool()), weight: 6 },
     ]);
   }
