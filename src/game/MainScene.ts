@@ -31,9 +31,9 @@ const LAYOUT_SPEC = {
 
   // 各 section 高度
   brandHeight: 90,
-  resourceHeight: 150,     // 增加以容纳完整 2x2 卡组
-  goalHeight: 200,         // 增加以容纳三层任务结构
-  actionHeight: 240,       // 增加以确保与 ocean 有清晰边界
+  resourceHeight: 150,     // 容纳完整 2x2 卡组
+  goalHeight: 200,         // 容纳三层任务结构
+  actionHeight: 250,       // 确保与 ocean 有清晰边界
 };
 
 export class MainScene extends Phaser.Scene {
@@ -214,7 +214,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 3. goalSection - 今日目标区（独立任务卡，二层任务骨架）
+  // 3. goalSection - 今日目标区（真正的二层任务骨架）
   // ==================================================
   private renderGoalSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
@@ -227,34 +227,30 @@ export class MainScene extends Phaser.Scene {
       color: '#FFFFFF',
     }).setOrigin(0, 0);
 
-    // 标题
-    this.add.text(LAYOUT_SPEC.horizontalPadding + 10, L.goalY + 12, '📋 今日目标', {
-      fontSize: '17px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(0, 0);
+    // 标题占位
+    this.add.rectangle(LAYOUT_SPEC.horizontalPadding + 10, L.goalY + 12, 120, 20, 0xffffff, 0.3);
 
-    // 3 条任务（每条分两层：第一行任务名 + 进度数字 / 第二行独立进度条）
+    // 3 条任务（每条严格分两层）
     const taskStartY = L.goalY + 45;
-    const taskGap = 46;  // 增加间距以容纳两层结构
-    const barW = 140;
-    const barH = 14;
+    const taskGap = 48;  // 增加间距
 
     const tasks = DailyMissionManager.instance.getTasks();
     tasks.forEach((task, index) => {
       const taskBaseY = taskStartY + index * taskGap;
 
       // === 第一层：任务名称占位（左）+ 进度数字占位（右）===
-      // 任务名占位块
-      this.add.rectangle(LAYOUT_SPEC.horizontalPadding + 10, taskBaseY, 180, 18, 0xffffff, 0.3);
-      // 进度数字占位块
-      this.add.rectangle(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10, taskBaseY, 40, 18, 0xffffff, 0.3);
+      // 任务名占位块（180x18）
+      this.add.rectangle(LAYOUT_SPEC.horizontalPadding + 10, taskBaseY, 180, 18, 0xffffff, 0.35);
+      // 进度数字占位块（40x18）
+      this.add.rectangle(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10, taskBaseY, 40, 18, 0xffffff, 0.35);
 
-      // === 第二层：独立进度条占位（在任务名下方）===
-      const barY = taskBaseY + 26;
+      // === 第二层：独立进度条占位（在任务名下方，与任务名有明显间距）===
+      const barY = taskBaseY + 28;  // 增加间距到 28px
+      const barW = 140;
+      const barH = 14;
       const barX = LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 10 - barW;
       
-      // 进度条背景占位
+      // 进度条背景占位（140x14）
       this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.5);
       // 进度条填充占位
       const progress = Math.min(1, task.progress / task.target);
@@ -266,7 +262,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 4. actionSection - 主行动区（与 ocean 有清晰边界）
+  // 4. actionSection - 主行动区（补充体力按钮彻底上提）
   // ==================================================
   private renderActionSection(L: ReturnType<typeof this.calculateLayout>, isFullEnergy: boolean) {
     const x = L.centerX;
@@ -282,7 +278,7 @@ export class MainScene extends Phaser.Scene {
     // 主按钮：开始钓鱼（最强 CTA）
     const startBtnW = 480;
     const startBtnH = 110;
-    const startBtnY = L.actionY + 50;  // 上移
+    const startBtnY = L.actionY + 45;  // 再上移 5px
 
     const startBtn = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0xff6b6b, 0.9);
     this.add.text(x, startBtnY, '开始钓鱼', {
@@ -291,10 +287,10 @@ export class MainScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 次按钮：补充体力（降级，整体上提）
+    // 次按钮：补充体力（降级，再上提）
     const energyBtnW = 360;
     const energyBtnH = 80;
-    const energyBtnY = startBtnY + startBtnH / 2 + 50 + energyBtnH / 2;  // 间距 50px
+    const energyBtnY = startBtnY + startBtnH / 2 + 40 + energyBtnH / 2;  // 间距从 50 减少到 40px，让按钮整体上提
 
     const energyBtn = this.add.rectangle(x, energyBtnY, energyBtnW, energyBtnH, 0x9b59b6, isFullEnergy ? 0.4 : 0.8);
     this.add.text(x, energyBtnY - 8, '🎬 补充体力', {
