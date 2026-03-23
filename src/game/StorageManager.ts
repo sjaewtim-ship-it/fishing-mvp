@@ -16,10 +16,30 @@ type SaveData = {
   directorFailStreak?: number;
   directorSuccessStreak?: number;
   directorCombo?: number;
+  _version?: number;
 };
 
 const SAVE_KEY = 'fishing_mvp_save_v3';
 const SHARE_REWARD_KEY_PREFIX = 'fishing_share_reward_';
+const SAVE_VERSION = 3;
+
+// 默认存档数据，用于损坏恢复
+const DEFAULT_SAVE: SaveData = {
+  coins: 0,
+  energy: 5,
+  roundCount: 0,
+  bestCatch: '暂无',
+  weirdCatch: '暂无',
+  totalStartRounds: 0,
+  totalSuccessRounds: 0,
+  totalFailRounds: 0,
+  totalAdViews: 0,
+  lastDropName: '暂无',
+  continuousFishCount: 0,
+  continuousNonLegendCount: 0,
+  recentLegendCooldown: 0,
+  _version: SAVE_VERSION,
+};
 
 export class StorageManager {
   private static _instance: StorageManager;
@@ -32,8 +52,13 @@ export class StorageManager {
   }
 
   save(data: SaveData) {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-    console.log('save success:', data);
+    const saveData = { ...data, _version: SAVE_VERSION };
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+      console.log('save success:', saveData);
+    } catch (e) {
+      console.error('save failed:', e);
+    }
   }
 
   load(): SaveData | null {
@@ -41,11 +66,49 @@ export class StorageManager {
     if (!raw) return null;
 
     try {
-      return JSON.parse(raw) as SaveData;
+      const parsed = JSON.parse(raw) as SaveData;
+      // 版本检查，未来可用于存档迁移
+      if (parsed._version && parsed._version < SAVE_VERSION) {
+        console.log('save version migration:', parsed._version, '->', SAVE_VERSION);
+      }
+      return this.validateAndRecover(parsed);
     } catch (e) {
-      console.error('save parse failed:', e);
-      return null;
+      console.error('save parse failed, using default:', e);
+      return this.createDefaultRecover();
     }
+  }
+
+  // 验证存档数据完整性，损坏时恢复
+  private validateAndRecover(data: SaveData): SaveData {
+    const recovered: SaveData = { ...DEFAULT_SAVE };
+
+    // 逐项验证并恢复
+    if (typeof data.coins === 'number' && data.coins >= 0) recovered.coins = data.coins;
+    if (typeof data.energy === 'number' && data.energy >= 0) recovered.energy = data.energy;
+    if (typeof data.roundCount === 'number' && data.roundCount >= 0) recovered.roundCount = data.roundCount;
+    if (typeof data.bestCatch === 'string') recovered.bestCatch = data.bestCatch;
+    if (typeof data.weirdCatch === 'string') recovered.weirdCatch = data.weirdCatch;
+    if (typeof data.totalStartRounds === 'number' && data.totalStartRounds >= 0) recovered.totalStartRounds = data.totalStartRounds;
+    if (typeof data.totalSuccessRounds === 'number' && data.totalSuccessRounds >= 0) recovered.totalSuccessRounds = data.totalSuccessRounds;
+    if (typeof data.totalFailRounds === 'number' && data.totalFailRounds >= 0) recovered.totalFailRounds = data.totalFailRounds;
+    if (typeof data.totalAdViews === 'number' && data.totalAdViews >= 0) recovered.totalAdViews = data.totalAdViews;
+    if (typeof data.lastDropName === 'string') recovered.lastDropName = data.lastDropName;
+    if (typeof data.continuousFishCount === 'number' && data.continuousFishCount >= 0) recovered.continuousFishCount = data.continuousFishCount;
+    if (typeof data.continuousNonLegendCount === 'number' && data.continuousNonLegendCount >= 0) recovered.continuousNonLegendCount = data.continuousNonLegendCount;
+    if (typeof data.recentLegendCooldown === 'number' && data.recentLegendCooldown >= 0) recovered.recentLegendCooldown = data.recentLegendCooldown;
+    if (typeof data.directorRound === 'number' && data.directorRound >= 0) recovered.directorRound = data.directorRound;
+    if (typeof data.directorFailStreak === 'number' && data.directorFailStreak >= 0) recovered.directorFailStreak = data.directorFailStreak;
+    if (typeof data.directorSuccessStreak === 'number' && data.directorSuccessStreak >= 0) recovered.directorSuccessStreak = data.directorSuccessStreak;
+    if (typeof data.directorCombo === 'number' && data.directorCombo >= 0) recovered.directorCombo = data.directorCombo;
+    if (typeof data._version === 'number') recovered._version = data._version;
+
+    return recovered;
+  }
+
+  // 创建默认恢复存档
+  private createDefaultRecover(): SaveData {
+    console.warn('存档损坏，已恢复到初始状态');
+    return { ...DEFAULT_SAVE };
   }
 
   hasShareRewardClaimed(key: string) {

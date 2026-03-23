@@ -194,6 +194,8 @@ export class MainScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     startBtn.on('pointerdown', () => {
+      // 首次用户交互时解锁音频
+      SimpleAudio.unlock();
       SimpleAudio.click();
 
       if (!EnergyManager.instance.hasEnergy()) {
@@ -208,6 +210,34 @@ export class MainScene extends Phaser.Scene {
         round: DirectorSystem.getRoundNumber(),
       });
     });
+
+    // 第一杆新手引导提示
+    const round = DirectorSystem.getRoundNumber();
+    if (round === 1) {
+      const guideBubble = this.add.container(0, 0);
+      
+      const bubbleBg = this.add.rectangle(L.centerX, L.startBtnY - 140, 520, 80, 0x000000, 0.7)
+        .setStrokeStyle(2, 0xffe082, 0.9);
+      
+      const guideText = this.add.text(L.centerX, L.startBtnY - 140, '看到浮漂明显下沉时再拉杆，越准奖励越高', {
+        fontSize: '22px',
+        color: '#FFE082',
+        fontStyle: 'bold',
+        wordWrap: { width: 480 },
+        align: 'center',
+      }).setOrigin(0.5);
+
+      guideBubble.add([bubbleBg, guideText]);
+
+      this.tweens.add({
+        targets: guideBubble,
+        alpha: 0,
+        y: -10,
+        delay: 5000,
+        duration: 300,
+        onComplete: () => guideBubble.destroy(),
+      });
+    }
 
     const energyBtn = this.add.rectangle(L.centerX, L.energyBtnY, 470, 98, 0x9b59b6)
       .setStrokeStyle(4, 0xffffff, 0.18)
@@ -225,6 +255,7 @@ export class MainScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     energyBtn.on('pointerdown', () => {
+      SimpleAudio.unlock();
       SimpleAudio.click();
 
       if (EnergyManager.instance.getEnergy() >= EnergyManager.instance.getMaxEnergy()) {
