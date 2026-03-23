@@ -20,6 +20,7 @@ export type DirectorSystemState = {
   failStreak: number;
   successStreak: number;
   combo: number;
+  pityFail?: boolean; // 连击失败保护标记
 };
 
 export class DirectorSystem {
@@ -27,6 +28,7 @@ export class DirectorSystem {
   private static failStreak = 0;
   private static successStreak = 0;
   private static combo = 0;
+  private static pityFail = false; // 连击失败后触发保护
 
   static getRoundNumber(): number {
     return this.round + 1;
@@ -40,11 +42,16 @@ export class DirectorSystem {
     this.successStreak += 1;
     this.failStreak = 0;
     this.combo += 1;
+    this.pityFail = false; // 成功后清除保护
   }
 
   static recordFail() {
     this.failStreak += 1;
     this.successStreak = 0;
+    // 连击 >= 2 时失败，触发保护
+    if (this.combo >= 2) {
+      this.pityFail = true;
+    }
     this.combo = 0;
   }
 
@@ -58,6 +65,7 @@ export class DirectorSystem {
       failStreak: this.failStreak,
       successStreak: this.successStreak,
       combo: this.combo,
+      pityFail: this.pityFail,
     };
   }
 
@@ -66,6 +74,7 @@ export class DirectorSystem {
     this.failStreak = Math.max(0, state?.failStreak ?? 0);
     this.successStreak = Math.max(0, state?.successStreak ?? 0);
     this.combo = Math.max(0, state?.combo ?? 0);
+    this.pityFail = state?.pityFail ?? false;
   }
 
   static reset() {
@@ -73,6 +82,7 @@ export class DirectorSystem {
     this.failStreak = 0;
     this.successStreak = 0;
     this.combo = 0;
+    this.pityFail = false;
   }
 
   static hasComboBonus(): boolean {
@@ -113,6 +123,11 @@ export class DirectorSystem {
   static getRoundHint(): string {
     const bucket = this.getBucket();
 
+    // 连击失败保护提示
+    if (this.pityFail) {
+      return '上一杆太可惜了，这一杆帮你稳一下';
+    }
+
     if (this.combo >= 3) return '连击状态中，这一杆更容易出节目效果';
     if (this.failStreak >= 2) return '这一杆可能会翻盘，盯紧浮漂';
     if (this.successStreak >= 2) return '手气起来了，下一杆可能更刺激';
@@ -134,6 +149,18 @@ export class DirectorSystem {
 
   static getTimingAssist(): TimingAssistConfig {
     const bucket = this.getBucket();
+
+    // 连击失败保护：下一杆窗口更宽松
+    if (this.pityFail) {
+      return {
+        perfectWindowMs: 1100,
+        goodWindowMs: 1600,
+        earlyToleranceMs: 450,
+        lateToleranceMs: 500,
+        biteDelayMs: 1800,
+        fakeBiteChance: 0.01,
+      };
+    }
 
     if (this.failStreak >= 2) {
       return {
@@ -232,6 +259,9 @@ export class DirectorSystem {
   static shouldForceInterestingOutcome(): boolean {
     const bucket = this.getBucket();
 
+    // 连击失败保护：不强制节目效果，先稳一手
+    if (this.pityFail) return false;
+
     if (this.combo >= 3) return Math.random() < 0.72;
     if (this.failStreak >= 2) return true;
     if (bucket === 'fun_mix') return Math.random() < 0.55;
@@ -241,6 +271,8 @@ export class DirectorSystem {
 
   static shouldSoftProtectSuccess(): boolean {
     const bucket = this.getBucket();
+    // 连击失败保护：下一杆必出安全鱼
+    if (this.pityFail) return true;
     return bucket === 'safe_fish' || bucket === 'good_shot' || this.failStreak >= 2;
   }
 

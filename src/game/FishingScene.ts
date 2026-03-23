@@ -299,12 +299,34 @@ export class FishingScene extends Phaser.Scene {
     const visual = DirectorSystem.decideVisualType(this.currentDrop.type);
     this.playVisualSignal(visual);
 
+    // 咬钩信号增强：浮漂先快速下沉再上浮，形成明显节奏
     this.tweens.add({
       targets: this.floatBobber,
-      y: 560,
-      duration: 90,
+      y: 575,
+      duration: 120,
+      ease: 'Back.easeIn',
       yoyo: true,
-      repeat: 6,
+      repeat: 1,
+      onComplete: () => {
+        // 进入持续抖动
+        this.tweens.add({
+          targets: this.floatBobber,
+          y: 560,
+          duration: 90,
+          yoyo: true,
+          repeat: 6,
+        });
+      },
+    });
+
+    // 鱼影也增加对应动作
+    this.tweens.add({
+      targets: [this.fishShadow, this.fishGlow],
+      y: 780,
+      duration: 100,
+      ease: 'Sine.easeOut',
+      yoyo: true,
+      repeat: 1,
     });
 
     // 甜区提示：按钮先橙再红，形成节奏

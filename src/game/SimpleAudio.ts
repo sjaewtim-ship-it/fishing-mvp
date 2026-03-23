@@ -1,12 +1,43 @@
 export class SimpleAudio {
   private static ctx: AudioContext | null = null;
+  private static unlocked = false;
 
   private static getCtx() {
     if (!this.ctx) {
       const AC = (window.AudioContext || (window as any).webkitAudioContext);
-      this.ctx = new AC();
+      if (AC) {
+        this.ctx = new AC();
+        // 检查音频上下文状态，尝试自动解锁
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume().then(() => {
+            this.unlocked = true;
+          }).catch(() => {
+            // 无法解锁，静默失败
+          });
+        } else {
+          this.unlocked = true;
+        }
+      }
     }
     return this.ctx;
+  }
+
+  // 主动解锁音频上下文（在用户交互时调用）
+  static unlock() {
+    const ctx = this.getCtx();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        this.unlocked = true;
+      }).catch(() => {
+        // 静默失败
+      });
+    } else if (ctx) {
+      this.unlocked = true;
+    }
+  }
+
+  static isUnlocked() {
+    return this.unlocked || !this.ctx;
   }
 
   private static beep(freq: number, duration = 0.08, type: OscillatorType = 'sine', gainValue = 0.03) {
