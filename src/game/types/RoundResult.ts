@@ -10,6 +10,8 @@
  * - 所有字段必须有兜底值
  */
 
+import { getRarity } from '../DropGenerator';
+
 /** 渔获类型 */
 export type CatchType = 'fish' | 'junk' | 'none';
 
@@ -93,8 +95,8 @@ export function buildRoundResult(
     };
   }
 
-  // 映射稀有度
-  const rarity = mapRarity(drop.type, drop.name);
+  // 映射稀有度（调用 DropGenerator 统一口径）
+  const rarity = getRarity(drop.type, drop.name);
 
   // 映射渔获类型
   const catchType: CatchType = drop.type === 'trash' ? 'junk' : 'fish';
@@ -126,36 +128,6 @@ export function buildRoundResult(
     canDoubleReward: rarity === 'rare' || rarity === 'epic' || rarity === 'legendary',
     highlightText,
   };
-}
-
-/**
- * 映射稀有度（统一口径）
- */
-function mapRarity(dropType: string, name: string): RarityType {
-  // 传说鱼 → legendary
-  if (dropType === 'legend') {
-    return 'legendary';
-  }
-
-  // 离谱物 → epic
-  const premiumTrash = ['内裤', '螃蟹', '乌龟'];
-  if (dropType === 'trash' && premiumTrash.includes(name)) {
-    return 'epic';
-  }
-
-  // 普通垃圾 → common
-  if (dropType === 'trash') {
-    return 'common';
-  }
-
-  // 稀有鱼 → rare
-  const rareFish = ['锦鲤', '巨型草鱼'];
-  if (rareFish.includes(name)) {
-    return 'rare';
-  }
-
-  // 优质鱼 → common（MVP 版先归为 common）
-  return 'common';
 }
 
 /**
