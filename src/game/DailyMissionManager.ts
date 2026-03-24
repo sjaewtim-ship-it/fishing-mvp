@@ -13,12 +13,14 @@ export type DailyMissionState = {
   tasks: DailyTask[];
   allCompleted: boolean;
   rewardClaimed: boolean;
+  streakDays: number;        // 连续完成天数
+  lastCompletedDate: string; // 上次完成的日期字符串
 };
 
 const DEFAULT_TASKS: DailyTask[] = [
-  { id: 'cast_3', title: '完成钓鱼 3 次', target: 3, progress: 0, claimed: false },
-  { id: 'success_2', title: '成功钓到 2 条鱼', target: 2, progress: 0, claimed: false },
-  { id: 'quality_1', title: '钓到 1 条高品质鱼', target: 1, progress: 0, claimed: false },
+  { id: 'cast_3', title: '完成钓鱼 5 杆', target: 5, progress: 0, claimed: false },
+  { id: 'success_2', title: '成功钓到 3 条鱼', target: 3, progress: 0, claimed: false },
+  { id: 'quality_1', title: '成功钓到 1 条高品质鱼', target: 1, progress: 0, claimed: false },
 ];
 
 const DAILY_MISSION_KEY = 'fishing_daily_mission_v1';
@@ -53,12 +55,52 @@ export class DailyMissionManager {
         tasks: JSON.parse(JSON.stringify(DEFAULT_TASKS)),
         allCompleted: false,
         rewardClaimed: false,
+        streakDays: 0,
+        lastCompletedDate: '',
       };
       this.save();
       console.log('daily mission reset for new day:', today);
     } else {
+      // 读取旧存档，同步配置
       this.state = saved;
+      this.syncStreakConfig();
+      this.syncTaskConfig();
+      this.save();
     }
+  }
+
+  /** 同步 streak 相关字段（旧存档兼容） */
+  private syncStreakConfig() {
+    if (!this.state) return;
+
+    // 补默认值，不修改其他字段
+    if (this.state.streakDays === undefined) {
+      this.state.streakDays = 0;
+    }
+    if (this.state.lastCompletedDate === undefined) {
+      this.state.lastCompletedDate = '';
+    }
+  }
+
+  /** 同步任务配置（title/target），不修改 progress/claimed */
+  private syncTaskConfig() {
+    if (!this.state) return;
+
+    for (const task of this.state.tasks) {
+      const config = DEFAULT_TASKS.find(t => t.id === task.id);
+      if (config) {
+        // 只同步 title 和 target，保留 progress 和 claimed
+        if (task.title !== config.title) {
+          task.title = config.title;
+        }
+        if (task.target !== config.target) {
+          task.target = config.target;
+        }
+      }
+    }
+
+    // 重算 allCompleted，防止 target 变化后状态不一致
+    this.state.allCompleted = this.state.tasks.every(task => task.progress >= task.target);
   }
 
   /** 从存档加载 */
@@ -106,6 +148,11 @@ export class DailyMissionManager {
     return this.state?.rewardClaimed ?? false;
   }
 
+  /** 获取连续完成天数 */
+  getStreakDays(): number {
+    return this.state?.streakDays ?? 0;
+  }
+
   /** 推进任务进度 */
   advanceTask(taskId: string, amount: number = 1) {
     if (!this.state) return;
@@ -128,8 +175,36 @@ export class DailyMissionManager {
     const allDone = this.state.tasks.every(t => t.progress >= t.target);
     if (allDone && !this.state.allCompleted) {
       this.state.allCompleted = true;
+
+      // 更新 streak
+      const today = this.getTodayDate();
+      const yesterday = this.getYesterdayDate();
+
+      if (this.state.lastCompletedDate === today) {
+        // 今天已经更新过 streak，不重复累计
+        this.state.lastCompletedDate = today;
+        console.log('streak already updated today:', this.state.streakDays);
+      } else if (this.state.lastCompletedDate === yesterday) {
+        // 昨天完成了，streak +1
+        this.state.streakDays = (this.state.streakDays ?? 0) + 1;
+        this.state.lastCompletedDate = today;
+        console.log('streak continued:', this.state.streakDays);
+      } else {
+        // 中断了（包括从未完成过），streak = 1
+        this.state.streakDays = 1;
+        this.state.lastCompletedDate = today;
+        console.log('streak reset to 1:', this.state.streakDays);
+      }
+
       console.log('daily mission all completed!');
     }
+  }
+
+  /** 获取昨天的日期字符串 */
+  private getYesterdayDate(): string {
+    const now = new Date();
+    now.setDate(now.getDate() - 1);
+    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
   }
 
   /** 领取任务奖励（单个任务） */
