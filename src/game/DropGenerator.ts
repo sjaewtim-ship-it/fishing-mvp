@@ -207,3 +207,37 @@ export class DropGenerator {
     ]);
   }
 }
+
+/**
+ * 统一稀有度映射（供 RoundResult 使用）
+ * 
+ * @param dropType - 掉落类型
+ * @param name - 物品名称
+ * @returns 稀有度
+ */
+export function getRarity(dropType: string, name: string): 'common' | 'rare' | 'epic' | 'legendary' {
+  // 传说鱼 → legendary
+  if (dropType === 'legend') {
+    return 'legendary';
+  }
+
+  // 离谱物 → epic
+  const premiumTrash = ['内裤', '螃蟹', '乌龟'];
+  if (dropType === 'trash' && premiumTrash.includes(name)) {
+    return 'epic';
+  }
+
+  // 普通垃圾 → common
+  if (dropType === 'trash') {
+    return 'common';
+  }
+
+  // 稀有鱼 → rare
+  const rareFish = ['锦鲤', '巨型草鱼'];
+  if (rareFish.includes(name)) {
+    return 'rare';
+  }
+
+  // 优质鱼/普通鱼 → common
+  return 'common';
+}

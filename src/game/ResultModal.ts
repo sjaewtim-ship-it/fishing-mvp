@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SimpleAudio } from './SimpleAudio';
 import { VisualMap } from './VisualMap';
 import type { DropItem } from './DropGenerator';
+import type { RoundResult } from './types/RoundResult';
 
 type FailReason = 'early' | 'too_early' | 'late';
 
@@ -14,6 +15,8 @@ type ResultModalOptions = {
   combo?: number;
   // 失败态数据
   failReason?: FailReason;
+  // 新增：RoundResult 数据结构（本轮兼容读取，不做 UI 改造）
+  roundResult?: RoundResult;
   // 回调
   onContinue: () => void;
   onBack: () => void;

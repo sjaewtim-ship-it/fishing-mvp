@@ -7,6 +7,9 @@ import { AnalyticsManager } from './AnalyticsManager';
 import { ResultModal } from './ResultModal';
 import { EnergyModal } from './EnergyModal';
 import { EnergyManager } from './EnergyManager';
+import { DailyMissionManager } from './DailyMissionManager';
+import { UIConstants } from './UIConstants';
+import { buildRoundResult, type RoundResult } from './types/RoundResult';
 
 type Phase = 'idle' | 'bite' | 'resolved';
 
@@ -65,6 +68,16 @@ export class FishingScene extends Phaser.Scene {
       plantBaseY,
       coralBaseY,
     };
+  }
+
+  /** 判断是否为高品质鱼（与 ResultScene 保持一致） */
+  private isQualityFish(name?: string): boolean {
+    const qualityFishList = [
+      '大鲤鱼', '黑鱼', '鲈鱼', '金鲫鱼', // goodFish
+      '锦鲤', '巨型草鱼', // rareFish
+      '龙鱼', '黄金锦鲤', // mythFish
+    ];
+    return qualityFishList.includes(name || '');
   }
 
   private buildScene() {
@@ -237,6 +250,9 @@ export class FishingScene extends Phaser.Scene {
 
     this.stateText.setText('等待鱼咬钩...');
     this.subHintText.setText('鱼影和浮漂有明显变化时再拉杆');
+
+    // 日常任务：完成钓鱼次数（每次新杆开始）
+    DailyMissionManager.instance.advanceTask('cast_3', 1);
 
     this.time.delayedCall(this.config.biteDelayMs, () => {
       if (this.phase !== 'idle') return;
@@ -464,6 +480,15 @@ export class FishingScene extends Phaser.Scene {
     DirectorSystem.nextRound();
     SaveSync.save();
 
+    // 日常任务：高品质鱼
+    if (this.isQualityFish(finalDrop.name)) {
+      DailyMissionManager.instance.advanceTask('quality_1', 1);
+    }
+
+    // 生成 RoundResult 数据结构（用于后续爆点系统/广告优化）
+    const combo = DirectorSystem.getCombo();
+    const roundResult: RoundResult = buildRoundResult(finalDrop, perfect, combo);
+
     this.stateText.setText(perfect ? '完美命中！' : (DirectorSystem.getCombo() >= 2 ? `命中！${DirectorSystem.getCombo()}连击` : '上钩了！'));
     this.subHintText.setText(
       perfect
@@ -508,7 +533,7 @@ export class FishingScene extends Phaser.Scene {
 
     // === 3. 动画结束后显示成功弹窗（不再跳转 ResultScene）===
     this.time.delayedCall(380, () => {
-      this.showResultModal('success', finalDrop, perfect);
+      this.showResultModal('success', finalDrop, perfect, undefined, roundResult);
     });
   }
 
@@ -519,6 +544,10 @@ export class FishingScene extends Phaser.Scene {
     AnalyticsManager.instance.onRoundFail();
     DirectorSystem.nextRound();
     SaveSync.save();
+
+    // 生成 RoundResult 数据结构（用于后续爆点系统/广告优化）
+    const combo = DirectorSystem.getCombo();
+    const roundResult: RoundResult = buildRoundResult(null, false, combo, reason);
 
     // === 2. 播放失败动画 ===
     this.stateText.setText(
@@ -555,7 +584,7 @@ export class FishingScene extends Phaser.Scene {
 
     // === 3. 动画结束后显示失败弹窗（不再跳转 ResultScene）===
     this.time.delayedCall(320, () => {
-      this.showResultModal('fail', undefined, undefined, reason);
+      this.showResultModal('fail', undefined, undefined, reason, roundResult);
     });
   }
 
@@ -565,7 +594,8 @@ export class FishingScene extends Phaser.Scene {
     resultType: 'success' | 'fail',
     drop?: DropItem,
     perfect?: boolean,
-    failReason?: 'early' | 'too_early' | 'late'
+    failReason?: 'early' | 'too_early' | 'late',
+    roundResult?: RoundResult
   ) {
     const combo = DirectorSystem.getCombo();
 

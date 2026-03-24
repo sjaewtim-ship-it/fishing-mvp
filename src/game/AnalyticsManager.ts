@@ -18,8 +18,7 @@ export class AnalyticsManager {
 
   onStartRound() {
     this.totalStartRounds += 1;
-    // 日常任务：完成钓鱼次数
-    DailyMissionManager.instance.advanceTask('cast_3', 1);
+    // 日常任务：完成钓鱼次数（已移动到 FishingScene.startFishingFlow）
     console.log('analytics:start_round', this.totalStartRounds);
   }
 
