@@ -42,7 +42,7 @@ const LAYOUT_SPEC = {
   actionY: 454,                    // 按钮区起始 Y
   actionHeight: 90,                // 按钮区高度
   oceanY: 560,                     // 水域区起始 Y
-  oceanHeight: 218,                // 水域区高度（缩减）
+  sandHeight: 160,                 // 沙地固定高度（压缩沙地，增加水域）
 };
 
 // 资源卡统一规格（移动端适配）
@@ -159,8 +159,9 @@ export class MainScene extends Phaser.Scene {
     // 动态计算 contentWidth（移动端适配）
     const contentWidth = width - 32;  // horizontalPadding * 2
 
-    // 沙地 Y = 水域 Y + 水域高度（沙地贴底）
-    const sandY = LAYOUT_SPEC.oceanY + LAYOUT_SPEC.oceanHeight;
+    // 动态计算 oceanHeight（沙地固定高度，水域吃满剩余区域）
+    const oceanHeight = height - LAYOUT_SPEC.oceanY - LAYOUT_SPEC.sandHeight;
+    const sandY = LAYOUT_SPEC.oceanY + oceanHeight;
 
     return {
       width,
@@ -174,7 +175,7 @@ export class MainScene extends Phaser.Scene {
       goalY: LAYOUT_SPEC.goalY,
       actionY: LAYOUT_SPEC.actionY,
       oceanY: LAYOUT_SPEC.oceanY,
-      oceanHeight: LAYOUT_SPEC.oceanHeight,
+      oceanHeight,
       sandY,
     };
   }
@@ -396,18 +397,18 @@ export class MainScene extends Phaser.Scene {
       strokeThickness: 2,
     }).setOrigin(0, 0.5);
 
-    // 中：阶段激励（标题下方，与左右元素同一基线）
+    // 中：阶段激励（标题下方，与左右元素同一基线，增强视觉压强）
     const streak = DailyMissionManager.instance.getStreakDays();
     if (streak >= 1 && streak < 7) {
       const milestones = [3, 5, 7];
       const nextMilestone = milestones.find(m => m > streak) ?? 7;
       const diff = nextMilestone - streak;
       this.add.text(x, titleY, `再坚持${diff}天，解锁惊喜奖励`, {
-        fontSize: '11px',
-        color: '#FFD580',
+        fontSize: '12px',
+        color: '#FFD700',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 1,
+        strokeThickness: 2,
       }).setOrigin(0.5, 0.5);
     }
 
@@ -635,25 +636,25 @@ export class MainScene extends Phaser.Scene {
     this.addSwimmer('🐢', 640, L.oceanY + 175, 1.15, 0.3);
 
     // ========== 珊瑚礁（固定装饰，左右收边）==========
-    this.add.text(90, L.sandY - 16, '🪸', { fontSize: '40px' }).setOrigin(0.5);
-    this.add.text(240, L.sandY - 20, '🪸', { fontSize: '36px' }).setOrigin(0.5);
-    this.add.text(510, L.sandY - 18, '🪸', { fontSize: '38px' }).setOrigin(0.5);
-    this.add.text(670, L.sandY - 16, '🪸', { fontSize: '40px' }).setOrigin(0.5);
+    this.add.text(90, L.sandY - 18, '🪸', { fontSize: '40px' }).setOrigin(0.5);
+    this.add.text(240, L.sandY - 22, '🪸', { fontSize: '36px' }).setOrigin(0.5);
+    this.add.text(510, L.sandY - 20, '🪸', { fontSize: '38px' }).setOrigin(0.5);
+    this.add.text(670, L.sandY - 18, '🪸', { fontSize: '40px' }).setOrigin(0.5);
 
     // ========== 水生植物（固定装饰，中间呼吸感）==========
-    this.add.text(160, L.sandY - 10, '🌿', { fontSize: '34px' }).setOrigin(0.5);
-    this.add.text(340, L.sandY - 12, '🌱', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(580, L.sandY - 10, '🌿', { fontSize: '34px' }).setOrigin(0.5);
+    this.add.text(160, L.sandY - 12, '🌿', { fontSize: '34px' }).setOrigin(0.5);
+    this.add.text(340, L.sandY - 14, '🌱', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(580, L.sandY - 12, '🌿', { fontSize: '34px' }).setOrigin(0.5);
 
-    // ========== 沙地区（底部完整场景，贴底）==========
-    const sandHeight = L.height - L.sandY;
-    const sandY = L.sandY + sandHeight / 2;
-    this.add.rectangle(x, sandY, L.width, sandHeight, 0xd8c28a, 0.95);
+    // ========== 沙地区（底部完整场景，固定高度）==========
+    const sandHeight = LAYOUT_SPEC.sandHeight;
+    const sandCenterY = L.sandY - sandHeight / 2;
+    this.add.rectangle(x, sandCenterY, L.width, sandHeight, 0xd8c28a, 0.95);
 
     // 沙地石头（点缀，不压住鱼）
-    this.add.text(70, sandY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
-    this.add.text(375, sandY, '🪨', { fontSize: '26px' }).setOrigin(0.5);
-    this.add.text(710, sandY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
+    this.add.text(70, sandCenterY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
+    this.add.text(375, sandCenterY, '🪨', { fontSize: '26px' }).setOrigin(0.5);
+    this.add.text(710, sandCenterY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
   }
 
   /** 添加游动生物 */
