@@ -24,51 +24,49 @@ type SwimVisual = {
 // 首页统一 layoutSpec - 管理所有 section 的纵向布局
 // ==================================================
 const LAYOUT_SPEC = {
-  // 基础参数（基于 750x1334 设计稿）
-  topMargin: 26,           // safeTop
-  sectionGapTight: 14,     // 紧密间距
-  sectionGap: 18,          // 标准间距
-  sectionGapLoose: 24,     // 宽松间距
-  horizontalPadding: 22,   // 左右内边距
-  contentWidth: 706,       // 750 - 2*22
+  // 基础参数（移动端适配）
+  safeTop: 26,
+  safeBottom: 0,
+  horizontalPadding: 16,           // 左右内边距（适配手机）
+  contentWidth: 0,                 // 动态计算：width - 32
+  sectionGap: 18,
+  sectionGapLoose: 24,
 
-  // 各 section Y 位置（精确收口）
-  brandY: 22,              // 品牌区起始 Y
-  brandHeight: 92,         // 品牌区高度
-  resourceY: 124,          // 资源区起始 Y
-  resourceHeight: 132,     // 2x2 卡组高度（56+10+56+10）
-  goalY: 266,              // 目标区起始 Y
-  goalHeight: 164,         // 目标区高度
-  actionY: 462,            // 按钮区起始 Y
-  actionHeight: 100,       // 按钮区高度
-  oceanY: 584,             // 水域区起始 Y
-  oceanHeight: 252,        // 水域区高度
-  sandHeight: 96,          // 沙地区高度
+  // 各 section Y 位置（移动端稳态）
+  brandY: 20,                      // 品牌区起始 Y
+  brandHeight: 112,                // 品牌区高度（增加呼吸感）
+  resourceY: 142,                  // 资源区起始 Y（下移）
+  resourceHeight: 126,             // 2x2 卡组高度（54+10+54+8）
+  goalY: 272,                      // 目标区起始 Y
+  goalHeight: 160,                 // 目标区高度
+  actionY: 454,                    // 按钮区起始 Y
+  actionHeight: 90,                // 按钮区高度
+  oceanY: 560,                     // 水域区起始 Y
+  oceanHeight: 218,                // 水域区高度（缩减）
 };
 
-// 资源卡统一规格（最终版）
+// 资源卡统一规格（移动端适配）
 const RESOURCE_CARD = {
-  width: 348,              // (706 - 10) / 2
-  height: 56,              // 卡片高度
-  gap: 10,                 // 卡片间距
+  height: 54,              // 卡片高度
+  gap: 8,                  // 卡片间距
   rowGap: 10,              // 行间距
   radius: 8,               // 圆角
-  paddingX: 12,            // 左右内边距
-  paddingTop: 9,           // 顶部内边距
-  labelSize: '15px',       // 标签字号
+  paddingX: 10,            // 左右内边距
+  paddingTop: 8,           // 顶部内边距
+  labelSize: '14px',       // 标签字号
   labelColor: '#F7F3C8',   // 标签颜色（金币卡基准）
-  valueSize: '22px',       // 数值字号
+  valueSize: '20px',       // 数值字号
   valueColor: '#FFFFFF',   // 数值颜色
   labelStroke: 2,          // 标签描边
   valueStroke: 3,          // 数值描边
 };
 
-// 进度条规格（最终版）
+// 进度条规格（移动端适配）
 const PROGRESS_BAR = {
-  width: 110,
+  width: 96,
   height: 12,
   radius: 6,
-  labelSize: '12px',
+  labelSize: '11px',
 };
 
 /**
@@ -157,23 +155,26 @@ export class MainScene extends Phaser.Scene {
     const width = Number(this.scale.width) || 750;
     const height = Number(this.scale.height) || 1334;
     const centerX = width / 2;
-    const safeBottom = Math.max(130, Math.round(height * 0.1));
 
-    // 使用 LAYOUT_SPEC 定义的精确 Y 位置
-    const oceanHeight = height - LAYOUT_SPEC.oceanY - LAYOUT_SPEC.sandHeight - safeBottom;
-    const sandY = height - LAYOUT_SPEC.sandHeight - safeBottom;
+    // 动态计算 contentWidth（移动端适配）
+    const contentWidth = width - 32;  // horizontalPadding * 2
+
+    // 沙地 Y = 水域 Y + 水域高度（沙地贴底）
+    const sandY = LAYOUT_SPEC.oceanY + LAYOUT_SPEC.oceanHeight;
 
     return {
       width,
       height,
       centerX,
-      safeBottom,
+      contentWidth,
+      safeTop: LAYOUT_SPEC.safeTop,
+      safeBottom: LAYOUT_SPEC.safeBottom,
       brandY: LAYOUT_SPEC.brandY,
       resourceY: LAYOUT_SPEC.resourceY,
       goalY: LAYOUT_SPEC.goalY,
       actionY: LAYOUT_SPEC.actionY,
       oceanY: LAYOUT_SPEC.oceanY,
-      oceanHeight,
+      oceanHeight: LAYOUT_SPEC.oceanHeight,
       sandY,
     };
   }
@@ -221,14 +222,14 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 1. brandSection - 顶部品牌区
+  // 1. brandSection - 顶部品牌区（增加呼吸感）
   // ==================================================
   private renderBrandSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
 
     // 云朵装饰（弱化，不抢视觉）
-    const cloud1 = this.add.text(80, L.brandY + 8, '☁️', { fontSize: '26px' }).setAlpha(0.4);
-    const cloud2 = this.add.text(540, L.brandY + 18, '☁️', { fontSize: '22px' }).setAlpha(0.4);
+    const cloud1 = this.add.text(80, L.brandY + 10, '☁️', { fontSize: '26px' }).setAlpha(0.4);
+    const cloud2 = this.add.text(540, L.brandY + 20, '☁️', { fontSize: '22px' }).setAlpha(0.4);
 
     this.tweens.add({
       targets: cloud1,
@@ -249,7 +250,7 @@ export class MainScene extends Phaser.Scene {
     });
 
     // 主标题（视觉重心）
-    this.add.text(x, L.brandY + 30, '🎣 钓鱼小游戏', {
+    this.add.text(x, L.brandY + 34, '🎣 钓鱼小游戏', {
       fontSize: '46px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -258,7 +259,7 @@ export class MainScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // slogan（与标题拉开间距）
-    this.add.text(x, L.brandY + 88, '看准时机，一杆出货', {
+    this.add.text(x, L.brandY + 96, '看准时机，一杆出货', {
       fontSize: '24px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -268,7 +269,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 2. resourceSection - 资源区（2x2 统一卡组，最终版）
+  // 2. resourceSection - 资源区（2x2 统一卡组，移动端适配）
   // ==================================================
   private renderResourceSection(
     L: ReturnType<typeof this.calculateLayout>,
@@ -278,10 +279,12 @@ export class MainScene extends Phaser.Scene {
     bestCatch: string,
     weirdCatch: string
   ) {
-    const cardW = RESOURCE_CARD.width;
     const cardH = RESOURCE_CARD.height;
     const gap = RESOURCE_CARD.gap;
     const rowGap = RESOURCE_CARD.rowGap;
+
+    // 动态计算卡片宽度（与今日目标卡右边界严格对齐）
+    const cardW = (L.contentWidth - gap) / 2;
 
     // 左对齐位置
     const leftX = LAYOUT_SPEC.horizontalPadding;
@@ -367,47 +370,51 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 3. goalSection - 今日目标区（三层结构：标题层/内容层/footer 层）
+  // 3. goalSection - 今日目标区（三层结构：标题层/内容层/footer 层，移动端适配）
   // ==================================================
   private renderGoalSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
     const y = L.goalY + LAYOUT_SPEC.goalHeight / 2;
 
+    // 卡片外框（使用动态 contentWidth）
+    const goalX = LAYOUT_SPEC.horizontalPadding;
+    const goalWidth = L.contentWidth;
+
     // 卡片背景
-    const goalBg = this.add.rectangle(x, y, LAYOUT_SPEC.contentWidth, LAYOUT_SPEC.goalHeight, 0x1a3a52, 0.75)
+    const goalBg = this.add.rectangle(x, y, goalWidth, LAYOUT_SPEC.goalHeight, 0x1a3a52, 0.75)
       .setStrokeStyle(1, 0xffffff, 0.3);
 
     // ========== 标题层（左中右三段式，统一基线）==========
     const titleY = L.goalY + 18;
 
     // 左：今日目标
-    this.add.text(LAYOUT_SPEC.horizontalPadding + 14, titleY, '📋 今日目标', {
-      fontSize: '16px',
+    this.add.text(goalX + 12, titleY, '📋 今日目标', {
+      fontSize: '15px',
       color: '#FFFFFF',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2,
     }).setOrigin(0, 0.5);
 
-    // 中：阶段激励（标题下方）
+    // 中：阶段激励（标题下方，与左右元素同一基线）
     const streak = DailyMissionManager.instance.getStreakDays();
     if (streak >= 1 && streak < 7) {
       const milestones = [3, 5, 7];
       const nextMilestone = milestones.find(m => m > streak) ?? 7;
       const diff = nextMilestone - streak;
-      this.add.text(x, titleY + 18, `再坚持${diff}天，解锁惊喜奖励`, {
-        fontSize: '12px',
+      this.add.text(x, titleY, `再坚持${diff}天，解锁惊喜奖励`, {
+        fontSize: '11px',
         color: '#FFD580',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 1,
-      }).setOrigin(0.5, 0);
+      }).setOrigin(0.5, 0.5);
     }
 
     // 右：连续天数
     if (streak > 0) {
-      this.add.text(LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 14, titleY, `🔥 连续${streak}天`, {
-        fontSize: '13px',
+      this.add.text(goalX + goalWidth - 12, titleY, `🔥 连续${streak}天`, {
+        fontSize: '12px',
         color: '#FFD700',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -416,16 +423,16 @@ export class MainScene extends Phaser.Scene {
     }
 
     // ========== 内容层（3 条任务）==========
-    const taskStartY = L.goalY + 50;
+    const taskStartY = L.goalY + 52;
     const taskGap = 36;
 
     const tasks = DailyMissionManager.instance.getTasks();
     tasks.forEach((task, index) => {
       const taskBaseY = taskStartY + index * taskGap;
 
-      // 任务名称（左对齐）
-      this.add.text(LAYOUT_SPEC.horizontalPadding + 14, taskBaseY, task.title, {
-        fontSize: '15px',
+      // 任务名称（左对齐，使用 goalX 计算）
+      this.add.text(goalX + 12, taskBaseY, task.title, {
+        fontSize: '14px',
         color: '#F0F8FF',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -436,7 +443,7 @@ export class MainScene extends Phaser.Scene {
       const barY = taskBaseY;
       const barW = PROGRESS_BAR.width;
       const barH = PROGRESS_BAR.height;
-      const barX = LAYOUT_SPEC.horizontalPadding + LAYOUT_SPEC.contentWidth - 14 - barW;
+      const barX = goalX + goalWidth - 12 - barW;
 
       // 进度条背景（暗色槽）
       const barBg = this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.6);
@@ -467,7 +474,7 @@ export class MainScene extends Phaser.Scene {
     rewardClaimed: boolean
   ) {
     const x = L.centerX;
-    const footerY = L.goalY + LAYOUT_SPEC.goalHeight - 16;
+    const footerY = L.goalY + LAYOUT_SPEC.goalHeight - 14;
 
     // 先销毁旧的 footer 元素（如果有）
     this.destroyGoalFooter();
@@ -549,13 +556,13 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 4. actionSection - 主行动区（最终版 CTA 按钮）
+  // 4. actionSection - 主行动区（最终版 CTA 按钮，移动端适配）
   // ==================================================
   private renderActionSection(L: ReturnType<typeof this.calculateLayout>, isFullEnergy: boolean) {
     const x = L.centerX;
     const startBtnY = L.actionY + LAYOUT_SPEC.actionHeight / 2;
-    const startBtnW = 320;
-    const startBtnH = 78;
+    const startBtnW = 260;
+    const startBtnH = 72;
 
     // 按钮阴影（先绘制，在按钮下方）
     const shadow = this.add.rectangle(x, startBtnY + 6, startBtnW, startBtnH, 0x000000, 0.22);
@@ -566,7 +573,7 @@ export class MainScene extends Phaser.Scene {
 
     // 按钮文字（增强压强：描边 + 阴影）
     this.add.text(x, startBtnY, '开始钓鱼', {
-      fontSize: '40px',
+      fontSize: '36px',
       color: '#FFFFFF',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -588,63 +595,65 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 5. oceanSection - 水下氛围区（最终版可投流场景）
+  // 5. oceanSection - 水下氛围区（最终版可投流场景，沙地贴底）
   // ==================================================
   private renderOceanSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
 
-    // 水下背景
+    // 水下背景（深蓝色）
     this.add.rectangle(x, L.oceanY + L.oceanHeight / 2, L.width, L.oceanHeight, 0x1e88e5);
 
-    // 水面提示文案（靠近水面，清晰可读）
-    const infoY = L.oceanY + 24;
-    this.add.text(x, infoY, '💡 浮漂明显下沉时再拉杆，更容易拿高奖励', {
-      fontSize: '16px',
+    // 水面提示文案（靠近水面，清晰可读，层级最高）
+    const infoY = L.oceanY + 18;
+    const tipText = this.add.text(x, infoY, '💡 浮漂明显下沉时再拉杆，更容易拿高奖励', {
+      fontSize: '15px',
       color: '#FFFFFF',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(0.5, 0);
+    tipText.setDepth(1000);
 
     // ========== 鱼群（三层生态，分层游动）==========
     // 上层（3-4 条小鱼，靠近水面）
-    this.addSwimmer('🐟', 120, L.oceanY + 45, 0.8, 0.55);
-    this.addSwimmer('🐠', 280, L.oceanY + 60, 0.75, 0.5);
-    this.addSwimmer('🐡', 450, L.oceanY + 50, 0.85, 0.6);
-    this.addSwimmer('🐟', 620, L.oceanY + 65, 0.7, 0.45);
+    this.addSwimmer('🐟', 120, L.oceanY + 35, 0.75, 0.5);
+    this.addSwimmer('🐠', 280, L.oceanY + 50, 0.7, 0.45);
+    this.addSwimmer('🐡', 450, L.oceanY + 40, 0.8, 0.55);
+    this.addSwimmer('🐟', 620, L.oceanY + 55, 0.65, 0.4);
 
     // 中层（5-6 条主体鱼类）
-    this.addSwimmer('🐠', 100, L.oceanY + 100, 0.95, 0.65);
-    this.addSwimmer('🐟', 240, L.oceanY + 115, 1.0, 0.7);
-    this.addSwimmer('🦀', 380, L.oceanY + 105, 0.7, 0.5);
-    this.addSwimmer('🦐', 500, L.oceanY + 120, 0.6, 0.45);
-    this.addSwimmer('🐠', 600, L.oceanY + 110, 0.9, 0.6);
+    this.addSwimmer('🐠', 100, L.oceanY + 90, 0.9, 0.6);
+    this.addSwimmer('🐟', 240, L.oceanY + 105, 0.95, 0.65);
+    this.addSwimmer('🦀', 380, L.oceanY + 95, 0.65, 0.45);
+    this.addSwimmer('🦐', 500, L.oceanY + 110, 0.55, 0.4);
+    this.addSwimmer('🐠', 600, L.oceanY + 100, 0.85, 0.55);
 
     // 下层（3-4 条慢速生物/乌龟，靠近沙地）
-    this.addSwimmer('🐢', 160, L.oceanY + 175, 1.1, 0.4);
-    this.addSwimmer('🐡', 320, L.oceanY + 190, 1.15, 0.45);
-    this.addSwimmer('🐟', 480, L.oceanY + 180, 1.0, 0.5);
-    this.addSwimmer('🐢', 640, L.oceanY + 195, 1.2, 0.35);
+    this.addSwimmer('🐢', 160, L.oceanY + 155, 1.05, 0.35);
+    this.addSwimmer('🐡', 320, L.oceanY + 170, 1.1, 0.4);
+    this.addSwimmer('🐟', 480, L.oceanY + 160, 0.95, 0.45);
+    this.addSwimmer('🐢', 640, L.oceanY + 175, 1.15, 0.3);
 
     // ========== 珊瑚礁（固定装饰，左右收边）==========
-    this.add.text(90, L.sandY - 18, '🪸', { fontSize: '42px' }).setOrigin(0.5);
-    this.add.text(240, L.sandY - 22, '🪸', { fontSize: '38px' }).setOrigin(0.5);
-    this.add.text(510, L.sandY - 20, '🪸', { fontSize: '40px' }).setOrigin(0.5);
-    this.add.text(670, L.sandY - 18, '🪸', { fontSize: '42px' }).setOrigin(0.5);
+    this.add.text(90, L.sandY - 16, '🪸', { fontSize: '40px' }).setOrigin(0.5);
+    this.add.text(240, L.sandY - 20, '🪸', { fontSize: '36px' }).setOrigin(0.5);
+    this.add.text(510, L.sandY - 18, '🪸', { fontSize: '38px' }).setOrigin(0.5);
+    this.add.text(670, L.sandY - 16, '🪸', { fontSize: '40px' }).setOrigin(0.5);
 
     // ========== 水生植物（固定装饰，中间呼吸感）==========
-    this.add.text(160, L.sandY - 12, '🌿', { fontSize: '36px' }).setOrigin(0.5);
-    this.add.text(340, L.sandY - 14, '🌱', { fontSize: '34px' }).setOrigin(0.5);
-    this.add.text(580, L.sandY - 12, '🌿', { fontSize: '36px' }).setOrigin(0.5);
+    this.add.text(160, L.sandY - 10, '🌿', { fontSize: '34px' }).setOrigin(0.5);
+    this.add.text(340, L.sandY - 12, '🌱', { fontSize: '32px' }).setOrigin(0.5);
+    this.add.text(580, L.sandY - 10, '🌿', { fontSize: '34px' }).setOrigin(0.5);
 
-    // ========== 沙地区（底部完整场景）==========
-    const sandY = L.sandY + LAYOUT_SPEC.sandHeight / 2;
-    this.add.rectangle(x, sandY, L.width, LAYOUT_SPEC.sandHeight, 0xd8c28a, 0.95);
+    // ========== 沙地区（底部完整场景，贴底）==========
+    const sandHeight = L.height - L.sandY;
+    const sandY = L.sandY + sandHeight / 2;
+    this.add.rectangle(x, sandY, L.width, sandHeight, 0xd8c28a, 0.95);
 
     // 沙地石头（点缀，不压住鱼）
-    this.add.text(70, sandY, '🪨', { fontSize: '30px' }).setOrigin(0.5);
-    this.add.text(375, sandY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
-    this.add.text(710, sandY, '🪨', { fontSize: '30px' }).setOrigin(0.5);
+    this.add.text(70, sandY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
+    this.add.text(375, sandY, '🪨', { fontSize: '26px' }).setOrigin(0.5);
+    this.add.text(710, sandY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
   }
 
   /** 添加游动生物 */
