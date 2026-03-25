@@ -175,35 +175,39 @@ export class DropGenerator {
   static generate(): DropItem {
     const combo = DirectorSystem.getCombo();
 
+    // normal 桶高连击收口：只允许 mythFish（龙鱼/黄金锦鲤），不允许 legendItems（钻石戒指/神秘宝箱）
+    // legend 应该主要通过 kind=legend 或 kind=interesting 产出，而不是 normal 桶直接爆
     if (combo >= 5) {
       return DirectorSystem.pickWeighted<DropItem>([
-        { item: randomFrom(commonFish), weight: 24 },
-        { item: randomFrom(goodFish), weight: 28 },
-        { item: randomFrom(rareFish), weight: 18 },
+        { item: randomFrom(commonFish), weight: 28 },
+        { item: randomFrom(goodFish), weight: 30 },
+        { item: randomFrom(rareFish), weight: 20 },
         { item: randomFrom(lightTrashItems), weight: 8 },
-        { item: randomFrom(strongTrashItems), weight: 14 },
-        { item: randomFrom(allLegendPool()), weight: 8 },
+        { item: randomFrom(strongTrashItems), weight: 10 },
+        { item: randomFrom(mythFish), weight: 4 },  // 仅 mythFish，权重很低
       ]);
     }
 
     if (combo >= 3) {
       return DirectorSystem.pickWeighted<DropItem>([
-        { item: randomFrom(commonFish), weight: 32 },
-        { item: randomFrom(goodFish), weight: 24 },
-        { item: randomFrom(rareFish), weight: 14 },
+        { item: randomFrom(commonFish), weight: 36 },
+        { item: randomFrom(goodFish), weight: 26 },
+        { item: randomFrom(rareFish), weight: 16 },
         { item: randomFrom(lightTrashItems), weight: 8 },
-        { item: randomFrom(strongTrashItems), weight: 16 },
-        { item: randomFrom(allLegendPool()), weight: 6 },
+        { item: randomFrom(strongTrashItems), weight: 12 },
+        { item: randomFrom(mythFish), weight: 2 },  // 仅 mythFish，权重极低
       ]);
     }
 
+    // base normal 桶（combo 0-2）：彻底收口，不使用 allLegendPool，仅 mythFish 2%
+    // 保留"偶尔有惊喜"体感，但不破坏 normal 桶定义
     return DirectorSystem.pickWeighted<DropItem>([
-      { item: randomFrom(commonFish), weight: 44 },
-      { item: randomFrom(goodFish), weight: 18 },
-      { item: randomFrom(rareFish), weight: 8 },
+      { item: randomFrom(commonFish), weight: 46 },
+      { item: randomFrom(goodFish), weight: 22 },
+      { item: randomFrom(rareFish), weight: 10 },
       { item: randomFrom(lightTrashItems), weight: 8 },
-      { item: randomFrom(strongTrashItems), weight: 16 },
-      { item: randomFrom(allLegendPool()), weight: 6 },
+      { item: randomFrom(strongTrashItems), weight: 12 },
+      { item: randomFrom(mythFish), weight: 2 },  // 仅 mythFish，权重极低
     ]);
   }
 }

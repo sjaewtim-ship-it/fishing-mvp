@@ -309,6 +309,11 @@ export class FishingScene extends Phaser.Scene {
       this.currentDrop = DropGenerator.generate();
     }
 
+    // 调试输出：最终掉落（验证后请移除）
+    const tier = DirectorSystem.getComboTier();
+    const currentRound = DirectorSystem.getRoundNumber();
+    console.log(`[Drop] round=${currentRound} combo=${DirectorSystem.getCombo()} tier=${tier} kind=${kind} actual=${this.currentDrop.name} type=${this.currentDrop.type} reward=${this.currentDrop.reward}`);
+
     this.stateText.setText('咬钩了！快拉杆');
     this.subHintText.setText('红色甜区命中最爽，太早或太晚都会跑鱼');
     this.pullBtnBg.setFillStyle(0xff7a45, 1);

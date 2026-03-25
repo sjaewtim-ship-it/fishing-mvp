@@ -5,6 +5,15 @@ export type DirectorBucket =
   | 'normal_mix'
   | 'free_random';
 
+export type ComboTier = 'base' | 'warm' | 'hot' | 'streak' | 'jackpot';
+
+export type DropBias = {
+  normal: number;
+  trash: number;
+  interesting: number;
+  legend: number;
+};
+
 export type TimingAssistConfig = {
   perfectWindowMs: number;
   goodWindowMs: number;
@@ -104,10 +113,74 @@ export class DirectorSystem {
   }
 
   static getComboEmotionLine(): string {
-    if (this.combo >= 5) return '这波真的有点挡不住了';
-    if (this.combo >= 3) return '状态起来了，越钓越上头';
-    if (this.combo >= 2) return '连着中，手感已经热起来了';
+    if (this.combo >= 8) return '有点不对劲了，要出大事';
+    if (this.combo >= 6) return '这杆可能有大货';
+    if (this.combo >= 4) return '下一杆容易出节目效果';
+    if (this.combo >= 2) return '手感热起来了';
     return '';
+  }
+
+  /**
+   * 获取当前连击段位
+   */
+  static getComboTier(): ComboTier {
+    if (this.combo >= 8) return 'jackpot';
+    if (this.combo >= 6) return 'streak';
+    if (this.combo >= 4) return 'hot';
+    if (this.combo >= 2) return 'warm';
+    return 'base';
+  }
+
+  /**
+   * 获取连击掉落概率偏移（基于段位）
+   * 正值 = 概率提升，负值 = 概率降低
+   * 连击更多提升 interesting/节目效果，legend 上升更克制
+   */
+  static getComboDropBias(): DropBias {
+    const tier = this.getComboTier();
+    
+    switch (tier) {
+      case 'warm':
+        return { normal: -0.04, trash: 0.02, interesting: 0.02, legend: 0.00 };
+      case 'hot':
+        return { normal: -0.08, trash: 0.03, interesting: 0.04, legend: 0.01 };
+      case 'streak':
+        return { normal: -0.12, trash: 0.04, interesting: 0.05, legend: 0.02 };
+      case 'jackpot':
+        return { normal: -0.16, trash: 0.05, interesting: 0.07, legend: 0.04 };
+      case 'base':
+      default:
+        return { normal: 0, trash: 0, interesting: 0, legend: 0 };
+    }
+  }
+
+  /**
+   * 带连击偏移的掉落类型抽取
+   * @param baseWeights 基础权重
+   * @returns 掉落类型
+   */
+  static rollDropKindWithBias(baseWeights: { normal: number; trash: number; interesting: number; legend: number }): 'normal' | 'trash' | 'legend' | 'interesting' {
+    const bias = this.getComboDropBias();
+    
+    // 应用偏移
+    let normal = Math.max(0.01, baseWeights.normal + bias.normal);
+    let trash = Math.max(0.01, baseWeights.trash + bias.trash);
+    let interesting = Math.max(0.01, baseWeights.interesting + bias.interesting);
+    let legend = Math.max(0.01, baseWeights.legend + bias.legend);
+    
+    // 归一化
+    const total = normal + trash + interesting + legend;
+    normal /= total;
+    trash /= total;
+    interesting /= total;
+    legend /= total;
+    
+    // 抽取
+    const r = Math.random();
+    if (r < legend) return 'legend';
+    if (r < legend + trash) return 'trash';
+    if (r < legend + trash + interesting) return 'interesting';
+    return 'normal';
   }
 
   static getBucket(): DirectorBucket {
@@ -128,7 +201,13 @@ export class DirectorSystem {
       return '上一杆太可惜了，这一杆帮你稳一下';
     }
 
-    if (this.combo >= 3) return '连击状态中，这一杆更容易出节目效果';
+    // 连击提示（优先于 bucket 提示）
+    const tier = this.getComboTier();
+    if (tier === 'jackpot') return '有点不对劲了';
+    if (tier === 'streak') return '下一杆容易出节目效果';
+    if (tier === 'hot') return '这一杆有点东西';
+    if (tier === 'warm') return '手感热起来了';
+
     if (this.failStreak >= 2) return '这一杆可能会翻盘，盯紧浮漂';
     if (this.successStreak >= 2) return '手气起来了，下一杆可能更刺激';
 
@@ -278,40 +357,57 @@ export class DirectorSystem {
 
   static decideDropKind(): 'normal' | 'trash' | 'legend' | 'interesting' {
     const bucket = this.getBucket();
+    const tier = this.getComboTier();
+    let result: 'normal' | 'trash' | 'legend' | 'interesting';
 
-    if (this.combo >= 4) {
+    // 【优先级 1】连击失败保护：不强制节目效果，先稳一手
+    if (this.pityFail) {
+      result = 'normal';
+    }
+    // 【优先级 2】failStreak >= 2 的强补偿逻辑
+    else if (this.failStreak >= 2) {
+      result = Math.random() < 0.72 ? 'interesting' : 'legend';
+    }
+    // 【优先级 3】safe_fish 分支：第一杆稳稳出货
+    else if (bucket === 'safe_fish') {
+      result = 'normal';
+    }
+    // 【优先级 4】fun_mix 分支：第二杆节目效果
+    else if (bucket === 'fun_mix') {
       const r = Math.random();
-      if (r < 0.22) return 'legend';
-      if (r < 0.68) return 'interesting';
-      if (r < 0.9) return 'trash';
-      return 'normal';
+      if (r < 0.45) result = 'trash';
+      else if (r < 0.55) result = 'legend';
+      else result = 'normal';
     }
-
-    if (this.failStreak >= 2) {
-      return Math.random() < 0.72 ? 'interesting' : 'legend';
-    }
-
-    if (bucket === 'safe_fish') return 'normal';
-
-    if (bucket === 'fun_mix') {
+    // 【优先级 5】good_shot 分支：第三杆更容易出好货
+    else if (bucket === 'good_shot') {
       const r = Math.random();
-      if (r < 0.45) return 'trash';
-      if (r < 0.55) return 'legend';
-      return 'normal';
+      if (r < 0.35) result = 'legend';
+      else if (r < 0.7) result = 'interesting';
+      else result = 'normal';
     }
-
-    if (bucket === 'good_shot') {
+    // 【combo bias 作用范围】normal_mix / free_random 使用中后段自由随机
+    else if (tier !== 'base') {
+      if (bucket === 'normal_mix') {
+        result = this.rollDropKindWithBias({ normal: 0.55, trash: 0.18, interesting: 0.22, legend: 0.05 });
+      } else {
+        // free_random 使用更激进的 bias
+        result = this.rollDropKindWithBias({ normal: 0.50, trash: 0.20, interesting: 0.22, legend: 0.08 });
+      }
+    }
+    // 无连击时使用原有逻辑
+    else {
       const r = Math.random();
-      if (r < 0.35) return 'legend';
-      if (r < 0.7) return 'interesting';
-      return 'normal';
+      if (r < 0.08) result = 'legend';
+      else if (r < 0.32) result = 'trash';
+      else if (r < 0.45) result = 'interesting';
+      else result = 'normal';
     }
 
-    const r = Math.random();
-    if (r < 0.08) return 'legend';
-    if (r < 0.32) return 'trash';
-    if (r < 0.45) return 'interesting';
-    return 'normal';
+    // 调试输出（验证后请移除）
+    console.log(`[Director] round=${this.round + 1} bucket=${bucket} combo=${this.combo} tier=${tier} pityFail=${this.pityFail} failStreak=${this.failStreak} result=${result}`);
+
+    return result;
   }
 
   static decideVisualType(realType: 'fish' | 'trash' | 'legend'): VisualType {
