@@ -404,9 +404,6 @@ export class DirectorSystem {
       else result = 'normal';
     }
 
-    // 调试输出（验证后请移除）
-    console.log(`[Director] round=${this.round + 1} bucket=${bucket} combo=${this.combo} tier=${tier} pityFail=${this.pityFail} failStreak=${this.failStreak} result=${result}`);
-
     return result;
   }
 
