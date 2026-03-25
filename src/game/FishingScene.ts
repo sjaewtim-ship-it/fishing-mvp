@@ -10,6 +10,7 @@ import { EnergyManager } from './EnergyManager';
 import { DailyMissionManager } from './DailyMissionManager';
 import { UIConstants } from './UIConstants';
 import { buildRoundResult, type RoundResult } from './types/RoundResult';
+import { CollectionManager } from './managers/CollectionManager';
 
 type Phase = 'idle' | 'bite' | 'resolved';
 
@@ -478,6 +479,10 @@ export class FishingScene extends Phaser.Scene {
     DirectorSystem.recordSuccess();
     AnalyticsManager.instance.onRoundSuccess(finalDrop.name);
     DirectorSystem.nextRound();
+
+    // 图鉴解锁
+    CollectionManager.unlockByDrop(finalDrop);
+
     SaveSync.save();
 
     // 日常任务：高品质鱼

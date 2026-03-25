@@ -22,6 +22,7 @@ type SaveData = {
     allCompleted: boolean;
     rewardClaimed: boolean;
   };
+  collectionProgress?: Record<string, { unlocked: boolean; catchCount: number }>;
   _version?: number;
 };
 
@@ -44,6 +45,7 @@ const DEFAULT_SAVE: SaveData = {
   continuousFishCount: 0,
   continuousNonLegendCount: 0,
   recentLegendCooldown: 0,
+  collectionProgress: {},
   _version: SAVE_VERSION,
 };
 
@@ -108,6 +110,9 @@ export class StorageManager {
     if (typeof data.directorCombo === 'number' && data.directorCombo >= 0) recovered.directorCombo = data.directorCombo;
     if (data.dailyMission && typeof data.dailyMission === 'object') {
       recovered.dailyMission = data.dailyMission;
+    }
+    if (data.collectionProgress && typeof data.collectionProgress === 'object') {
+      recovered.collectionProgress = data.collectionProgress;
     }
     if (typeof data._version === 'number') recovered._version = data._version;
 

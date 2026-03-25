@@ -8,6 +8,7 @@ import { SimpleAudio } from './SimpleAudio';
 import { AnalyticsManager } from './AnalyticsManager';
 import { DailyMissionManager, type DailyTask } from './DailyMissionManager';
 import { EnergyModal } from './EnergyModal';
+import { CollectionManager } from './managers/CollectionManager';
 
 type SwimVisual = {
   emoji: string;
@@ -505,6 +506,44 @@ export class MainScene extends Phaser.Scene {
       }).setOrigin(0.5, 0);
     }
     // 其他状态（未完成）：不显示 footer 文字
+
+    // 图鉴入口按钮（轻量级，放在 footer 下方）
+    this.renderCollectionEntry(L);
+  }
+
+  /**
+   * 渲染图鉴入口按钮
+   */
+  private renderCollectionEntry(L: ReturnType<typeof this.calculateLayout>) {
+    const x = L.centerX;
+    const y = L.goalY + LAYOUT_SPEC.goalHeight + 30;
+
+    const summary = CollectionManager.getSummary();
+
+    // 按钮背景
+    const btnWidth = 200;
+    const btnHeight = 50;
+    const btnBg = this.add.rectangle(x, y, btnWidth, btnHeight, 0x6c5ce7);
+    btnBg.setInteractive({ useHandCursor: true });
+
+    // 主文案
+    this.add.text(x, y - 8, '📖 图鉴', {
+      fontSize: '20px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    // 进度小字
+    this.add.text(x, y + 12, `${summary.unlocked}/${summary.total}`, {
+      fontSize: '12px',
+      color: '#e0e0e0',
+    }).setOrigin(0.5);
+
+    // 点击事件
+    btnBg.on('pointerdown', () => {
+      SimpleAudio.click();
+      this.scene.start('CollectionScene');
+    });
   }
 
   /** 销毁旧的 footer 元素 */

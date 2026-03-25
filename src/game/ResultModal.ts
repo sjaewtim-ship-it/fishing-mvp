@@ -3,8 +3,71 @@ import { SimpleAudio } from './SimpleAudio';
 import { VisualMap } from './VisualMap';
 import type { DropItem } from './DropGenerator';
 import type { RoundResult } from './types/RoundResult';
+import { ShareManager } from './ShareManager';
+import { SaveSync } from './SaveSync';
+import { CoinManager } from './CoinManager';
+import { AnalyticsManager } from './AnalyticsManager';
 
 type FailReason = 'early' | 'too_early' | 'late';
+
+// 离谱物爆点文案库（轻量版）
+const WEIRD_COPY_MAP: Record<string, string[]> = {
+  underwear: [
+    '这谁的',
+    '不太对劲',
+    '别解释',
+  ],
+  crab: [
+    '别碰它',
+    '它在骂你',
+    '反了它了',
+  ],
+  turtle: [
+    '它更稳',
+    '你俩差不多',
+    '看不起你',
+  ],
+  shoe: [
+    '另一只呢',
+    '刚掉的',
+    '你踩过吧',
+  ],
+  branch: [
+    '这也算',
+    '你在种树',
+    '离谱了',
+  ],
+  mystery_box: [
+    '别打开',
+    '不太安全',
+    '要出事了',
+  ]
+};
+
+const WEIRD_FALLBACK = [
+  '这合理吗',
+  '我人傻了',
+  '这也行啊',
+  '离谱了',
+];
+
+// 根据 drop.name 获取离谱物 key
+function getWeirdKey(name: string): string {
+  if (name === '内裤') return 'underwear';
+  if (name === '螃蟹') return 'crab';
+  if (name === '乌龟') return 'turtle';
+  if (name === '拖鞋' || name === '破袜子') return 'shoe';
+  if (name === '树枝') return 'branch';
+  if (name === '神秘宝箱') return 'mystery_box';
+  return '';
+}
+
+// 获取随机离谱物文案
+function getRandomWeirdCopy(name: string): string {
+  const key = getWeirdKey(name);
+  const pool = key ? WEIRD_COPY_MAP[key] : WEIRD_FALLBACK;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 type ResultModalOptions = {
   resultType: 'success' | 'fail';
@@ -27,6 +90,19 @@ export class ResultModal {
   private container: Phaser.GameObjects.Container | null = null;
   private options: ResultModalOptions;
 
+  // 截图区域内容对象引用（供 calculateScreenshotArea 使用）
+  private titleText?: Phaser.GameObjects.Text;
+  private visual?: Phaser.GameObjects.Text;
+  private rarityText?: Phaser.GameObjects.Text;
+  private nameText?: Phaser.GameObjects.Text;
+  private rewardText?: Phaser.GameObjects.Text;
+  private textObj?: Phaser.GameObjects.Text;
+  private hookText?: Phaser.GameObjects.Text;
+
+  // 按钮区 Y 坐标（供 toast 使用）
+  private primaryBtnY: number = 0;
+  private shareBtnY: number = 0;
+
   constructor(scene: Phaser.Scene, options: ResultModalOptions) {
     this.scene = scene;
     this.options = options;
@@ -45,9 +121,41 @@ export class ResultModal {
   }
 
   private getSuccessTitle(perfect: boolean, combo: number): string {
-    if (perfect) return '完美命中！';
-    if (combo >= 2) return `命中！${combo}连击`;
+    if (perfect) return '🔥 完美命中！';
+    if (combo >= 2) return `✨ 命中！${combo}连击`;
     return '上钩了！';
+  }
+
+  /**
+   * 获取情绪文案（轻量兜底）
+   * 优先级：roundResult.highlightText > drop.flavor > 此函数
+   */
+  private getEmotionCopy(drop: DropItem): string {
+    const name = drop.name;
+    const type = drop.type;
+
+    // 传说/神物
+    if (type === 'legend') {
+      return '这也能钓到？';
+    }
+
+    // 离谱物
+    if (type === 'trash') {
+      const premiumTrash = ['内裤', '螃蟹', '乌龟'];
+      if (premiumTrash.includes(name)) {
+        return '这玩意谁丢海里的？？';
+      }
+      return '这也算渔获？';
+    }
+
+    // 稀有鱼
+    const rareFish = ['锦鲤', '巨型草鱼'];
+    if (rareFish.includes(name)) {
+      return '有点东西啊…';
+    }
+
+    // 普通鱼
+    return '还行，不至于空军';
   }
 
   private getRarityText(drop: DropItem): string {
@@ -153,6 +261,128 @@ export class ResultModal {
     };
   }
 
+  /**
+   * 轻量 toast 提示
+   */
+  private showToast(message: string) {
+    const width = this.scene.scale.width;
+    const centerX = width / 2;
+    
+    // toast 位置：分享按钮上方
+    const toastY = this.shareBtnY - 50;
+    
+    const bg = this.scene.add.rectangle(centerX, toastY, 440, 58, 0x000000, 0.54)
+      .setStrokeStyle(2, 0xffffff, 0.12);
+    const text = this.scene.add.text(centerX, toastY, message, {
+      fontSize: '22px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    
+    const container = this.scene.add.container(0, 0, [bg, text]);
+    
+    this.scene.tweens.add({
+      targets: container,
+      alpha: 0,
+      y: toastY - 12,
+      delay: 800,
+      duration: 240,
+      onComplete: () => container.destroy(),
+    });
+  }
+
+  /**
+   * 计算截图区域（动态高度，基于内容对象）
+   */
+  private calculateScreenshotArea(cardX: number, cardY: number, cardWidth: number): { x: number; y: number; width: number; height: number } {
+    // 左边界
+    const screenshotX = cardX - cardWidth / 2;
+
+    // 顶部：标题上方 padding
+    const titleBounds = this.titleText?.getBounds();
+    const screenshotY = (titleBounds?.top ?? cardY - 200) - 10;
+
+    // 宽度
+    const screenshotWidth = cardWidth;
+
+    // 底部：动态计算，基于最后一个有效内容对象（优先 hookText）
+    let screenshotBottom: number;
+
+    if (this.hookText) {
+      // 优先级 1：传播文案
+      const hookBounds = this.hookText.getBounds();
+      screenshotBottom = hookBounds.bottom + 20;
+    } else if (this.textObj) {
+      // 优先级 2：情绪文案
+      const textBounds = this.textObj.getBounds();
+      screenshotBottom = textBounds.bottom + 20;
+    } else if (this.rewardText) {
+      // 优先级 3：金币
+      const rewardBounds = this.rewardText.getBounds();
+      screenshotBottom = rewardBounds.bottom + 20;
+    } else if (this.nameText) {
+      // 优先级 4：渔获名称
+      const nameBounds = this.nameText.getBounds();
+      screenshotBottom = nameBounds.bottom + 28;
+    } else {
+      // 兜底
+      screenshotBottom = cardY + 120;
+    }
+
+    const screenshotHeight = screenshotBottom - screenshotY;
+
+    return {
+      x: screenshotX,
+      y: screenshotY,
+      width: screenshotWidth,
+      height: screenshotHeight,
+    };
+  }
+
+  /**
+   * 处理分享按钮点击
+   */
+  private handleShareClick(cardX: number, cardY: number, cardWidth: number) {
+    SimpleAudio.click();
+    
+    // 记录分享行为
+    AnalyticsManager.instance.onAdView('share');
+    
+    // 计算截图区域
+    const screenshotArea = this.calculateScreenshotArea(cardX, cardY, cardWidth);
+    
+    // 生成分享奖励 Key
+    const round = this.options.round ?? 0;
+    const dropName = this.options.drop?.name ?? 'none';
+    const shareRewardKey = `fishing_share_reward_${round}_${dropName}`;
+    
+    // 检查是否已领取
+    const shareRewardClaimed = SaveSync.hasShareRewardClaimed(shareRewardKey);
+    
+    // 保存截图
+    this.scene.time.delayedCall(50, () => {
+      ShareManager.saveResultPoster(
+        this.scene,
+        screenshotArea.x,
+        screenshotArea.y,
+        screenshotArea.width,
+        screenshotArea.height
+      );
+    });
+    
+    // 发放奖励或提示
+    if (!shareRewardClaimed) {
+      // 首次分享：发放奖励
+      CoinManager.instance.addCoins(50);
+      SaveSync.markShareRewardClaimed(shareRewardKey);
+      SaveSync.save();
+      this.showToast('首次分享奖励 +50 金币');
+    } else {
+      // 已领取：仅提示
+      this.showToast('本次战绩奖励已领取');
+    }
+  }
+
   show() {
     const L = this.getLayout();
     const { resultType, onContinue, onBack } = this.options;
@@ -184,18 +414,18 @@ export class ResultModal {
 
     // === 按钮区（统一）===
     // 主按钮：中心线下方 80px
-    const primaryBtnY = cardY + 80;
+    this.primaryBtnY = cardY + 80;
     const primaryBtnWidth = 400;
     const primaryBtnHeight = 84;
     const primaryBtnText = resultType === 'fail' ? '再来一杆' : '继续钓鱼';
     const primaryBtnColor = resultType === 'fail' ? 0xFF6B6B : 0x4CAF50;
 
-    const primaryBtn = this.scene.add.rectangle(cardX, primaryBtnY, primaryBtnWidth, primaryBtnHeight, primaryBtnColor)
+    const primaryBtn = this.scene.add.rectangle(cardX, this.primaryBtnY, primaryBtnWidth, primaryBtnHeight, primaryBtnColor)
       .setInteractive({ useHandCursor: true })
       .setStrokeStyle(2, 0xFFFFFF);
     this.container.add(primaryBtn);
 
-    const primaryBtnTextObj = this.scene.add.text(cardX, primaryBtnY, primaryBtnText, {
+    const primaryBtnTextObj = this.scene.add.text(cardX, this.primaryBtnY, primaryBtnText, {
       fontSize: '32px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -207,8 +437,32 @@ export class ResultModal {
       onContinue();
     });
 
-    // 次按钮：轻文字按钮（带透明点击热区），主按钮下方 60px
-    const backBtnY = primaryBtnY + 60;
+    // 分享按钮：主按钮下方，返回按钮上方（仅成功态显示）
+    if (resultType === 'success') {
+      this.shareBtnY = this.primaryBtnY + 95;
+      
+      const shareBtnWidth = 280;
+      const shareBtnHeight = 60;
+      
+      const shareBtn = this.scene.add.rectangle(cardX, this.shareBtnY, shareBtnWidth, shareBtnHeight, 0x9b59b6)
+        .setInteractive({ useHandCursor: true })
+        .setStrokeStyle(2, 0xFFFFFF);
+      this.container.add(shareBtn);
+      
+      const shareBtnText = this.scene.add.text(cardX, this.shareBtnY, '分享战绩 🎁', {
+        fontSize: '28px',
+        color: '#FFFFFF',
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+      this.container.add(shareBtnText);
+      
+      shareBtn.on('pointerdown', () => {
+        this.handleShareClick(cardX, cardY, cardWidth);
+      });
+    }
+
+    // 返回按钮：轻文字按钮（带透明点击热区），分享按钮下方（或主按钮下方）
+    const backBtnY = resultType === 'success' ? this.shareBtnY + 70 : this.primaryBtnY + 60;
     const backBtnClickArea = this.scene.add.rectangle(cardX, backBtnY, 200, 44, 0xFFFFFF, 0);
     backBtnClickArea.setInteractive({ useHandCursor: true });
     this.container.add(backBtnClickArea);
@@ -293,78 +547,146 @@ export class ResultModal {
 
     const actualCombo = combo ?? 0;
 
+    // 判断是否为 SSR（传说鱼/神物）
+    const isSSR = roundResult?.rarity === 'legendary' ||
+                  this.getRarityText(drop).includes('SSR');
+
     // === 标题区 ===
     const titleY = cardY - cardHeight / 2 + 90;
-    const titleText = this.scene.add.text(cardX, titleY, this.getSuccessTitle(perfect ?? false, actualCombo), {
+
+    // 判断是否为离谱物（weird 类型）
+    const isWeird = drop.type === 'trash' && ['内裤', '螃蟹', '乌龟', '拖鞋', '破袜子', '树枝', '神秘宝箱'].includes(drop.name);
+
+    // 离谱物使用随机爆点文案，否则使用原有标题
+    const titleTextValue = isWeird ? getRandomWeirdCopy(drop.name) : this.getSuccessTitle(perfect ?? false, actualCombo);
+    const titleColor = isWeird ? '#FF6B6B' : '#333333';  // 离谱物用红色强调
+
+    this.titleText = this.scene.add.text(cardX, titleY, titleTextValue, {
       fontSize: '46px',
-      color: '#333333',
+      color: titleColor,
       fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.container!.add(titleText);
+    this.container!.add(this.titleText);
 
     // === 主视觉区（鱼/物品 emoji）===
     const visualY = titleY + 70;
     const emoji = VisualMap.getEmoji(drop.name);
-    const visual = this.scene.add.text(cardX, visualY, emoji, {
-      fontSize: '96px',
+    const visualSize = isSSR ? 110 : 96;  // SSR emoji 略大
+    this.visual = this.scene.add.text(cardX, visualY, emoji, {
+      fontSize: `${visualSize}px`,
     }).setOrigin(0.5);
-    this.container!.add(visual);
+
+    // SSR 高光层（极轻量，淡金色圆形背景）- 先于 visual 添加，确保在 emoji 后面
+    if (isSSR) {
+      const glowY = visualY + 10;
+      const glow = this.scene.add.circle(cardX, glowY, 90, 0xFFD700, 0.08);
+      this.container!.add(glow);
+    }
+
+    // 添加 visual 到 container（在 glow 之后，确保 emoji 在前方）
+    this.container!.add(this.visual);
 
     // === 说明区 ===
     // 稀有度标签（优先使用 roundResult.rarity，保留旧逻辑兜底）
     const rarityY = visualY + 90;
     const roundResultRarity = roundResult?.rarity;
-    const rarity = roundResultRarity
+    let rarity = roundResultRarity
       ? this.mapRarityToText(roundResultRarity, drop)
       : this.getRarityText(drop);
-    const rarityColor = roundResultRarity
+    let rarityColor = roundResultRarity
       ? this.mapRarityToColor(roundResultRarity, drop)
       : this.getRarityColor(rarity);
+
+    // 离谱物显示兜底：避免显示为"N 鱼获"
+    if (isWeird && (rarity === 'N 鱼获' || rarity === 'common')) {
+      rarity = 'SR 离谱物';
+      rarityColor = 0xBA55D3;  // SR 紫色
+    }
 
     const rarityBg = this.scene.add.rectangle(cardX, rarityY, 170, 38, rarityColor, 0.9)
       .setStrokeStyle(2, 0xFFFFFF);
     this.container!.add(rarityBg);
 
-    const rarityText = this.scene.add.text(cardX, rarityY, rarity, {
+    this.rarityText = this.scene.add.text(cardX, rarityY, rarity, {
       fontSize: '19px',
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.container!.add(rarityText);
+    this.container!.add(this.rarityText);
 
-    // 名称
+    // 名称（主渔获强化：轻微增大字号 + 轻描边）
     const nameY = rarityY + 50;
-    const nameText = this.scene.add.text(cardX, nameY, drop.name, {
-      fontSize: '34px',
+    this.nameText = this.scene.add.text(cardX, nameY, drop.name, {
+      fontSize: '38px',
       color: '#333333',
       fontStyle: 'bold',
+      stroke: '#666666',
+      strokeThickness: 2,
     }).setOrigin(0.5);
-    this.container!.add(nameText);
+    this.container!.add(this.nameText);
 
-    // 奖励金币（优先使用 roundResult.finalCoins，保留旧逻辑兜底）
-    const rewardY = nameY + 45;
+    // 奖励金币（轻微降权：字号减小 + 颜色弱化）
+    const rewardY = nameY + 48;
     const coins = roundResult?.finalCoins ?? drop.reward;
-    const rewardText = this.scene.add.text(cardX, rewardY, `+${coins} 金币`, {
-      fontSize: '26px',
-      color: '#F39C12',
+    this.rewardText = this.scene.add.text(cardX, rewardY, `+${coins} 金币`, {
+      fontSize: '20px',
+      color: '#BBBBBB',
       fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.container!.add(rewardText);
+    this.container!.add(this.rewardText);
 
-    // 说明文案（优先使用 roundResult.highlightText，否则使用 drop.flavor，都没有则不显示）
+    // 说明文案（优先级：highlightText > flavor > getEmotionCopy 兜底）
     const highlightText = roundResult?.highlightText;
     const flavorText = drop.flavor;
-    const displayText = highlightText || flavorText;
-    
+    let displayText = highlightText || flavorText;
+
+    // 如果都没有，使用情绪文案兜底
+    if (!displayText) {
+      displayText = this.getEmotionCopy(drop);
+    }
+
     if (displayText) {
-      const textY = rewardY + 35;
-      const textObj = this.scene.add.text(cardX, textY, displayText, {
+      const textY = rewardY + 32;
+      this.textObj = this.scene.add.text(cardX, textY, displayText, {
         fontSize: '17px',
         color: '#888888',
         wordWrap: { width: 460 },
         align: 'center',
       }).setOrigin(0.5);
-      this.container!.add(textObj);
+      this.container!.add(this.textObj);
+    }
+
+    // 传播文案层（新增）
+    const hookBaseY = this.textObj
+      ? this.textObj.getBounds().bottom
+      : this.rewardText
+        ? this.rewardText.getBounds().bottom
+        : this.nameText
+          ? this.nameText.getBounds().bottom
+          : rewardY;
+    
+    const hookTextY = hookBaseY + 22;
+    const isSSRorWeird = isSSR || isWeird;
+    const hookTextValue = isSSRorWeird ? '这也能钓到？？？' : '这杆不亏';
+
+    this.hookText = this.scene.add.text(cardX, hookTextY, hookTextValue, {
+      fontSize: '18px',
+      color: '#444444',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.container!.add(this.hookText);
+
+    // SSR 主视觉 emoji 轻量弹出动画（只播一次）
+    if (isSSR) {
+      this.visual.setScale(0.2);
+      this.scene.tweens.add({
+        targets: this.visual,
+        scale: 1,
+        alpha: 1,
+        duration: 250,
+        delay: 150,  // 延迟 150ms 后开始动画
+        ease: 'Back.easeOut',
+      });
     }
   }
 

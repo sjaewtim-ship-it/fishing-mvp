@@ -7,6 +7,7 @@ import { AnalyticsManager } from './AnalyticsManager';
 import { DirectorManager } from './DirectorManager';
 import { DirectorSystem } from './DirectorSystem';
 import { DailyMissionManager } from './DailyMissionManager';
+import { CollectionManager } from './managers/CollectionManager';
 
 export class SaveSync {
   private static getDirectorSystemStateFromSave(data: ReturnType<typeof StorageManager.instance.load>) {
@@ -80,6 +81,9 @@ export class SaveSync {
     } else {
       DailyMissionManager.instance.init();
     }
+
+    // 加载图鉴进度
+    CollectionManager.importProgress(data.collectionProgress);
   }
 
   static save() {
@@ -107,6 +111,7 @@ export class SaveSync {
       directorSuccessStreak: directorSystem.successStreak,
       directorCombo: directorSystem.combo,
       dailyMission: dailyMission ?? undefined,
+      collectionProgress: CollectionManager.exportProgress(),
     });
   }
 
