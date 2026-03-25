@@ -112,7 +112,7 @@ export function buildRoundResult(
   const finalCoins = perfect ? Math.round(drop.reward * 1.25) : drop.reward;
 
   // 高亮文案
-  const highlightText = buildHighlightText(rarity, absurdTag, combo);
+  const highlightText = buildHighlightText(rarity, absurdTag, combo, drop.name);
 
   return {
     catchType,
@@ -147,16 +147,21 @@ function getAbsurdTag(dropType: string, name: string): string | null {
 function buildHighlightText(
   rarity: RarityType,
   absurdTag: string | null,
-  combo: number
+  combo: number,
+  itemName?: string
 ): string {
+  // 离谱物专属文案（优先，更有爆点）
+  if (absurdTag && itemName) {
+    if (itemName === '内裤') return '这水里发生过什么？？';
+    if (itemName === '螃蟹') return '今晚加餐有了！';
+    if (itemName === '乌龟') return '这也能钓上来？！';
+  }
+  
   if (rarity === 'legendary') {
     return '这也能钓到？！';
   }
   if (rarity === 'epic') {
     return '今天运气爆炸';
-  }
-  if (absurdTag) {
-    return '你钓上来个啥？？';
   }
   if (combo >= 3) {
     return '连着上鱼了！';

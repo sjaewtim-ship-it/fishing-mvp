@@ -606,6 +606,7 @@ export class FishingScene extends Phaser.Scene {
       perfect,
       combo,
       failReason,
+      roundResult,
       onContinue: () => {
         // 先判断体力
         if (!EnergyManager.instance.hasEnergy()) {

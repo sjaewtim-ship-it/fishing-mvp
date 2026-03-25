@@ -78,6 +78,61 @@ export class ResultModal {
     return 0x888888;
   }
 
+  /**
+   * 映射 RoundResult.rarity 到展示文本（兼容式，结合 drop 保持产品语义）
+   * 优先使用 RoundResult 的统一稀有度，保留旧逻辑兜底
+   */
+  private mapRarityToText(rarity: string, drop: DropItem): string {
+    if (rarity === 'legendary') {
+      // 传说鱼区分：龙鱼/黄金锦鲤 → SSR 传说鱼，其他 → SSR 神物
+      const legendFish = ['龙鱼', '黄金锦鲤'];
+      if (legendFish.includes(drop.name)) {
+        return 'SSR 传说鱼';
+      }
+      return 'SSR 神物';
+    }
+    if (rarity === 'epic') {
+      return 'SR 离谱物';
+    }
+    if (rarity === 'rare') {
+      return 'SR 稀有鱼';
+    }
+    if (rarity === 'common') {
+      // 普通鱼中区分：大鲤鱼/黑鱼/鲈鱼/金鲫鱼 → R 优质鱼，其他 → N 鱼获
+      const goodFish = ['大鲤鱼', '黑鱼', '鲈鱼', '金鲫鱼'];
+      if (goodFish.includes(drop.name)) {
+        return 'R 优质鱼';
+      }
+      return 'N 鱼获';
+    }
+    return 'N 鱼获';
+  }
+
+  /**
+   * 映射 RoundResult.rarity 到颜色（兼容式，结合 drop 保持产品语义）
+   * 优先使用 RoundResult 的统一稀有度，保留旧逻辑兜底
+   */
+  private mapRarityToColor(rarity: string, drop: DropItem): number {
+    if (rarity === 'legendary') {
+      return 0xFFD700;  // SSR 金色
+    }
+    if (rarity === 'epic') {
+      return 0xBA55D3;  // SR 紫色
+    }
+    if (rarity === 'rare') {
+      return 0xBA55D3;  // SR 紫色
+    }
+    if (rarity === 'common') {
+      // 普通鱼中区分：大鲤鱼/黑鱼/鲈鱼/金鲫鱼 → 绿色，其他 → 灰色
+      const goodFish = ['大鲤鱼', '黑鱼', '鲈鱼', '金鲫鱼'];
+      if (goodFish.includes(drop.name)) {
+        return 0x4CAF50;  // R 绿色
+      }
+      return 0x888888;  // N 灰色
+    }
+    return 0x888888;
+  }
+
   private getFailEmoji(reason: FailReason): string {
     if (reason === 'early') return '😅';
     if (reason === 'too_early') return '😖';
@@ -233,7 +288,7 @@ export class ResultModal {
   }
 
   private renderSuccessContent(cardX: number, cardY: number, cardHeight: number) {
-    const { drop, perfect, combo } = this.options;
+    const { drop, perfect, combo, roundResult } = this.options;
     if (!drop) return;
 
     const actualCombo = combo ?? 0;
@@ -256,10 +311,15 @@ export class ResultModal {
     this.container!.add(visual);
 
     // === 说明区 ===
-    // 稀有度标签
+    // 稀有度标签（优先使用 roundResult.rarity，保留旧逻辑兜底）
     const rarityY = visualY + 90;
-    const rarity = this.getRarityText(drop);
-    const rarityColor = this.getRarityColor(rarity);
+    const roundResultRarity = roundResult?.rarity;
+    const rarity = roundResultRarity
+      ? this.mapRarityToText(roundResultRarity, drop)
+      : this.getRarityText(drop);
+    const rarityColor = roundResultRarity
+      ? this.mapRarityToColor(roundResultRarity, drop)
+      : this.getRarityColor(rarity);
 
     const rarityBg = this.scene.add.rectangle(cardX, rarityY, 170, 38, rarityColor, 0.9)
       .setStrokeStyle(2, 0xFFFFFF);
@@ -281,25 +341,30 @@ export class ResultModal {
     }).setOrigin(0.5);
     this.container!.add(nameText);
 
-    // 奖励金币
+    // 奖励金币（优先使用 roundResult.finalCoins，保留旧逻辑兜底）
     const rewardY = nameY + 45;
-    const rewardText = this.scene.add.text(cardX, rewardY, `+${drop.reward} 金币`, {
+    const coins = roundResult?.finalCoins ?? drop.reward;
+    const rewardText = this.scene.add.text(cardX, rewardY, `+${coins} 金币`, {
       fontSize: '26px',
       color: '#F39C12',
       fontStyle: 'bold',
     }).setOrigin(0.5);
     this.container!.add(rewardText);
 
-    // 风味文案（如果有）
-    if (drop.flavor) {
-      const flavorY = rewardY + 35;
-      const flavorText = this.scene.add.text(cardX, flavorY, drop.flavor, {
+    // 说明文案（优先使用 roundResult.highlightText，否则使用 drop.flavor，都没有则不显示）
+    const highlightText = roundResult?.highlightText;
+    const flavorText = drop.flavor;
+    const displayText = highlightText || flavorText;
+    
+    if (displayText) {
+      const textY = rewardY + 35;
+      const textObj = this.scene.add.text(cardX, textY, displayText, {
         fontSize: '17px',
         color: '#888888',
         wordWrap: { width: 460 },
         align: 'center',
       }).setOrigin(0.5);
-      this.container!.add(flavorText);
+      this.container!.add(textObj);
     }
   }
 
