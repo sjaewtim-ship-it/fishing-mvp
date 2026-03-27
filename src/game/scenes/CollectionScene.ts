@@ -186,15 +186,29 @@ export class CollectionScene extends Phaser.Scene {
 
     // 更新 Tab 样式
     this.tabButtons.forEach((tab) => {
-      // 防御性检查
-      if (!tab.bg || !tab.text) return;
-
       const isSelected = tab.key === this.currentTab;
       const bgColor = isSelected ? 0x4FA6F8 : 0xF2F4F7;
       const textColor = isSelected ? '#FFFFFF' : '#505866';
 
-      tab.bg.setFillStyle(bgColor);
-      tab.text.setColor(textColor);
+      // 安全更新 bg
+      if (
+        tab.bg &&
+        !tab.bg.destroyed &&
+        tab.bg.scene &&
+        tab.bg.active !== false
+      ) {
+        tab.bg.setFillStyle(bgColor);
+      }
+
+      // 安全更新 text
+      if (
+        tab.text &&
+        !tab.text.destroyed &&
+        tab.text.scene &&
+        tab.text.active !== false
+      ) {
+        tab.text.setColor(textColor);
+      }
     });
 
     // 重新渲染卡片

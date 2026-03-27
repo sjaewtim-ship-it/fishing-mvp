@@ -10,17 +10,6 @@ import { DailyMissionManager, type DailyTask } from './DailyMissionManager';
 import { EnergyModal } from './EnergyModal';
 import { CollectionManager } from './managers/CollectionManager';
 
-type SwimVisual = {
-  emoji: string;
-  x: number;
-  y: number;
-  dirX: number;
-  dirY: number;
-  speed: number;
-  scale: number;
-  drift: number;
-};
-
 // ==================================================
 // 首页统一 layoutSpec - 管理所有 section 的纵向布局
 // ==================================================
@@ -28,22 +17,25 @@ const LAYOUT_SPEC = {
   // 基础参数（移动端适配）
   safeTop: 26,
   safeBottom: 0,
-  horizontalPadding: 16,           // 左右内边距（适配手机）
-  contentWidth: 0,                 // 动态计算：width - 32
+  pagePadding: 24,                 // 统一页面左右边距（原 16px 增加 50% → 24px）
+  contentWidth: 0,                 // 动态计算：width - pagePadding * 2
   sectionGap: 18,
   sectionGapLoose: 24,
 
   // 各 section Y 位置（移动端稳态）
-  brandY: 20,                      // 品牌区起始 Y
+  brandY: 74,                      // 品牌区起始 Y（下移 54px，与信息卡同步）
   brandHeight: 112,                // 品牌区高度（增加呼吸感）
-  resourceY: 142,                  // 资源区起始 Y（下移）
-  resourceHeight: 126,             // 2x2 卡组高度（54+10+54+8）
-  goalY: 272,                      // 目标区起始 Y
+  resourceY: 196,                  // 资源区起始 Y（下移 54px，使信息卡底部→今日任务 = 22px）
+  resourceHeight: 54,              // 3 卡组高度（单行）
+  goalY: 272,                      // 目标区起始 Y（保持不变）
   goalHeight: 160,                 // 目标区高度
-  actionY: 454,                    // 按钮区起始 Y
+  goalInnerPadding: 20,            // 今日任务模块内部左右内边距
+  actionY: 454,                    // 按钮区起始 Y（保持不变）
   actionHeight: 90,                // 按钮区高度
-  oceanY: 560,                     // 水域区起始 Y
-  sandHeight: 160,                 // 沙地固定高度（压缩沙地，增加水域）
+  navBarY: 568,                    // 入口栏 Y 位置（开始钓鱼下方）
+  navBarHeight: 60,                // 入口栏高度
+  oceanY: 650,                     // 水域区起始 Y（下移，承接入口栏）
+  sandHeight: 120,                 // 沙地固定高度
 };
 
 // 资源卡统一规格（移动端适配）
@@ -128,15 +120,11 @@ function drawVerticalGradientRect(
 }
 
 export class MainScene extends Phaser.Scene {
-  private swimmers: Phaser.GameObjects.Text[] = [];
-  private swimmerData: SwimVisual[] = [];
-
   // UI 引用
   private coinText!: Phaser.GameObjects.Text;
   private energyText!: Phaser.GameObjects.Text;
   private goalFooterText!: Phaser.GameObjects.Text;
   private goalFooterHitArea!: Phaser.GameObjects.Rectangle;
-  private missionTaskContainers: Phaser.GameObjects.Container[] = [];
 
   // 目标奖励金额（V1 局部常量）
   private readonly DAILY_MISSION_REWARD = 100;
@@ -146,6 +134,7 @@ export class MainScene extends Phaser.Scene {
   private resourceSection!: Phaser.GameObjects.Container;
   private goalSection!: Phaser.GameObjects.Container;
   private actionSection!: Phaser.GameObjects.Container;
+  private navBarSection!: Phaser.GameObjects.Container;
   private oceanSection!: Phaser.GameObjects.Container;
 
   constructor() {
@@ -157,8 +146,8 @@ export class MainScene extends Phaser.Scene {
     const height = Number(this.scale.height) || 1334;
     const centerX = width / 2;
 
-    // 动态计算 contentWidth（移动端适配）
-    const contentWidth = width - 32;  // horizontalPadding * 2
+    // 动态计算 contentWidth（基于统一 pagePadding）
+    const contentWidth = width - LAYOUT_SPEC.pagePadding * 2;
 
     // 动态计算 oceanHeight（沙地固定高度，水域吃满剩余区域）
     const oceanHeight = height - LAYOUT_SPEC.oceanY - LAYOUT_SPEC.sandHeight;
@@ -169,11 +158,13 @@ export class MainScene extends Phaser.Scene {
       height,
       centerX,
       contentWidth,
+      pagePadding: LAYOUT_SPEC.pagePadding,
       safeTop: LAYOUT_SPEC.safeTop,
       safeBottom: LAYOUT_SPEC.safeBottom,
       brandY: LAYOUT_SPEC.brandY,
       resourceY: LAYOUT_SPEC.resourceY,
       goalY: LAYOUT_SPEC.goalY,
+      goalInnerPadding: LAYOUT_SPEC.goalInnerPadding,
       actionY: LAYOUT_SPEC.actionY,
       oceanY: LAYOUT_SPEC.oceanY,
       oceanHeight,
@@ -181,35 +172,12 @@ export class MainScene extends Phaser.Scene {
     };
   }
 
-  private getTodayBestCatchSafe(): string {
-    const rm: any = RecordManager.instance as any;
-    if (rm && typeof rm.getTodayBestCatch === 'function') return rm.getTodayBestCatch() || '暂无';
-    if (rm && typeof rm.getBestCatch === 'function') return rm.getBestCatch() || '暂无';
-    if (rm && typeof rm.getBest === 'function') return rm.getBest() || '暂无';
-    if (rm && typeof rm.bestCatch === 'string') return rm.bestCatch || '暂无';
-    return '暂无';
-  }
-
-  private getTodayWeirdCatchSafe(): string {
-    const rm: any = RecordManager.instance as any;
-    if (rm && typeof rm.getTodayWeirdCatch === 'function') return rm.getTodayWeirdCatch() || '暂无';
-    if (rm && typeof rm.getWeirdCatch === 'function') return rm.getWeirdCatch() || '暂无';
-    if (rm && typeof rm.getWeird === 'function') return rm.getWeird() || '暂无';
-    if (rm && typeof rm.weirdCatch === 'string') return rm.weirdCatch || '暂无';
-    return '暂无';
-  }
 
   create() {
-    this.swimmers = [];
-    this.swimmerData = [];
-    this.missionTaskContainers = [];
-
     const L = this.calculateLayout();
     const coins = CoinManager.instance.getCoins();
     const energy = EnergyManager.instance.getEnergy();
     const maxEnergy = EnergyManager.instance.getMaxEnergy();
-    const bestCatch = this.getTodayBestCatchSafe();
-    const weirdCatch = this.getTodayWeirdCatchSafe();
 
     DailyMissionManager.instance.init();
 
@@ -217,9 +185,10 @@ export class MainScene extends Phaser.Scene {
 
     // === 渲染 5 个 section ===
     this.renderBrandSection(L);
-    this.renderResourceSection(L, coins, energy, maxEnergy, bestCatch, weirdCatch);
+    this.renderResourceSection(L, coins, energy, maxEnergy);
     this.renderGoalSection(L);
     this.renderActionSection(L, energy >= maxEnergy);
+    this.renderNavBarSection(L);
     this.renderOceanSection(L);
   }
 
@@ -271,43 +240,38 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 2. resourceSection - 资源区（2x2 统一卡组，移动端适配）
+  // 2. resourceSection - 资源区（3 卡布局：金币/体力/重量，移动端适配）
   // ==================================================
   private renderResourceSection(
     L: ReturnType<typeof this.calculateLayout>,
     coins: number,
     energy: number,
-    maxEnergy: number,
-    bestCatch: string,
-    weirdCatch: string
+    maxEnergy: number
   ) {
     const cardH = RESOURCE_CARD.height;
     const gap = RESOURCE_CARD.gap;
-    const rowGap = RESOURCE_CARD.rowGap;
 
-    // 动态计算卡片宽度（与今日目标卡右边界严格对齐）
-    const cardW = (L.contentWidth - gap) / 2;
+    // 动态计算卡片宽度（3 卡等分，基于统一 pagePadding）
+    const cardW = (L.contentWidth - gap * 2) / 3;
 
-    // 左对齐位置
-    const leftX = LAYOUT_SPEC.horizontalPadding;
-    // 右列 X = 左边界 + 卡片宽度 + 间距
-    const rightX = leftX + cardW + gap;
+    // 左对齐位置（基于统一 pagePadding）
+    const leftX = L.pagePadding;
+    const midX = leftX + cardW + gap;
+    const rightX = leftX + (cardW + gap) * 2;
 
-    const row1Y = L.resourceY + cardH / 2;
-    const row2Y = row1Y + cardH + rowGap;
+    const rowY = L.resourceY + cardH / 2;
 
-    // === 第一排：金币、体力（高优先级）===
-    // 金币卡片（左列，渐变：金色）
+    // === 金币卡片（左列，渐变：金色）===
     const coinCardX = leftX + cardW / 2;
-    drawVerticalGradientRect(this, coinCardX, row1Y, cardW, cardH, 0xE6D75A, 0xA89F2E, 12, 0.16);
-    this.add.text(leftX + RESOURCE_CARD.paddingX, row1Y - cardH / 2 + RESOURCE_CARD.paddingTop, '🪙 金币', {
+    drawVerticalGradientRect(this, coinCardX, rowY, cardW, cardH, 0xE6D75A, 0xA89F2E, 12, 0.16);
+    this.add.text(leftX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '🪙 金币', {
       fontSize: RESOURCE_CARD.labelSize,
       color: '#F7F3C8',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: RESOURCE_CARD.labelStroke,
     }).setOrigin(0, 0);
-    this.coinText = this.add.text(leftX + cardW - RESOURCE_CARD.paddingX, row1Y + cardH / 2 - 6, String(coins), {
+    this.coinText = this.add.text(leftX + cardW - RESOURCE_CARD.paddingX, rowY + cardH / 2 - 6, String(coins), {
       fontSize: RESOURCE_CARD.valueSize,
       color: RESOURCE_CARD.valueColor,
       fontStyle: 'bold',
@@ -315,17 +279,17 @@ export class MainScene extends Phaser.Scene {
       strokeThickness: RESOURCE_CARD.valueStroke,
     }).setOrigin(1, 1);
 
-    // 体力卡片（右列，渐变：绿色）
-    const energyCardX = rightX + cardW / 2;
-    drawVerticalGradientRect(this, energyCardX, row1Y, cardW, cardH, 0x7ED7B2, 0x3FA37A, 12, 0.14);
-    this.add.text(rightX + RESOURCE_CARD.paddingX, row1Y - cardH / 2 + RESOURCE_CARD.paddingTop, '⚡ 体力', {
+    // === 体力卡片（中列，渐变：绿色）===
+    const energyCardX = midX + cardW / 2;
+    drawVerticalGradientRect(this, energyCardX, rowY, cardW, cardH, 0x7ED7B2, 0x3FA37A, 12, 0.14);
+    this.add.text(midX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '⚡ 体力', {
       fontSize: RESOURCE_CARD.labelSize,
       color: '#E9FFF5',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: RESOURCE_CARD.labelStroke,
     }).setOrigin(0, 0);
-    this.energyText = this.add.text(rightX + cardW - RESOURCE_CARD.paddingX, row1Y + cardH / 2 - 6, `${energy}/${maxEnergy}`, {
+    this.energyText = this.add.text(midX + cardW - RESOURCE_CARD.paddingX, rowY + cardH / 2 - 6, `${energy}/${maxEnergy}`, {
       fontSize: RESOURCE_CARD.valueSize,
       color: RESOURCE_CARD.valueColor,
       fontStyle: 'bold',
@@ -333,36 +297,17 @@ export class MainScene extends Phaser.Scene {
       strokeThickness: RESOURCE_CARD.valueStroke,
     }).setOrigin(1, 1);
 
-    // === 第二排：最佳渔获、最离谱战绩（低优先级）===
-    // 最佳渔获卡片（左列，渐变：蓝色）
-    const bestCardX = leftX + cardW / 2;
-    drawVerticalGradientRect(this, bestCardX, row2Y, cardW, cardH, 0x6EC1FF, 0x3B82C4, 12, 0.15);
-    this.add.text(leftX + RESOURCE_CARD.paddingX, row2Y - cardH / 2 + RESOURCE_CARD.paddingTop, '⭐ 最佳渔获', {
+    // === 重量卡片（右列，渐变：蓝色，占位展示）===
+    const weightCardX = rightX + cardW / 2;
+    drawVerticalGradientRect(this, weightCardX, rowY, cardW, cardH, 0x6EC1FF, 0x3B82C4, 12, 0.15);
+    this.add.text(rightX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '⚖️ 重量', {
       fontSize: RESOURCE_CARD.labelSize,
       color: '#EAF6FF',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: RESOURCE_CARD.labelStroke,
     }).setOrigin(0, 0);
-    this.add.text(leftX + cardW - RESOURCE_CARD.paddingX, row2Y + cardH / 2 - 6, bestCatch, {
-      fontSize: RESOURCE_CARD.valueSize,
-      color: RESOURCE_CARD.valueColor,
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: RESOURCE_CARD.valueStroke,
-    }).setOrigin(1, 1);
-
-    // 最离谱战绩卡片（右列，渐变：紫色）
-    const weirdCardX = rightX + cardW / 2;
-    drawVerticalGradientRect(this, weirdCardX, row2Y, cardW, cardH, 0xC6A9FF, 0x7B5AC8, 12, 0.15);
-    this.add.text(rightX + RESOURCE_CARD.paddingX, row2Y - cardH / 2 + RESOURCE_CARD.paddingTop, '🤯 最离谱战绩', {
-      fontSize: RESOURCE_CARD.labelSize,
-      color: '#FFF0FF',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: RESOURCE_CARD.labelStroke,
-    }).setOrigin(0, 0);
-    this.add.text(rightX + cardW - RESOURCE_CARD.paddingX, row2Y + cardH / 2 - 6, weirdCatch, {
+    this.add.text(rightX + cardW - RESOURCE_CARD.paddingX, rowY + cardH / 2 - 6, '-- kg', {
       fontSize: RESOURCE_CARD.valueSize,
       color: RESOURCE_CARD.valueColor,
       fontStyle: 'bold',
@@ -378,19 +323,24 @@ export class MainScene extends Phaser.Scene {
     const x = L.centerX;
     const y = L.goalY + LAYOUT_SPEC.goalHeight / 2;
 
-    // 卡片外框（使用动态 contentWidth）
-    const goalX = LAYOUT_SPEC.horizontalPadding;
+    // 卡片外框（基于统一 pagePadding）
+    const goalX = L.pagePadding;
     const goalWidth = L.contentWidth;
 
     // 卡片背景
     const goalBg = this.add.rectangle(x, y, goalWidth, LAYOUT_SPEC.goalHeight, 0x1a3a52, 0.75)
       .setStrokeStyle(1, 0xffffff, 0.3);
 
+    // 内部内容边距（使用 goalInnerPadding）
+    const innerPadding = L.goalInnerPadding;
+    const contentLeftX = goalX + innerPadding;
+    const contentRightX = goalX + goalWidth - innerPadding;
+
     // ========== 标题层（左中右三段式，统一基线）==========
     const titleY = L.goalY + 18;
 
-    // 左：今日目标
-    this.add.text(goalX + 12, titleY, '📋 今日目标', {
+    // 左：今日任务
+    this.add.text(contentLeftX, titleY, '📋 今日任务', {
       fontSize: '15px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -415,7 +365,7 @@ export class MainScene extends Phaser.Scene {
 
     // 右：连续天数
     if (streak > 0) {
-      this.add.text(goalX + goalWidth - 12, titleY, `🔥 连续${streak}天`, {
+      this.add.text(contentRightX, titleY, `🔥 连续${streak}天`, {
         fontSize: '12px',
         color: '#FFD700',
         fontStyle: 'bold',
@@ -432,8 +382,8 @@ export class MainScene extends Phaser.Scene {
     tasks.forEach((task, index) => {
       const taskBaseY = taskStartY + index * taskGap;
 
-      // 任务名称（左对齐，使用 goalX 计算）
-      this.add.text(goalX + 12, taskBaseY, task.title, {
+      // 任务名称（左对齐，使用 contentLeftX 计算）
+      this.add.text(contentLeftX, taskBaseY, task.title, {
         fontSize: '14px',
         color: '#F0F8FF',
         fontStyle: 'bold',
@@ -445,7 +395,7 @@ export class MainScene extends Phaser.Scene {
       const barY = taskBaseY;
       const barW = PROGRESS_BAR.width;
       const barH = PROGRESS_BAR.height;
-      const barX = goalX + goalWidth - 12 - barW;
+      const barX = contentRightX - barW;
 
       // 进度条背景（暗色槽）
       const barBg = this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x000000, 0.6);
@@ -506,43 +456,94 @@ export class MainScene extends Phaser.Scene {
       }).setOrigin(0.5, 0);
     }
     // 其他状态（未完成）：不显示 footer 文字
-
-    // 图鉴入口按钮（轻量级，放在 footer 下方）
-    this.renderCollectionEntry(L);
   }
 
-  /**
-   * 渲染图鉴入口按钮
-   */
-  private renderCollectionEntry(L: ReturnType<typeof this.calculateLayout>) {
+  // ==================================================
+  // 入口栏 Section - 图鉴/任务/奖励/设置（4 个入口，放在开始钓鱼下方）
+  // ==================================================
+  private renderNavBarSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
-    const y = L.goalY + LAYOUT_SPEC.goalHeight + 30;
+    const y = LAYOUT_SPEC.navBarY + LAYOUT_SPEC.navBarHeight / 2;
 
     const summary = CollectionManager.getSummary();
 
-    // 按钮背景
-    const btnWidth = 200;
-    const btnHeight = 50;
-    const btnBg = this.add.rectangle(x, y, btnWidth, btnHeight, 0x6c5ce7);
-    btnBg.setInteractive({ useHandCursor: true });
+    // 4 个入口按钮配置
+    const navButtons = [
+      { key: 'collection', label: '📖 图鉴', subLabel: `${summary.unlocked}/${summary.total}`, onClick: () => {
+        SimpleAudio.click();
+        this.scene.start('CollectionScene');
+      }},
+      { key: 'tasks', label: '📝 任务', subLabel: '', onClick: () => {
+        SimpleAudio.click();
+        // 预留入口，暂不实现业务逻辑
+      }},
+      { key: 'rewards', label: '🎁 奖励', subLabel: '', onClick: () => {
+        SimpleAudio.click();
+        // 预留入口，暂不实现业务逻辑
+      }},
+      { key: 'settings', label: '⚙️ 设置', subLabel: '', onClick: () => {
+        SimpleAudio.click();
+        // 预留入口，暂不实现业务逻辑
+      }},
+    ];
 
-    // 主文案
-    this.add.text(x, y - 8, '📖 图鉴', {
-      fontSize: '20px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    // 计算布局（缩小至约 80%）
+    const btnWidth = 120;                // 原 150 → 120
+    const btnHeight = 42;                // 原 50 → 42
+    const gap = 12;
+    const totalWidth = btnWidth * 4 + gap * 3;
+    const startX = x - totalWidth / 2 + btnWidth / 2;
 
-    // 进度小字
-    this.add.text(x, y + 12, `${summary.unlocked}/${summary.total}`, {
-      fontSize: '12px',
-      color: '#e0e0e0',
-    }).setOrigin(0.5);
+    navButtons.forEach((btn, index) => {
+      const btnX = startX + index * (btnWidth + gap);
+      const btnY = y;
 
-    // 点击事件
-    btnBg.on('pointerdown', () => {
-      SimpleAudio.click();
-      this.scene.start('CollectionScene');
+      // 按钮背景（弱化：浅紫灰，降低饱和度）
+      const btnBg = this.add.rectangle(btnX, btnY, btnWidth, btnHeight, 0x9B8FBF);
+      btnBg.setInteractive({ useHandCursor: true });
+
+      // 扩大点击区域（保持原点击区域不变）
+      const hitArea = this.add.rectangle(btnX, btnY, btnWidth + 38, btnHeight + 18, 0x000000, 0);
+      hitArea.setInteractive({ useHandCursor: true });
+      hitArea.on('pointerdown', () => btn.onClick());
+
+      // 主文案（弱化颜色）
+      const labelText = this.add.text(btnX, btnY - 4, btn.label, {
+        fontSize: '16px',
+        color: '#E8E4F0',
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+
+      // 副文案（仅图鉴显示进度，弱化颜色）
+      if (btn.subLabel) {
+        this.add.text(btnX, btnY + 12, btn.subLabel, {
+          fontSize: '10px',
+          color: '#C8C4D0',
+        }).setOrigin(0.5);
+      }
+
+      // 图鉴按钮呼吸动效（减弱幅度）
+      if (btn.key === 'collection') {
+        this.tweens.add({
+          targets: btnBg,
+          scaleX: 1.03,
+          scaleY: 1.03,
+          duration: 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+        // 文字也跟随缩放
+        this.tweens.add({
+          targets: labelText,
+          scaleX: 1.03,
+          scaleY: 1.03,
+          duration: 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
     });
   }
 
@@ -635,101 +636,15 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 5. oceanSection - 水下氛围区（最终版可投流场景，沙地贴底）
+  // 5. oceanSection - 简洁背景区（移除海洋装饰，保持页面干净）
   // ==================================================
   private renderOceanSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
 
-    // 水下背景（深蓝色）
-    this.add.rectangle(x, L.oceanY + L.oceanHeight / 2, L.width, L.oceanHeight, 0x1e88e5);
-
-    // 水面提示文案（靠近水面，清晰可读，层级最高）
-    const infoY = L.oceanY + 18;
-    const tipText = this.add.text(x, infoY, '💡 浮漂明显下沉时再拉杆，更容易拿高奖励', {
-      fontSize: '15px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5, 0);
-    tipText.setDepth(1000);
-
-    // ========== 鱼群（三层生态，分层游动）==========
-    // 上层（3-4 条小鱼，靠近水面）
-    this.addSwimmer('🐟', 120, L.oceanY + 35, 0.75, 0.5);
-    this.addSwimmer('🐠', 280, L.oceanY + 50, 0.7, 0.45);
-    this.addSwimmer('🐡', 450, L.oceanY + 40, 0.8, 0.55);
-    this.addSwimmer('🐟', 620, L.oceanY + 55, 0.65, 0.4);
-
-    // 中层（5-6 条主体鱼类）
-    this.addSwimmer('🐠', 100, L.oceanY + 90, 0.9, 0.6);
-    this.addSwimmer('🐟', 240, L.oceanY + 105, 0.95, 0.65);
-    this.addSwimmer('🦀', 380, L.oceanY + 95, 0.65, 0.45);
-    this.addSwimmer('🦐', 500, L.oceanY + 110, 0.55, 0.4);
-    this.addSwimmer('🐠', 600, L.oceanY + 100, 0.85, 0.55);
-
-    // 下层（3-4 条慢速生物/乌龟，靠近沙地）
-    this.addSwimmer('🐢', 160, L.oceanY + 155, 1.05, 0.35);
-    this.addSwimmer('🐡', 320, L.oceanY + 170, 1.1, 0.4);
-    this.addSwimmer('🐟', 480, L.oceanY + 160, 0.95, 0.45);
-    this.addSwimmer('🐢', 640, L.oceanY + 175, 1.15, 0.3);
-
-    // ========== 珊瑚礁（固定装饰，左右收边）==========
-    this.add.text(90, L.sandY - 18, '🪸', { fontSize: '40px' }).setOrigin(0.5);
-    this.add.text(240, L.sandY - 22, '🪸', { fontSize: '36px' }).setOrigin(0.5);
-    this.add.text(510, L.sandY - 20, '🪸', { fontSize: '38px' }).setOrigin(0.5);
-    this.add.text(670, L.sandY - 18, '🪸', { fontSize: '40px' }).setOrigin(0.5);
-
-    // ========== 水生植物（固定装饰，中间呼吸感）==========
-    this.add.text(160, L.sandY - 12, '🌿', { fontSize: '34px' }).setOrigin(0.5);
-    this.add.text(340, L.sandY - 14, '🌱', { fontSize: '32px' }).setOrigin(0.5);
-    this.add.text(580, L.sandY - 12, '🌿', { fontSize: '34px' }).setOrigin(0.5);
-
-    // ========== 沙地区（底部完整场景，固定高度）==========
-    const sandHeight = LAYOUT_SPEC.sandHeight;
-    const sandCenterY = L.sandY - sandHeight / 2;
-    this.add.rectangle(x, sandCenterY, L.width, sandHeight, 0xd8c28a, 0.95);
-
-    // 沙地石头（点缀，不压住鱼）
-    this.add.text(70, sandCenterY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
-    this.add.text(375, sandCenterY, '🪨', { fontSize: '26px' }).setOrigin(0.5);
-    this.add.text(710, sandCenterY, '🪨', { fontSize: '28px' }).setOrigin(0.5);
+    // 简洁背景（浅蓝渐变，承接上方内容）
+    drawVerticalGradientRect(this, x, L.oceanY + L.oceanHeight / 2, L.width, L.oceanHeight, 0xE8F4FF, 0xD0E8FF, 8, 0);
   }
 
-  /** 添加游动生物 */
-  private addSwimmer(emoji: string, x: number, y: number, scale: number, speed: number) {
-    const swimmer = this.add.text(x, y, emoji, { fontSize: `${32 * scale}px` }).setOrigin(0.5);
-    this.swimmers.push(swimmer);
-    this.swimmerData.push({
-      emoji,
-      x,
-      y,
-      dirX: Math.random() > 0.5 ? 1 : -1,
-      dirY: Math.random() > 0.5 ? 1 : -1,
-      speed: 0.3 + speed * 0.3,
-      scale,
-      drift: Math.random() * Math.PI * 2,
-    });
-
-    // 游动动画
-    this.tweens.add({
-      targets: swimmer,
-      x: x + (Math.random() > 0.5 ? 60 : -60),
-      duration: 3000 + Math.random() * 2000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    this.tweens.add({
-      targets: swimmer,
-      y: y + (Math.random() > 0.5 ? 20 : -20),
-      duration: 2000 + Math.random() * 1500,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-  }
 
   // ==================================================
   // 按钮交互逻辑
