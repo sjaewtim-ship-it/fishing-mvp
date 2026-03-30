@@ -18,9 +18,9 @@ export type DailyMissionState = {
 };
 
 const DEFAULT_TASKS: DailyTask[] = [
-  { id: 'cast_3', title: '完成钓鱼 5 杆', target: 5, progress: 0, claimed: false },
-  { id: 'success_2', title: '成功钓到 3 条鱼', target: 3, progress: 0, claimed: false },
-  { id: 'quality_1', title: '成功钓到 1 条高品质鱼', target: 1, progress: 0, claimed: false },
+  { id: 'cast_5', title: '钓鱼 5 杆', target: 5, progress: 0, claimed: false },
+  { id: 'success_3', title: '钓到 3 条鱼', target: 3, progress: 0, claimed: false },
+  { id: 'quality_1', title: '钓到 1 条高品质鱼', target: 1, progress: 0, claimed: false },
 ];
 
 const DAILY_MISSION_KEY = 'fishing_daily_mission_v1';

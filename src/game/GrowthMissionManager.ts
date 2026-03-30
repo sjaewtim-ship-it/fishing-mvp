@@ -1,0 +1,350 @@
+/**
+ * 成长任务管理器
+ *
+ * 职责：
+ * - 管理成长任务数据（永久累积，不每日重置）
+ * - 推进任务进度
+ * - 发放任务奖励
+ * - 独立存档（不与 DailyMissionManager 共用）
+ *
+ * 不负责：
+ * - 不修改每日任务逻辑
+ * - 不接入 SaveSync（第一阶段）
+ */
+
+import { CoinManager } from './CoinManager';
+import { EnergyManager } from './EnergyManager';
+import { CollectionManager } from './managers/CollectionManager';
+
+// ==================================================
+// 数据类型定义
+// ==================================================
+export type GrowthTaskReward = {
+  type: 'coin' | 'energy';
+  amount: number;
+};
+
+export type GrowthTask = {
+  id: string;
+  title: string;
+  target: number;
+  progress: number;
+  claimed: boolean;
+  reward: GrowthTaskReward;
+};
+
+export type GrowthMissionState = {
+  totalCasts: number;           // 累计钓鱼次数
+  tasks: GrowthTask[];          // 任务列表
+};
+
+// ==================================================
+// 常量定义
+// ==================================================
+const GROWTH_MISSION_KEY = 'fishing_growth_mission_v1';
+
+const DEFAULT_TASKS: GrowthTask[] = [
+  {
+    id: 'growth_cast_10',
+    title: '累计钓鱼 10 次',
+    target: 10,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'coin', amount: 100 },
+  },
+  {
+    id: 'growth_collection_3',
+    title: '解锁 3 个图鉴',
+    target: 3,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'energy', amount: 1 },
+  },
+];
+
+// ==================================================
+// 管理器类
+// ==================================================
+export class GrowthMissionManager {
+  private static _instance: GrowthMissionManager;
+
+  public static get instance() {
+    if (!this._instance) {
+      this._instance = new GrowthMissionManager();
+    }
+    return this._instance;
+  }
+
+  private state: GrowthMissionState | null = null;
+
+  /**
+   * 初始化或加载成长任务存档（幂等）
+   * - 已有内存 state 时直接返回，不重复初始化
+   * - 没有存档则初始化，有存档则加载
+   * - 如存档字段缺失，做安全补齐
+   */
+  init() {
+    // 幂等检查：已有 state 时不重复初始化
+    if (this.state) {
+      return;
+    }
+
+    const saved = this.load();
+
+    if (!saved) {
+      // 新存档，初始化
+      this.state = {
+        totalCasts: 0,
+        tasks: JSON.parse(JSON.stringify(DEFAULT_TASKS)),
+      };
+      this.save();
+      console.log('growth mission initialized');
+    } else {
+      // 读取旧存档，同步配置和缺失字段
+      this.state = saved;
+      this.syncMissingFields();
+      this.syncTaskConfig();
+      this.save();
+    }
+
+    // 同步 growth_cast_10 进度（基于 totalCasts）
+    this.syncCastTaskProgress();
+  }
+
+  /**
+   * 同步缺失字段（旧存档兼容）
+   */
+  private syncMissingFields() {
+    if (!this.state) return;
+
+    // 补 totalCasts 默认值
+    if (this.state.totalCasts === undefined) {
+      this.state.totalCasts = 0;
+    }
+
+    // 补 tasks 默认值
+    if (!this.state.tasks) {
+      this.state.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+    }
+
+    // 确保 tasks 数组包含所有 DEFAULT_TASKS 中的任务
+    const defaultTaskIds = new Set(DEFAULT_TASKS.map(t => t.id));
+    const existingTaskIds = new Set(this.state.tasks.map(t => t.id));
+
+    // 补齐缺失的任务
+    for (const defaultTask of DEFAULT_TASKS) {
+      if (!existingTaskIds.has(defaultTask.id)) {
+        this.state.tasks.push(JSON.parse(JSON.stringify(defaultTask)));
+      }
+    }
+  }
+
+  /**
+   * 同步任务配置（title/target/reward），保留 progress/claimed
+   */
+  private syncTaskConfig() {
+    if (!this.state) return;
+
+    for (const task of this.state.tasks) {
+      const config = DEFAULT_TASKS.find(t => t.id === task.id);
+      if (config) {
+        // 只同步 title、target 和 reward，保留 progress 和 claimed
+        if (task.title !== config.title) {
+          task.title = config.title;
+        }
+        if (task.target !== config.target) {
+          task.target = config.target;
+        }
+        // reward 字段必须显式兜底
+        if (!task.reward) {
+          task.reward = { ...config.reward };
+        } else {
+          // 确保 reward 的 type 和 amount 都存在
+          if (!task.reward.type) {
+            task.reward.type = config.reward.type;
+          }
+          if (task.reward.amount === undefined || task.reward.amount === null) {
+            task.reward.amount = config.reward.amount;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * 获取任务列表
+   */
+  getTasks(): GrowthTask[] {
+    return this.state?.tasks ?? [];
+  }
+
+  /**
+   * 获取累计钓鱼次数
+   */
+  getTotalCasts(): number {
+    return this.state?.totalCasts ?? 0;
+  }
+
+  /**
+   * 推进累计钓鱼次数（growth_cast_10 的唯一推进入口）
+   * - totalCasts += amount
+   * - 同步更新 growth_cast_10 的 progress
+   * - progress = min(totalCasts, target)
+   * @param amount 推进数量（默认 1）
+   */
+  advanceCast(amount: number = 1) {
+    if (!this.state) return;
+
+    // 累计钓鱼次数 +1
+    this.state.totalCasts += amount;
+
+    // 同步 growth_cast_10 任务进度
+    this.syncCastTaskProgress();
+    
+    console.log(`growth cast advanced: totalCasts=${this.state.totalCasts}`);
+    this.save();
+  }
+
+  /**
+   * 推进任务进度（保留，供未来扩展使用）
+   * @param taskId 任务 ID
+   * @param amount 推进数量（默认 1）
+   */
+  advanceTask(taskId: string, amount: number = 1) {
+    if (!this.state) return;
+
+    const task = this.state.tasks.find(t => t.id === taskId);
+    if (task && !task.claimed && task.progress < task.target) {
+      task.progress = Math.min(task.target, task.progress + amount);
+      console.log(`growth task ${taskId} advanced: ${task.progress}/${task.target}`);
+      this.save();
+    }
+  }
+
+  /**
+   * 同步所有任务进度（用于 Tab 切换时）
+   * - 同步 growth_cast_10 的 progress（基于 totalCasts）
+   * - 同步 growth_collection_3 的 progress（基于 CollectionManager）
+   * - 不改 claimed 状态逻辑
+   */
+  syncAllTasks() {
+    if (!this.state) return;
+
+    // 同步 growth_cast_10（基于 totalCasts）
+    this.syncCastTaskProgress();
+
+    // 同步 growth_collection_3（基于 CollectionManager）
+    const collectionTask = this.state.tasks.find(t => t.id === 'growth_collection_3');
+    if (collectionTask && !collectionTask.claimed) {
+      const unlocked = CollectionManager.getSummary().unlocked;
+      collectionTask.progress = Math.min(collectionTask.target, unlocked);
+      console.log(`growth collection task synced: ${collectionTask.progress}/${collectionTask.target}`);
+    }
+
+    this.save();
+  }
+
+  /**
+   * 专用同步方法：同步 growth_cast_10 的进度（基于 totalCasts）
+   * - 在 init() 后、advanceCast() 后、syncAllTasks() 中调用
+   * - 确保 progress 稳定来源于 totalCasts
+   */
+  syncCastTaskProgress() {
+    if (!this.state) return;
+
+    const castTask = this.state.tasks.find(t => t.id === 'growth_cast_10');
+    if (castTask && !castTask.claimed) {
+      castTask.progress = Math.min(castTask.target, this.state.totalCasts);
+      console.log(`growth cast task synced: ${castTask.progress}/${castTask.target} (totalCasts: ${this.state.totalCasts})`);
+    }
+  }
+
+  /**
+   * 同步图鉴任务进度（保留，供兼容使用）
+   * - 在 init() 时调用
+   * - 在 TaskScene 切换到成长任务 Tab 时调用
+   */
+  syncCollectionTask() {
+    if (!this.state) return;
+
+    const collectionTask = this.state.tasks.find(t => t.id === 'growth_collection_3');
+    if (collectionTask && !collectionTask.claimed) {
+      const unlocked = CollectionManager.getSummary().unlocked;
+      collectionTask.progress = Math.min(collectionTask.target, unlocked);
+      console.log(`growth collection task synced: ${collectionTask.progress}/${collectionTask.target}`);
+      this.save();
+    }
+  }
+
+  /**
+   * 从存档加载
+   */
+  private load(): GrowthMissionState | null {
+    const raw = localStorage.getItem(GROWTH_MISSION_KEY);
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw) as GrowthMissionState;
+    } catch (e) {
+      console.error('growth mission load failed:', e);
+      return null;
+    }
+  }
+
+  /**
+   * 保存到存档
+   */
+  private save() {
+    if (!this.state) return;
+    try {
+      localStorage.setItem(GROWTH_MISSION_KEY, JSON.stringify(this.state));
+      console.log('growth mission saved:', this.state);
+    } catch (e) {
+      console.error('growth mission save failed:', e);
+    }
+  }
+
+  /**
+   * 重置（用于测试/清档）
+   */
+  reset() {
+    localStorage.removeItem(GROWTH_MISSION_KEY);
+    this.state = null;
+    console.log('growth mission reset');
+  }
+
+  /**
+   * 领取成长任务奖励
+   * @param taskId 任务 ID
+   * @returns 是否领取成功
+   */
+  claimTaskReward(taskId: string): boolean {
+    if (!this.state) return false;
+
+    const task = this.state.tasks.find(t => t.id === taskId);
+    if (!task) return false;
+
+    // 判断是否可领取：进度达标且未领取
+    if (task.progress < task.target || task.claimed) {
+      return false;
+    }
+
+    // 发放奖励
+    if (task.reward) {
+      if (task.reward.type === 'coin') {
+        CoinManager.instance.addCoins(task.reward.amount);
+        console.log(`growth task reward: +${task.reward.amount} coins`);
+      } else if (task.reward.type === 'energy') {
+        EnergyManager.instance.addEnergy(task.reward.amount);
+        console.log(`growth task reward: +${task.reward.amount} energy`);
+      }
+    }
+
+    // 标记已领取
+    task.claimed = true;
+    this.save();
+
+    console.log(`growth task ${taskId} claimed`);
+    return true;
+  }
+}

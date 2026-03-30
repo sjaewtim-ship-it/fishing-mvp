@@ -3,6 +3,7 @@ import { MainScene } from './game/MainScene';
 import { FishingScene } from './game/FishingScene';
 import { ResultScene } from './game/ResultScene';
 import { CollectionScene } from './game/scenes/CollectionScene';
+import { TaskScene } from './game/scenes/TaskScene';
 import { WeChatHelper } from './game/WeChatHelper';
 import { SaveSync } from './game/SaveSync';
 
@@ -25,7 +26,7 @@ const config: Phaser.Types.Core.GameConfig = {
     width: 750,
     height: 1334,
   },
-  scene: [MainScene, FishingScene, ResultScene, CollectionScene],
+  scene: [MainScene, FishingScene, ResultScene, CollectionScene, TaskScene],
 };
 
 new Phaser.Game(config);

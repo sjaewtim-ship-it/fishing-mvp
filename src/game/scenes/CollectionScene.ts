@@ -67,7 +67,7 @@ export class CollectionScene extends Phaser.Scene {
     this.renderContentContainer(centerX);
     this.renderTabs(centerX, L.tabsY);
     this.renderCards(centerX, L.cardsStartY);
-    this.renderBackButton(centerX, height - 80);
+    this.renderBackButton(centerX, height - 80);  // 参数保留但不再使用（按钮位置已固定）
   }
 
   /**
@@ -81,7 +81,7 @@ export class CollectionScene extends Phaser.Scene {
     headerBg.setOrigin(0.5);
 
     // 标题
-    this.add.text(centerX, L.headerY - 20, '📖 钓鱼图鉴', {
+    this.add.text(centerX, L.headerY - 20, '📖 图鉴', {
       fontSize: '26px',
       color: '#333333',
       fontStyle: 'bold',
@@ -328,18 +328,20 @@ export class CollectionScene extends Phaser.Scene {
   }
 
   /**
-   * 渲染返回按钮
+   * 渲染返回按钮（左上角，轻量级）
    */
   private renderBackButton(centerX: number, y: number) {
-    const btnWidth = 180;
-    const btnHeight = 44;
+    const btnWidth = 88;
+    const btnHeight = 40;
+    const btnX = 60;  // 左上角，安全区域内
+    const btnY = 60;
 
-    const bg = this.add.rectangle(centerX, y, btnWidth, btnHeight, 0xE5E7EB);
+    const bg = this.add.rectangle(btnX, btnY, btnWidth, btnHeight, 0xF2F4F7);
     bg.setInteractive({ useHandCursor: true });
 
-    this.add.text(centerX, y, '返回首页', {
-      fontSize: '20px',
-      color: '#374151',
+    this.add.text(btnX, btnY, '← 返回', {
+      fontSize: '16px',
+      color: '#333333',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 

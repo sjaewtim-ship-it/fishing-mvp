@@ -253,7 +253,7 @@ export class FishingScene extends Phaser.Scene {
     this.subHintText.setText('鱼影和浮漂有明显变化时再拉杆');
 
     // 日常任务：完成钓鱼次数（每次新杆开始）
-    DailyMissionManager.instance.advanceTask('cast_3', 1);
+    DailyMissionManager.instance.advanceTask('cast_5', 1);
 
     this.time.delayedCall(this.config.biteDelayMs, () => {
       if (this.phase !== 'idle') return;

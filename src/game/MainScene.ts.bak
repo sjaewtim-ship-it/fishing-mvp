@@ -7,7 +7,6 @@ import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
 import { AnalyticsManager } from './AnalyticsManager';
 import { DailyMissionManager, type DailyTask } from './DailyMissionManager';
-import { GrowthMissionManager } from './GrowthMissionManager';
 import { EnergyModal } from './EnergyModal';
 import { CollectionManager } from './managers/CollectionManager';
 import { DailyTaskPanel } from './ui/panels/DailyTaskPanel';
@@ -34,7 +33,7 @@ const LAYOUT_SPEC = {
 
   // 间距参数
   resourceToGoalGap: 28,           // 资源区底部到任务区顶部
-  goalToActionGap: 28,             // 任务区底部到开始钓鱼按钮（增加 8px,让主按钮更独立）
+  goalToActionGap: 28,             // 任务区底部到开始钓鱼按钮（增加 8px，让主按钮更独立）
   actionToNavBarGap: 20,           // 开始钓鱼按钮到底部入口栏
   navBarToOceanGap: 20,            // 底部入口栏到海洋背景
 
@@ -91,7 +90,7 @@ const PROGRESS_BAR = {
  * @param colorTop 顶部颜色
  * @param colorBottom 底部颜色
  * @param steps 渐变步数（默认 12）
- * @param highlightAlpha 顶部高光透明度（默认 0.14,0 则无高光）
+ * @param highlightAlpha 顶部高光透明度（默认 0.14，0 则无高光）
  * @returns Graphics 对象
  */
 function drawVerticalGradientRect(
@@ -185,7 +184,7 @@ export class MainScene extends Phaser.Scene {
     const navBarBottomY = navBarY + LAYOUT_SPEC.navBarHeight;
     const oceanY = navBarBottomY + LAYOUT_SPEC.navBarToOceanGap;
 
-    // 动态计算 oceanHeight（沙地固定高度,水域吃满剩余区域）
+    // 动态计算 oceanHeight（沙地固定高度，水域吃满剩余区域）
     const oceanHeight = height - oceanY - LAYOUT_SPEC.sandHeight;
     const sandY = oceanY + oceanHeight;
 
@@ -235,7 +234,7 @@ export class MainScene extends Phaser.Scene {
   private renderBrandSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
 
-    // 云朵装饰（弱化,不抢视觉）
+    // 云朵装饰（弱化，不抢视觉）
     const cloud1 = this.add.text(80, L.brandY + 10, '☁️', { fontSize: '26px' }).setAlpha(0.4);
     const cloud2 = this.add.text(540, L.brandY + 20, '☁️', { fontSize: '22px' }).setAlpha(0.4);
 
@@ -267,7 +266,7 @@ export class MainScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // slogan（与标题拉开间距）
-    this.add.text(x, L.brandY + 96, '看准时机,一杆出货', {
+    this.add.text(x, L.brandY + 96, '看准时机，一杆出货', {
       fontSize: '24px',
       color: '#FFFFFF',
       fontStyle: 'bold',
@@ -277,7 +276,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 2. resourceSection - 资源区（3 卡布局：金币/体力/重量,移动端适配）
+  // 2. resourceSection - 资源区（3 卡布局：金币/体力/重量，移动端适配）
   // ==================================================
   private renderResourceSection(
     L: ReturnType<typeof this.calculateLayout>,
@@ -288,7 +287,7 @@ export class MainScene extends Phaser.Scene {
     const cardH = RESOURCE_CARD.height;
     const gap = RESOURCE_CARD.gap;
 
-    // 动态计算卡片宽度（3 卡等分,基于统一 pagePadding）
+    // 动态计算卡片宽度（3 卡等分，基于统一 pagePadding）
     const cardW = (L.contentWidth - gap * 2) / 3;
 
     // 左对齐位置（基于统一 pagePadding）
@@ -298,7 +297,7 @@ export class MainScene extends Phaser.Scene {
 
     const rowY = L.resourceY + cardH / 2;
 
-    // === 金币卡片（左列,渐变：金色）===
+    // === 金币卡片（左列，渐变：金色）===
     const coinCardX = leftX + cardW / 2;
     drawVerticalGradientRect(this, coinCardX, rowY, cardW, cardH, 0xE6D75A, 0xA89F2E, 12, 0.16);
     this.add.text(leftX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '🪙 金币', {
@@ -316,7 +315,7 @@ export class MainScene extends Phaser.Scene {
       strokeThickness: RESOURCE_CARD.valueStroke,
     }).setOrigin(1, 1);
 
-    // === 体力卡片（中列,渐变：绿色）===
+    // === 体力卡片（中列，渐变：绿色）===
     const energyCardX = midX + cardW / 2;
     drawVerticalGradientRect(this, energyCardX, rowY, cardW, cardH, 0x7ED7B2, 0x3FA37A, 12, 0.14);
     this.add.text(midX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '⚡ 体力', {
@@ -334,7 +333,7 @@ export class MainScene extends Phaser.Scene {
       strokeThickness: RESOURCE_CARD.valueStroke,
     }).setOrigin(1, 1);
 
-    // === 重量卡片（右列,渐变：蓝色,占位展示）===
+    // === 重量卡片（右列，渐变：蓝色，占位展示）===
     const weightCardX = rightX + cardW / 2;
     drawVerticalGradientRect(this, weightCardX, rowY, cardW, cardH, 0x6EC1FF, 0x3B82C4, 12, 0.15);
     this.add.text(rightX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '⚖️ 重量', {
@@ -416,7 +415,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 入口栏 Section - 图鉴/任务/奖励/设置（4 个入口,放在开始钓鱼下方）
+  // 入口栏 Section - 图鉴/任务/奖励/设置（4 个入口，放在开始钓鱼下方）
   // ==================================================
   private renderNavBarSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
@@ -427,7 +426,7 @@ export class MainScene extends Phaser.Scene {
 
     const summary = CollectionManager.getSummary();
 
-    // 4 个入口按钮配置（统一结构：图标 + 文案,无副文案）
+    // 4 个入口按钮配置（统一结构：图标 + 文案，无副文案）
     const navButtons = [
       { key: 'collection', label: '📖 图鉴', onClick: () => {
         SimpleAudio.click();
@@ -439,11 +438,11 @@ export class MainScene extends Phaser.Scene {
       }},
       { key: 'rewards', label: '🎁 奖励', onClick: () => {
         SimpleAudio.click();
-        // 预留入口,暂不实现业务逻辑
+        // 预留入口，暂不实现业务逻辑
       }},
       { key: 'settings', label: '⚙️ 设置', onClick: () => {
         SimpleAudio.click();
-        // 预留入口,暂不实现业务逻辑
+        // 预留入口，暂不实现业务逻辑
       }},
     ];
 
@@ -454,6 +453,11 @@ export class MainScene extends Phaser.Scene {
     const totalWidth = btnWidth * 4 + gap * 3;
     const startX = x - totalWidth / 2 + btnWidth / 2;
 
+    // 底板（浅灰色背景，让按钮不再悬浮）
+    const底板宽度 = totalWidth + 40;  // 左右各 20px 留白
+    const底板高度 = btnHeight + 20;   // 上下各 10px 留白
+    const底板 = this.add.rectangle(x, btnY, 底板宽度，底板高度，0xF5F5F5);
+    底板.setDepth(-1);  // 在按钮下层
 
     navButtons.forEach((btn, index) => {
       const btnX = startX + index * (btnWidth + gap);
@@ -469,7 +473,7 @@ export class MainScene extends Phaser.Scene {
       hitArea.setInteractive({ useHandCursor: true });
       hitArea.on('pointerdown', () => btn.onClick());
 
-      // 主文案（正式视觉：白色文字,垂直居中）
+      // 主文案（正式视觉：白色文字，垂直居中）
       const labelText = this.add.text(btnX, btnY, btn.label, {
         fontSize: '16px',
         color: '#FFFFFF',
@@ -510,7 +514,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 4. actionSection - 主行动区（最终版 CTA 按钮,移动端适配）
+  // 4. actionSection - 主行动区（最终版 CTA 按钮，移动端适配）
   // ==================================================
   private renderActionSection(L: ReturnType<typeof this.calculateLayout>, isFullEnergy: boolean) {
     const x = L.centerX;
@@ -518,11 +522,11 @@ export class MainScene extends Phaser.Scene {
     const startBtnW = 260;
     const startBtnH = 72;
 
-    // 按钮阴影（先绘制,在按钮下方）
+    // 按钮阴影（先绘制，在按钮下方）
     const shadow = this.add.rectangle(x, startBtnY + 6, startBtnW, startBtnH, 0x000000, 0.22);
     shadow.setOrigin(0.5);
 
-    // 按钮背景（渐变：红色系,带顶部高光）
+    // 按钮背景（渐变：红色系，带顶部高光）
     drawVerticalGradientRect(this, x, startBtnY, startBtnW, startBtnH, 0xFF7A7A, 0xFF4D4D, 12, 0.18);
 
     // 按钮文字（增强压强：描边 + 阴影）
@@ -549,12 +553,12 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 5. oceanSection - 简洁背景区（统一为浅蓝色,与主背景一致）
+  // 5. oceanSection - 简洁背景区（统一为浅蓝色，与主背景一致）
   // ==================================================
   private renderOceanSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
 
-    // 简洁背景（浅蓝色,与主背景 #8FD3FF 一致）
+    // 简洁背景（浅蓝色，与主背景 #8FD3FF 一致）
     this.add.rectangle(x, L.oceanY + L.oceanHeight / 2, L.width, L.oceanHeight, 0x8FD3FF);
   }
 
@@ -577,17 +581,13 @@ export class MainScene extends Phaser.Scene {
 
     AnalyticsManager.instance.onStartRound();
     EnergyManager.instance.costEnergy();
-
-    // 推进成长任务进度（累计钓鱼次数）
-    GrowthMissionManager.instance.init();
-    GrowthMissionManager.instance.advanceCast(1);
-
+    
     const energyAfter = EnergyManager.instance.getEnergy();
     console.log('[MainScene] energy after costEnergy:', energyAfter);
-
+    
     SaveSync.save();
     console.log('[MainScene] save called');
-
+    
     this.scene.start('FishingScene', {
       round: DirectorSystem.getRoundNumber(),
     });
@@ -601,7 +601,7 @@ export class MainScene extends Phaser.Scene {
       currentEnergy,
       maxEnergy,
       onRecharge: () => {
-        // 补充体力（本轮模拟,不接真实广告）
+        // 补充体力（本轮模拟，不接真实广告）
         EnergyManager.instance.addEnergy(3);
         SaveSync.save();
         modal.hide();
