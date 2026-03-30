@@ -46,7 +46,7 @@ const GROWTH_MISSION_KEY = 'fishing_growth_mission_v1';
 const DEFAULT_TASKS: GrowthTask[] = [
   {
     id: 'growth_cast_10',
-    title: '累计钓鱼 10 次',
+    title: '累计钓鱼 10 杆',
     target: 10,
     progress: 0,
     claimed: false,
@@ -59,6 +59,30 @@ const DEFAULT_TASKS: GrowthTask[] = [
     progress: 0,
     claimed: false,
     reward: { type: 'energy', amount: 1 },
+  },
+  {
+    id: 'growth_success_5',
+    title: '累计钓到 5 条鱼',
+    target: 5,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'coin', amount: 150 },
+  },
+  {
+    id: 'growth_success_10',
+    title: '累计钓到 10 条鱼',
+    target: 10,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'coin', amount: 300 },
+  },
+  {
+    id: 'growth_cast_30',
+    title: '累计钓鱼 30 杆',
+    target: 30,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'coin', amount: 300 },
   },
 ];
 
@@ -245,17 +269,20 @@ export class GrowthMissionManager {
   }
 
   /**
-   * 专用同步方法：同步 growth_cast_10 的进度（基于 totalCasts）
+   * 专用同步方法：同步所有 growth_cast_* 任务的进度（基于 totalCasts）
    * - 在 init() 后、advanceCast() 后、syncAllTasks() 中调用
    * - 确保 progress 稳定来源于 totalCasts
+   * - 使用前缀匹配，自动覆盖所有 growth_cast_* 任务
    */
   syncCastTaskProgress() {
     if (!this.state) return;
 
-    const castTask = this.state.tasks.find(t => t.id === 'growth_cast_10');
-    if (castTask && !castTask.claimed) {
-      castTask.progress = Math.min(castTask.target, this.state.totalCasts);
-      console.log(`growth cast task synced: ${castTask.progress}/${castTask.target} (totalCasts: ${this.state.totalCasts})`);
+    // 同步所有 growth_cast_* 任务（基于 totalCasts）
+    for (const task of this.state.tasks) {
+      if (task.id.startsWith('growth_cast_') && !task.claimed) {
+        task.progress = Math.min(task.target, this.state.totalCasts);
+        console.log(`growth cast task synced: ${task.id} ${task.progress}/${task.target} (totalCasts: ${this.state.totalCasts})`);
+      }
     }
   }
 

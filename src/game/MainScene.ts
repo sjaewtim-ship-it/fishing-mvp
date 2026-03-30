@@ -578,10 +578,6 @@ export class MainScene extends Phaser.Scene {
     AnalyticsManager.instance.onStartRound();
     EnergyManager.instance.costEnergy();
 
-    // 推进成长任务进度（累计钓鱼次数）
-    GrowthMissionManager.instance.init();
-    GrowthMissionManager.instance.advanceCast(1);
-
     const energyAfter = EnergyManager.instance.getEnergy();
     console.log('[MainScene] energy after costEnergy:', energyAfter);
 

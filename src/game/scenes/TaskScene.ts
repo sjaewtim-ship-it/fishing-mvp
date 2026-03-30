@@ -365,7 +365,10 @@ export class TaskScene extends Phaser.Scene {
     // 成长任务图标
     const growthIconMap: Record<string, string> = {
       'growth_cast_10': '🎣',
+      'growth_cast_30': '🎣',
       'growth_collection_3': '⭐',
+      'growth_success_5': '🐟',
+      'growth_success_10': '🐟',
     };
 
     return dailyIconMap[taskId] || growthIconMap[taskId] || '📋';
@@ -433,20 +436,6 @@ export class TaskScene extends Phaser.Scene {
         this.claimAllText = btnText;
 
         btnBg.on('pointerdown', () => this.onClaimAllRewards());
-      } else {
-        // 引导文案
-        const guideText = this.add.text(centerX, footerY, '继续钓鱼，完成更多任务', {
-          fontSize: '14px',
-          color: '#999999',
-          fontStyle: 'italic',
-        }).setOrigin(0.5);
-
-        // 点击引导文案返回首页
-        guideText.setInteractive({ useHandCursor: true });
-        guideText.on('pointerdown', () => {
-          SimpleAudio.click();
-          this.scene.start('MainScene');
-        });
       }
     } else {
       // 成长任务 tab：只显示静态引导文案

@@ -8,6 +8,7 @@ import { ResultModal } from './ResultModal';
 import { EnergyModal } from './EnergyModal';
 import { EnergyManager } from './EnergyManager';
 import { DailyMissionManager } from './DailyMissionManager';
+import { GrowthMissionManager } from './GrowthMissionManager';
 import { UIConstants } from './UIConstants';
 import { buildRoundResult, type RoundResult } from './types/RoundResult';
 import { CollectionManager } from './managers/CollectionManager';
@@ -254,6 +255,10 @@ export class FishingScene extends Phaser.Scene {
 
     // 日常任务：完成钓鱼次数（每次新杆开始）
     DailyMissionManager.instance.advanceTask('cast_5', 1);
+
+    // 成长任务：累计钓鱼次数（每次真实下杆）
+    GrowthMissionManager.instance.init();
+    GrowthMissionManager.instance.advanceCast(1);
 
     this.time.delayedCall(this.config.biteDelayMs, () => {
       if (this.phase !== 'idle') return;

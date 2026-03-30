@@ -1,4 +1,5 @@
 import { DailyMissionManager } from './DailyMissionManager';
+import { GrowthMissionManager } from './GrowthMissionManager';
 
 export class AnalyticsManager {
   private static _instance: AnalyticsManager;
@@ -26,6 +27,11 @@ export class AnalyticsManager {
     this.lastDropName = dropName;
     // 日常任务：成功钓到鱼
     DailyMissionManager.instance.advanceTask('success_3', 1);
+    // 成长任务：累计钓到 5 条鱼
+    GrowthMissionManager.instance.init();
+    GrowthMissionManager.instance.advanceTask('growth_success_5', 1);
+    // 成长任务：累计钓到 10 条鱼
+    GrowthMissionManager.instance.advanceTask('growth_success_10', 1);
     console.log('analytics:success', this.totalSuccessRounds, dropName);
   }
 
