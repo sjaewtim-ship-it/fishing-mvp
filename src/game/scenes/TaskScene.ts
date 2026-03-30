@@ -19,6 +19,7 @@ import { GrowthMissionManager, type GrowthTask } from '../GrowthMissionManager';
 import { CoinManager } from '../CoinManager';
 import { SaveSync } from '../SaveSync';
 import { SimpleAudio } from '../SimpleAudio';
+import { formatWeight, formatTaskWeightProgress } from '../DropGenerator';
 
 // ==================================================
 // 布局常量
@@ -61,6 +62,10 @@ export class TaskScene extends Phaser.Scene {
   private claimAllButton: Phaser.GameObjects.Container | null = null;
   private claimAllText: Phaser.GameObjects.Text | null = null;
   private activeTab: 'daily' | 'growth' = 'daily';  // 当前激活的 Tab
+  private scrollOffset: number = 0;  // 滚动偏移量（仅成长任务使用）
+  private isDragging: boolean = false;  // 是否正在拖拽
+  private dragStartY: number = 0;  // 拖拽起始 Y 位置
+  private lastScrollOffset: number = 0;  // 上次滚动偏移量
 
   constructor() {
     super('TaskScene');
@@ -73,12 +78,20 @@ export class TaskScene extends Phaser.Scene {
 
     DailyMissionManager.instance.init();
 
-    // 背景
-    this.add.rectangle(centerX, height / 2, width, height, 0xF5F6F8);
+    // 背景（最底层，depth 0）
+    const bg = this.add.rectangle(centerX, height / 2, width, height, 0xF5F6F8);
+    bg.setDepth(0);
 
-    // 创建任务列表容器（用于管理任务卡对象）
+    // 创建任务列表容器（用于管理任务卡对象，depth 10，高于背景）
     this.taskListContainer = this.add.container(0, 0);
     this.taskListContainer.setDepth(10);
+
+    // 创建遮罩区域，限制任务列表滚动范围
+    const listMask = this.add.rectangle(centerX, (LAYOUT_SPEC.listTopY + LAYOUT_SPEC.listBottomY) / 2, 750, LAYOUT_SPEC.listBottomY - LAYOUT_SPEC.listTopY, 0x000000, 0);
+    listMask.setDepth(100);
+
+    // 将 mask 绑定到任务列表容器（关键：真正限制滚动区域）
+    this.taskListContainer.setMask(listMask.createGeometryMask());
 
     // 创建 Tab 头部容器（用于管理 Tab 按钮）
     this.tabsContainer = this.add.container(0, 0);
@@ -89,6 +102,54 @@ export class TaskScene extends Phaser.Scene {
     this.renderTabs(centerX);
     this.renderTaskList(centerX);
     this.renderFooter(centerX);
+
+    // 添加全局指针事件用于滚动（仅成长任务）
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.activeTab === 'growth' && this.taskListContainer) {
+        this.isDragging = true;
+        this.dragStartY = pointer.y;
+        this.lastScrollOffset = this.scrollOffset;
+      }
+    });
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.activeTab === 'growth' && this.isDragging && this.taskListContainer) {
+        const deltaY = pointer.y - this.dragStartY;
+
+        // 点击/拖拽兼容：小位移视为点击，不滚动
+        if (Math.abs(deltaY) < 5) {
+          return;
+        }
+
+        this.scrollOffset = this.lastScrollOffset + deltaY;
+
+        // scroll clamp：限制滚动范围（基于真实内容总高度）
+        const tasks = GrowthMissionManager.instance.getTasks();
+        const tasksHeight = tasks.length * (TASK_CARD.height + TASK_CARD.gap);
+        const guideHeight = 40;  // 底部提示文案高度估算
+        const safeBottomGap = 50;  // 列表底部安全间距
+        const contentHeight = tasksHeight + guideHeight + safeBottomGap;
+        
+        const maxScroll = LAYOUT_SPEC.listTopY;  // 最多滚到顶部
+        const minScroll = LAYOUT_SPEC.listBottomY - contentHeight;  // 最多滚到底部
+        
+        this.scrollOffset = Phaser.Math.Clamp(this.scrollOffset, minScroll, maxScroll);
+
+        this.updateTaskListPosition();
+      }
+    });
+
+    this.input.on('pointerup', () => {
+      this.isDragging = false;
+    });
+  }
+
+  /**
+   * 更新任务列表位置（用于滚动）
+   */
+  private updateTaskListPosition() {
+    if (!this.taskListContainer) return;
+    this.taskListContainer.setY(this.scrollOffset);
   }
 
   // ==================================================
@@ -96,33 +157,38 @@ export class TaskScene extends Phaser.Scene {
   // ==================================================
   private renderHeader(centerX: number) {
     const headerBg = this.add.rectangle(centerX, LAYOUT_SPEC.headerHeight / 2, 750, LAYOUT_SPEC.headerHeight, 0xFFFFFF);
+    headerBg.setDepth(5);  // 高于背景，低于任务卡
     headerBg.setStrokeStyle(1, 0xEEF1F4);
 
     // 返回按钮
     const backBtn = this.add.rectangle(60, LAYOUT_SPEC.headerHeight / 2, 88, 44, 0xF2F4F7);
+    backBtn.setDepth(6);  // 高于 headerBg
     backBtn.setInteractive({ useHandCursor: true });
-    this.add.text(60, LAYOUT_SPEC.headerHeight / 2, '← 返回', {
+    const backBtnText = this.add.text(60, LAYOUT_SPEC.headerHeight / 2, '← 返回', {
       fontSize: '16px',
       color: '#333333',
       fontStyle: 'bold',
     }).setOrigin(0.5);
+    backBtnText.setDepth(6);  // 与 backBtn 同层
     backBtn.on('pointerdown', () => {
       SimpleAudio.click();
       this.scene.start('MainScene');
     });
 
     // 标题
-    this.add.text(centerX, LAYOUT_SPEC.headerHeight / 2 - 6, '📋 任务', {
+    const titleText = this.add.text(centerX, LAYOUT_SPEC.headerHeight / 2 - 6, '📋 任务', {
       fontSize: '24px',
       color: '#333333',
       fontStyle: 'bold',
     }).setOrigin(0.5);
+    titleText.setDepth(6);  // 与 backBtn 同层
 
     // 副标题
-    this.add.text(centerX, LAYOUT_SPEC.headerHeight / 2 + 22, '完成任务，领取奖励', {
+    const subtitleText = this.add.text(centerX, LAYOUT_SPEC.headerHeight / 2 + 22, '完成任务，领取奖励', {
       fontSize: '13px',
       color: '#999999',
     }).setOrigin(0.5);
+    subtitleText.setDepth(6);  // 与 backBtn 同层
   }
 
   // ==================================================
@@ -133,6 +199,13 @@ export class TaskScene extends Phaser.Scene {
     if (this.tabsContainer) {
       this.tabsContainer.removeAll(true);
     }
+
+    // Tab 区白色背景（遮住下方灰色背景，防止遮挡首条任务卡）
+    const tabBgHeight = LAYOUT_SPEC.tabHeight + 8;  // tab 高度 + 底部留白
+    const tabBgY = LAYOUT_SPEC.tabY + tabBgHeight / 2 - 4;  // tabY 向下偏移 4px
+    const tabBg = this.add.rectangle(centerX, tabBgY, 750, tabBgHeight, 0xFFFFFF);
+    tabBg.setDepth(5);  // 与 headerBg 同层，高于背景，低于任务卡
+    this.tabsContainer?.add(tabBg);
 
     const tabWidth = 150;
     const tabHeight = 44;
@@ -154,6 +227,7 @@ export class TaskScene extends Phaser.Scene {
       const textColor = tab.active ? '#FFFFFF' : '#666666';
 
       const bg = this.add.rectangle(x, y, tabWidth, tabHeight, bgColor);
+      bg.setDepth(6);  // 高于 tabBg
       if (!tab.active) {
         bg.setAlpha(0.5);
       }
@@ -164,6 +238,7 @@ export class TaskScene extends Phaser.Scene {
         color: textColor,
         fontStyle: 'bold',
       }).setOrigin(0.5);
+      text.setDepth(6);  // 与 bg 同层
 
       // 将 Tab 元素添加到 tabsContainer
       this.tabsContainer?.add([bg, text]);
@@ -222,6 +297,7 @@ export class TaskScene extends Phaser.Scene {
 
     // ========== 卡片背景（轻增强底板层级）==========
     const cardBg = this.add.rectangle(centerX, y, cardWidth, TASK_CARD.height, 0xFAFBFC);
+    cardBg.setDepth(10);  // 与 taskListContainer 同层，高于背景和 header/tab
     cardBg.setStrokeStyle(1, 0xE0E4E8);
     this.taskListContainer.add(cardBg);
 
@@ -231,6 +307,7 @@ export class TaskScene extends Phaser.Scene {
     const icon = this.add.text(iconX, iconY, this.getTaskIcon(task.id), {
       fontSize: `${TASK_CARD.iconSize}px`,
     }).setOrigin(0.5);
+    icon.setDepth(10);  // 与 cardBg 同层
     this.taskListContainer.add(icon);
 
     const titleX = iconX + TASK_CARD.iconSize / 2 + 14;
@@ -239,12 +316,34 @@ export class TaskScene extends Phaser.Scene {
       color: '#333333',
       fontStyle: 'bold',
     }).setOrigin(0, 0.5);
+    titleText.setDepth(10);  // 与 cardBg 同层
     this.taskListContainer.add(titleText);
 
-    const progressText = this.add.text(titleX, iconY + 16, `${task.progress}/${task.target}`, {
+    // 重量任务特殊格式化进度显示（今日任务 + 成长任务）
+    const isWeightTask = task.id.startsWith('weight_') || task.id.startsWith('growth_weight_');
+    const isBigFishTask = task.id.startsWith('growth_bigfish_');
+    let progressDisplay = `${task.progress}/${task.target}`;
+
+    if (isWeightTask) {
+      // 累计重量任务：使用专门的任务进度格式化函数
+      progressDisplay = formatTaskWeightProgress(task.progress, task.target);
+    } else if (isBigFishTask) {
+      // 大鱼阈值任务：显示达标状态（target=1 是次数，thresholdGrams 才是重量阈值）
+      const thresholdGrams = (task as any).thresholdGrams ?? 0;
+      if (task.progress >= task.target) {
+        progressDisplay = '✓';  // 已完成
+      } else if (thresholdGrams > 0) {
+        progressDisplay = `未达标/${formatWeight(thresholdGrams)}`;  // 未完成，显示目标重量
+      } else {
+        progressDisplay = `${task.progress}/${task.target}`;  // 兜底
+      }
+    }
+
+    const progressText = this.add.text(titleX, iconY + 16, progressDisplay, {
       fontSize: '12px',
       color: '#999999',
     }).setOrigin(0, 0.5);
+    progressText.setDepth(10);  // 与 cardBg 同层
     this.taskListContainer.add(progressText);
 
     // ========== 第二层：进度层 ==========
@@ -256,12 +355,14 @@ export class TaskScene extends Phaser.Scene {
 
     // 进度条背景（灰色底板）
     const barBg = this.add.rectangle(progressBarX, progressBarY, progressBarWidth, PROGRESS_BAR.height, 0xF0F2F5);
+    barBg.setDepth(10);  // 与 cardBg 同层
     barBg.setStrokeStyle(1, 0xE6E8EB);
     this.taskListContainer.add(barBg);
 
     // 进度条填充（从左向右增长）
     const fillWidth = progressBarWidth * progress;
     const barFill = this.add.rectangle(pagePadding + fillWidth / 2, progressBarY, fillWidth, PROGRESS_BAR.height, 0x5FA9F9);
+    barFill.setDepth(10);  // 与 cardBg 同层
     this.taskListContainer.add(barFill);
 
     // ========== 第三层：操作层 ==========
@@ -278,6 +379,7 @@ export class TaskScene extends Phaser.Scene {
     }
 
     const btnBg = this.add.rectangle(btnX, btnY, btnWidth, btnHeight, this.getButtonColor(buttonState));
+    btnBg.setDepth(10);  // 与 cardBg 同层
     btnBg.setStrokeStyle(1, 0xD0D5DB);
     this.taskListContainer.add(btnBg);
 
@@ -286,6 +388,7 @@ export class TaskScene extends Phaser.Scene {
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5);
+    btnText.setDepth(10);  // 与 cardBg 同层
     this.taskListContainer.add(btnText);
 
     // 保存按钮引用
@@ -439,10 +542,24 @@ export class TaskScene extends Phaser.Scene {
       }
     } else {
       // 成长任务 tab：只显示静态引导文案
-      const guideText = this.add.text(centerX, footerY - 8, '持续钓鱼，完成更多成长目标', {
+      // 计算最后一条任务卡片的位置（基于真实渲染高度）
+      const tasks = GrowthMissionManager.instance.getTasks();
+      const lastTaskIndex = tasks.length - 1;
+      const lastTaskY = LAYOUT_SPEC.listTopY + lastTaskIndex * (TASK_CARD.height + TASK_CARD.gap);
+      const lastTaskBottom = lastTaskY + TASK_CARD.height / 2;  // 任务卡片真实底部
+
+      // 引导文案与最后一条任务卡片下边缘保持 25px 距离
+      const guideY = lastTaskBottom + 25;
+
+      const guideText = this.add.text(centerX, guideY, '持续钓鱼，完成更多成长目标', {
         fontSize: '14px',
         color: '#8A8F98',
       }).setOrigin(0.5);
+
+      // 添加到任务列表容器，随列表一起滚动
+      if (this.taskListContainer) {
+        this.taskListContainer.add(guideText);
+      }
 
       // 点击引导文案返回首页
       guideText.setInteractive({ useHandCursor: true });
@@ -523,6 +640,10 @@ export class TaskScene extends Phaser.Scene {
       this.taskListContainer.removeAll(true);
     }
     this.taskButtons = [];
+
+    // 切换 Tab 时重置滚动偏移量
+    this.scrollOffset = 0;
+    this.updateTaskListPosition();
 
     const centerX = (this.scale.width as number) / 2;
     const pagePadding = LAYOUT_SPEC.pagePadding;

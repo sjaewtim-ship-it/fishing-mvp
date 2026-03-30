@@ -9,9 +9,12 @@ import { AnalyticsManager } from './AnalyticsManager';
 import { DailyMissionManager, type DailyTask } from './DailyMissionManager';
 import { GrowthMissionManager } from './GrowthMissionManager';
 import { EnergyModal } from './EnergyModal';
+import { SettingsModal } from './ui/SettingsModal';
 import { CollectionManager } from './managers/CollectionManager';
 import { DailyTaskPanel } from './ui/panels/DailyTaskPanel';
 import { TaskItem, type TaskItemData } from './ui/components/TaskItem';
+import { formatWeight } from './DropGenerator';
+import { StorageManager } from './StorageManager';
 
 // ==================================================
 // 首页统一 layoutSpec - 管理所有 section 的纵向布局
@@ -142,6 +145,7 @@ export class MainScene extends Phaser.Scene {
   // UI 引用
   private coinText!: Phaser.GameObjects.Text;
   private energyText!: Phaser.GameObjects.Text;
+  private weightText!: Phaser.GameObjects.Text;  // 累计重量文本
   private taskPanel: DailyTaskPanel | null = null;
 
   // 目标奖励金额（V1 局部常量）
@@ -159,7 +163,7 @@ export class MainScene extends Phaser.Scene {
     super('MainScene');
   }
 
-  private calculateLayout() {
+  private calculateLayout(taskCount: number = 3) {
     const width = Number(this.scale.width) || 750;
     const height = Number(this.scale.height) || 1334;
     const centerX = width / 2;
@@ -167,8 +171,7 @@ export class MainScene extends Phaser.Scene {
     // 动态计算 contentWidth（基于统一 pagePadding）
     const contentWidth = width - LAYOUT_SPEC.pagePadding * 2;
 
-    // 动态计算 taskPanelHeight（基于 3 条任务）
-    const taskCount = 3;  // 默认 3 条任务
+    // 动态计算 taskPanelHeight（基于实际任务数量，与 DailyTaskPanel.calculatePanelHeight 逻辑一致）
     const tasksHeight = taskCount * LAYOUT_SPEC.taskHeight;
     const gapsHeight = (taskCount - 1) * LAYOUT_SPEC.taskRowGap;
     const taskContentHeight = LAYOUT_SPEC.taskStartY + tasksHeight + gapsHeight;
@@ -178,7 +181,7 @@ export class MainScene extends Phaser.Scene {
     // 链式计算各 section Y 位置
     const resourceBottomY = LAYOUT_SPEC.resourceY + LAYOUT_SPEC.resourceHeight;
     const goalY = resourceBottomY + LAYOUT_SPEC.resourceToGoalGap;
-    const goalBottomY = goalY + goalHeight;
+    const goalBottomY = goalY + goalHeight;  // 使用与 DailyTaskPanel 一致的真实高度
     const actionY = goalBottomY + LAYOUT_SPEC.goalToActionGap;
     const actionBottomY = actionY + LAYOUT_SPEC.actionHeight;
     const navBarY = actionBottomY + LAYOUT_SPEC.actionToNavBarGap;
@@ -211,24 +214,60 @@ export class MainScene extends Phaser.Scene {
 
 
   create() {
-    const L = this.calculateLayout();
     const coins = CoinManager.instance.getCoins();
     const energy = EnergyManager.instance.getEnergy();
     const maxEnergy = EnergyManager.instance.getMaxEnergy();
+    const totalFishWeight = StorageManager.instance.getTotalFishWeightGrams();
 
     DailyMissionManager.instance.init();
+
+    // 获取实际任务数量，用于计算真实布局高度
+    const tasks = DailyMissionManager.instance.getTasks();
+    const taskCount = tasks.length;
+    const L = this.calculateLayout(taskCount);
 
     this.cameras.main.setBackgroundColor('#8FD3FF');
 
     // === 渲染 5 个 section ===
     this.renderBrandSection(L);
-    this.renderResourceSection(L, coins, energy, maxEnergy);
+    this.renderResourceSection(L, coins, energy, maxEnergy, totalFishWeight);
     this.renderGoalSection(L);
     this.renderActionSection(L, energy >= maxEnergy);
     this.renderNavBarSection(L);
     this.renderOceanSection(L);
   }
 
+  /**
+   * wake 事件：从其他场景返回时刷新数据
+   */
+  wake() {
+    const coins = CoinManager.instance.getCoins();
+    const energy = EnergyManager.instance.getEnergy();
+    const maxEnergy = EnergyManager.instance.getMaxEnergy();
+    const totalFishWeight = StorageManager.instance.getTotalFishWeightGrams();
+
+    // 刷新资源区显示
+    this.refreshWeightUI();
+    
+    // 刷新金币和体力显示（如果需要）
+    if (this.coinText) {
+      this.coinText.setText(String(coins));
+    }
+    if (this.energyText) {
+      this.energyText.setText(`${energy}/${maxEnergy}`);
+    }
+  }
+
+
+  /** 刷新累计重量显示 */
+  private refreshWeightUI() {
+    const totalFishWeight = StorageManager.instance.getTotalFishWeightGrams();
+    if (this.weightText) {
+      // 首页累计重量卡单独兜底：0 时显示 0kg，不显示空白
+      const weightDisplayText = totalFishWeight > 0 ? formatWeight(totalFishWeight) : '0kg';
+      this.weightText.setText(weightDisplayText);
+    }
+  }
   // ==================================================
   // 1. brandSection - 顶部品牌区（增加呼吸感）
   // ==================================================
@@ -283,7 +322,8 @@ export class MainScene extends Phaser.Scene {
     L: ReturnType<typeof this.calculateLayout>,
     coins: number,
     energy: number,
-    maxEnergy: number
+    maxEnergy: number,
+    totalFishWeight: number
   ) {
     const cardH = RESOURCE_CARD.height;
     const gap = RESOURCE_CARD.gap;
@@ -334,17 +374,19 @@ export class MainScene extends Phaser.Scene {
       strokeThickness: RESOURCE_CARD.valueStroke,
     }).setOrigin(1, 1);
 
-    // === 重量卡片（右列,渐变：蓝色,占位展示）===
+    // === 重量卡片（右列,渐变：蓝色,显示累计重量）===
     const weightCardX = rightX + cardW / 2;
     drawVerticalGradientRect(this, weightCardX, rowY, cardW, cardH, 0x6EC1FF, 0x3B82C4, 12, 0.15);
-    this.add.text(rightX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '⚖️ 重量', {
+    this.add.text(rightX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '⚖️ 累计重量', {
       fontSize: RESOURCE_CARD.labelSize,
       color: '#EAF6FF',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: RESOURCE_CARD.labelStroke,
     }).setOrigin(0, 0);
-    this.add.text(rightX + cardW - RESOURCE_CARD.paddingX, rowY + cardH / 2 - 6, '-- kg', {
+    // 首页累计重量卡单独兜底：0 时显示 0kg，不显示空白
+    const weightDisplayText = totalFishWeight > 0 ? formatWeight(totalFishWeight) : '0kg';
+    this.weightText = this.add.text(rightX + cardW - RESOURCE_CARD.paddingX, rowY + cardH / 2 - 6, weightDisplayText, {
       fontSize: RESOURCE_CARD.valueSize,
       color: RESOURCE_CARD.valueColor,
       fontStyle: 'bold',
@@ -416,7 +458,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   // ==================================================
-  // 入口栏 Section - 图鉴/任务/奖励/设置（4 个入口,放在开始钓鱼下方）
+  // 入口栏 Section - 图鉴/任务/设置（3 个入口,放在开始钓鱼下方）
   // ==================================================
   private renderNavBarSection(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
@@ -427,7 +469,7 @@ export class MainScene extends Phaser.Scene {
 
     const summary = CollectionManager.getSummary();
 
-    // 4 个入口按钮配置（统一结构：图标 + 文案,无副文案）
+    // 3 个入口按钮配置（统一结构：图标 + 文案，无副文案）
     const navButtons = [
       { key: 'collection', label: '📖 图鉴', onClick: () => {
         SimpleAudio.click();
@@ -437,22 +479,20 @@ export class MainScene extends Phaser.Scene {
         SimpleAudio.click();
         this.scene.start('TaskScene');
       }},
-      { key: 'rewards', label: '🧧 福利', onClick: () => {
-        SimpleAudio.click();
-        // 预留入口,暂不实现业务逻辑
-      }},
       { key: 'settings', label: '⚙️ 设置', onClick: () => {
         SimpleAudio.click();
-        // 预留入口,暂不实现业务逻辑
+        new SettingsModal(this).show();
       }},
     ];
 
-    // 计算布局（缩小至约 80%）
+
+
+    // 计算布局（3 个按钮，保持等间距，整体居中）
     const btnWidth = 120;                // 原 150 → 120
     const btnHeight = 42;                // 原 50 → 42
     const gap = 12;
-    const totalWidth = btnWidth * 4 + gap * 3;
-    const startX = x - totalWidth / 2 + btnWidth / 2;
+    const totalWidth = btnWidth * 3 + gap * 2;  // 3 个按钮，2 个间距
+    const startX = x - totalWidth / 2 + btnWidth / 2;  // 整体居中
 
 
     navButtons.forEach((btn, index) => {

@@ -60,6 +60,9 @@ export interface RoundResult {
 
   /** 高亮文案（用于分享/爆点） */
   highlightText: string;
+
+  /** 鱼的重量（克），仅鱼类掉落时有值 */
+  weightGrams?: number;
 }
 
 /**
@@ -72,7 +75,7 @@ export interface RoundResult {
  * @returns RoundResult
  */
 export function buildRoundResult(
-  drop: { name: string; type: string; reward: number; flavor?: string } | null,
+  drop: { name: string; type: string; reward: number; flavor?: string; weightGrams?: number } | null,
   perfect: boolean,
   combo: number,
   failReason?: 'early' | 'too_early' | 'late'
@@ -92,6 +95,7 @@ export function buildRoundResult(
       canRevive: failReason === 'early' || failReason === 'late',
       canDoubleReward: false,
       highlightText: '',
+      weightGrams: undefined,
     };
   }
 
@@ -127,6 +131,7 @@ export function buildRoundResult(
     canRevive: false,
     canDoubleReward: rarity === 'rare' || rarity === 'epic' || rarity === 'legendary',
     highlightText,
+    weightGrams: drop.weightGrams,
   };
 }
 

@@ -15,6 +15,7 @@
 import { CoinManager } from './CoinManager';
 import { EnergyManager } from './EnergyManager';
 import { CollectionManager } from './managers/CollectionManager';
+import { StorageManager } from './StorageManager';
 
 // ==================================================
 // 数据类型定义
@@ -31,6 +32,7 @@ export type GrowthTask = {
   progress: number;
   claimed: boolean;
   reward: GrowthTaskReward;
+  thresholdGrams?: number;  // 大鱼阈值任务的重量阈值（克）
 };
 
 export type GrowthMissionState = {
@@ -83,6 +85,50 @@ const DEFAULT_TASKS: GrowthTask[] = [
     progress: 0,
     claimed: false,
     reward: { type: 'coin', amount: 300 },
+  },
+  // 重量累计任务
+  {
+    id: 'growth_weight_10kg',
+    title: '累计钓到 10kg 鱼',
+    target: 10000,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'coin', amount: 200 },
+  },
+  {
+    id: 'growth_weight_50kg',
+    title: '累计钓到 50kg 鱼',
+    target: 50000,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'energy', amount: 2 },
+  },
+  {
+    id: 'growth_weight_100kg',
+    title: '累计钓到 100kg 鱼',
+    target: 100000,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'coin', amount: 500 },
+  },
+  // 大鱼阈值任务
+  {
+    id: 'growth_bigfish_1kg',
+    title: '钓到 1 条超过 1kg 的鱼',
+    target: 1,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'coin', amount: 150 },
+    thresholdGrams: 1000,  // 1kg
+  },
+  {
+    id: 'growth_bigfish_3kg',
+    title: '钓到 1 条超过 3kg 的鱼',
+    target: 1,
+    progress: 0,
+    claimed: false,
+    reward: { type: 'energy', amount: 1 },
+    thresholdGrams: 3000,  // 3kg
   },
 ];
 
@@ -224,9 +270,48 @@ export class GrowthMissionManager {
 
     // 同步 growth_cast_10 任务进度
     this.syncCastTaskProgress();
-    
+
     console.log(`growth cast advanced: totalCasts=${this.state.totalCasts}`);
     this.save();
+  }
+
+  /**
+   * 同步重量累计任务进度（从 StorageManager 真源全量同步）
+   * growth_weight_* 只由 totalFishWeightGrams 决定
+   * 禁止使用 task.progress += weightGrams 或 task.progress = weightGrams
+   */
+  syncWeightTasksFromStorage() {
+    if (!this.state) return;
+
+    // 从 StorageManager 读取真源数据
+    const totalWeight = StorageManager.instance.getTotalFishWeightGrams();
+
+    for (const task of this.state.tasks) {
+      if (task.id.startsWith('growth_weight_') && !task.claimed) {
+        task.progress = Math.min(task.target, totalWeight);
+        console.log(`growth weight task synced: ${task.id} ${task.progress}/${task.target} (totalWeight: ${totalWeight}g)`);
+      }
+    }
+  }
+
+  /**
+   * 同步大鱼阈值任务进度（基于当前这条鱼的 weightGrams）
+   * growth_bigfish_* 只由当前这条鱼的 weightGrams 和 thresholdGrams 决定
+   * @param weightGrams 本次钓到的鱼重量（克）
+   */
+  syncBigFishTasksFromCurrentCatch(weightGrams: number) {
+    if (!this.state || weightGrams <= 0) return;
+
+    for (const task of this.state.tasks) {
+      if (task.id.startsWith('growth_bigfish_') && !task.claimed) {
+        // 大鱼阈值任务：使用 thresholdGrams 判断，progress 为 0/1
+        const thresholdGrams = task.thresholdGrams ?? 0;
+        if (thresholdGrams > 0 && weightGrams >= thresholdGrams) {
+          task.progress = 1;
+          console.log(`growth big fish task completed: ${task.id} (${weightGrams}g >= ${thresholdGrams}g)`);
+        }
+      }
+    }
   }
 
   /**
@@ -249,6 +334,7 @@ export class GrowthMissionManager {
    * 同步所有任务进度（用于 Tab 切换时）
    * - 同步 growth_cast_10 的 progress（基于 totalCasts）
    * - 同步 growth_collection_3 的 progress（基于 CollectionManager）
+   * - 同步 growth_weight_* 的 progress（基于 StorageManager 真源）
    * - 不改 claimed 状态逻辑
    */
   syncAllTasks() {
@@ -264,6 +350,9 @@ export class GrowthMissionManager {
       collectionTask.progress = Math.min(collectionTask.target, unlocked);
       console.log(`growth collection task synced: ${collectionTask.progress}/${collectionTask.target}`);
     }
+
+    // 同步 growth_weight_*（基于 StorageManager 真源）← 新增：修复累计重量被覆盖
+    this.syncWeightTasksFromStorage();
 
     this.save();
   }

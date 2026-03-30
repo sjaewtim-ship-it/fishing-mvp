@@ -24,6 +24,11 @@ type SaveData = {
   };
   collectionProgress?: Record<string, { unlocked: boolean; catchCount: number }>;
   _version?: number;
+  // 鱼的重量统计（新增）
+  totalFishWeightGrams?: number;
+  todayFishWeightGrams?: number;
+  bestSingleFishWeightGrams?: number;
+  todayFishWeightDate?: string;  // 今日重量统计日期（用于跨天重置）
 };
 
 const SAVE_KEY = 'fishing_mvp_save_v3';
@@ -47,6 +52,11 @@ const DEFAULT_SAVE: SaveData = {
   recentLegendCooldown: 0,
   collectionProgress: {},
   _version: SAVE_VERSION,
+  // 鱼的重量统计默认值
+  totalFishWeightGrams: 0,
+  todayFishWeightGrams: 0,
+  bestSingleFishWeightGrams: 0,
+  todayFishWeightDate: undefined,
 };
 
 export class StorageManager {
@@ -116,6 +126,20 @@ export class StorageManager {
     }
     if (typeof data._version === 'number') recovered._version = data._version;
 
+    // 鱼的重量统计（新增字段，兼容旧存档）
+    if (typeof data.totalFishWeightGrams === 'number' && data.totalFishWeightGrams >= 0) {
+      recovered.totalFishWeightGrams = data.totalFishWeightGrams;
+    }
+    if (typeof data.todayFishWeightGrams === 'number' && data.todayFishWeightGrams >= 0) {
+      recovered.todayFishWeightGrams = data.todayFishWeightGrams;
+    }
+    if (typeof data.bestSingleFishWeightGrams === 'number' && data.bestSingleFishWeightGrams >= 0) {
+      recovered.bestSingleFishWeightGrams = data.bestSingleFishWeightGrams;
+    }
+    if (typeof data.todayFishWeightDate === 'string') {
+      recovered.todayFishWeightDate = data.todayFishWeightDate;
+    }
+
     return recovered;
   }
 
@@ -155,5 +179,74 @@ export class StorageManager {
     localStorage.removeItem(SAVE_KEY);
     this.clearShareRewardClaims();
     console.log('save cleared');
+  }
+
+  /**
+   * 获取累计鱼重量（克）
+   */
+  getTotalFishWeightGrams(): number {
+    const data = this.load();
+    return data?.totalFishWeightGrams ?? 0;
+  }
+
+  /**
+   * 获取今日鱼重量（克）（跨天自动重置）
+   */
+  getTodayFishWeightGrams(): number {
+    const data = this.load();
+    this.ensureTodayFishWeightDate(data);
+    return data?.todayFishWeightGrams ?? 0;
+  }
+
+  /**
+   * 获取单条最重鱼重量（克）
+   */
+  getBestSingleFishWeightGrams(): number {
+    const data = this.load();
+    return data?.bestSingleFishWeightGrams ?? 0;
+  }
+
+  /**
+   * 增加鱼重量（唯一入口，同时更新所有累计字段）
+   * @param weightGrams 鱼的重量（克）
+   */
+  addFishWeight(weightGrams: number) {
+    if (weightGrams <= 0) return;
+
+    const data = this.load() || { ...DEFAULT_SAVE };
+
+    // 跨天重置检查
+    this.ensureTodayFishWeightDate(data);
+
+    // 兜底处理，避免 NaN
+    data.totalFishWeightGrams = (data.totalFishWeightGrams ?? 0) + weightGrams;
+    data.todayFishWeightGrams = (data.todayFishWeightGrams ?? 0) + weightGrams;
+    data.bestSingleFishWeightGrams = Math.max(data.bestSingleFishWeightGrams ?? 0, weightGrams);
+
+    this.save(data);
+    console.log(`fish weight added: ${weightGrams}g, total: ${data.totalFishWeightGrams}g, today: ${data.todayFishWeightGrams}g, best: ${data.bestSingleFishWeightGrams}g`);
+  }
+
+  /**
+   * 确保今日重量统计日期正确（跨天自动重置）
+   * @param data 存档数据
+   */
+  private ensureTodayFishWeightDate(data: SaveData) {
+    const today = this.getTodayDate();
+
+    if (data.todayFishWeightDate !== today) {
+      // 新的一天，重置今日重量
+      data.todayFishWeightGrams = 0;
+      data.todayFishWeightDate = today;
+      console.log(`today fish weight reset: ${today}`);
+    }
+  }
+
+  /**
+   * 获取今日日期字符串
+   */
+  private getTodayDate(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
   }
 }

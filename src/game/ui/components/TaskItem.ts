@@ -20,6 +20,7 @@
 import Phaser from 'phaser';
 import { TASK_PANEL, TASK_ITEM } from '../layout/HomeLayout';
 import { ProgressBar } from './ProgressBar';
+import { formatTaskWeightProgress } from '../../DropGenerator';
 
 export type TaskItemState = 'todo' | 'claimable' | 'claimed';
 
@@ -109,7 +110,13 @@ export class TaskItem {
     this.container.add(this.titleText);
 
     // 进度数字（第一行，右上角 origin，与标题同一行）
-    const progressValueText = scene.add.text(rewardX, progressValueY, `${data.progress}/${data.target}`, {
+    // 重量任务特殊格式化：使用 kg 单位显示（通过 task id 判断）
+    const isWeightTask = data.title.startsWith('今日累计') || data.title.includes('累计') && data.title.includes('鱼');
+    const progressValueText = scene.add.text(rewardX, progressValueY, 
+      isWeightTask 
+        ? formatTaskWeightProgress(data.progress, data.target)
+        : `${data.progress}/${data.target}`, 
+      {
       fontSize: '11px',
       color: '#999999',
       fontStyle: 'normal',

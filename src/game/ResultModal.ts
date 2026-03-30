@@ -3,6 +3,7 @@ import { SimpleAudio } from './SimpleAudio';
 import { VisualMap } from './VisualMap';
 import type { DropItem } from './DropGenerator';
 import type { RoundResult } from './types/RoundResult';
+import { formatWeight } from './DropGenerator';
 import { ShareManager } from './ShareManager';
 import { SaveSync } from './SaveSync';
 import { CoinManager } from './CoinManager';
@@ -640,8 +641,21 @@ export class ResultModal {
     }).setOrigin(0.5);
     this.container!.add(this.nameText);
 
+    // 鱼的重量（仅鱼类显示）
+    const weightGrams = roundResult?.weightGrams ?? drop.weightGrams;
+    let weightText: Phaser.GameObjects.Text | undefined;
+    if (weightGrams && weightGrams > 0) {
+      const weightY = nameY + 42;
+      weightText = this.scene.add.text(cardX, weightY, formatWeight(weightGrams), {
+        fontSize: '18px',
+        color: '#8B9DC3',
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+      this.container!.add(weightText);
+    }
+
     // 奖励金币
-    const rewardY = nameY + 42;
+    const rewardY = weightText ? (weightText.getBounds().bottom + 10) : (nameY + 42);
     const coins = roundResult?.finalCoins ?? drop.reward;
     this.rewardText = this.scene.add.text(cardX, rewardY, `+${coins} 金币`, {
       fontSize: '20px',

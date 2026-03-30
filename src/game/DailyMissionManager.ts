@@ -15,12 +15,15 @@ export type DailyMissionState = {
   rewardClaimed: boolean;
   streakDays: number;        // 连续完成天数
   lastCompletedDate: string; // 上次完成的日期字符串
+  todayFishWeightGrams: number;  // 今日累计鱼重量（克）
 };
 
 const DEFAULT_TASKS: DailyTask[] = [
   { id: 'cast_5', title: '钓鱼 5 杆', target: 5, progress: 0, claimed: false },
   { id: 'success_3', title: '钓到 3 条鱼', target: 3, progress: 0, claimed: false },
   { id: 'quality_1', title: '钓到 1 条高品质鱼', target: 1, progress: 0, claimed: false },
+  { id: 'weight_1000', title: '今日累计 1000g 鱼', target: 1000, progress: 0, claimed: false },
+  { id: 'weight_3000', title: '今日累计 3000g 鱼', target: 3000, progress: 0, claimed: false },
 ];
 
 const DAILY_MISSION_KEY = 'fishing_daily_mission_v1';
@@ -57,6 +60,7 @@ export class DailyMissionManager {
         rewardClaimed: false,
         streakDays: 0,
         lastCompletedDate: '',
+        todayFishWeightGrams: 0,
       };
       this.save();
       console.log('daily mission reset for new day:', today);
@@ -65,7 +69,16 @@ export class DailyMissionManager {
       this.state = saved;
       this.syncStreakConfig();
       this.syncTaskConfig();
+      this.syncTodayWeightConfig();
       this.save();
+    }
+  }
+
+  /** 同步今日重量字段（旧存档兼容） */
+  private syncTodayWeightConfig() {
+    if (!this.state) return;
+    if (this.state.todayFishWeightGrams === undefined) {
+      this.state.todayFishWeightGrams = 0;
     }
   }
 
@@ -166,6 +179,34 @@ export class DailyMissionManager {
       this.checkAllCompleted();
       this.save();
     }
+  }
+
+  /**
+   * 同步今日重量任务进度（从 StorageManager 真源全量同步）
+   * 只允许基于 StorageManager.instance.getTodayFishWeightGrams() 同步 progress
+   * 禁止使用 task.progress += weightGrams 或 task.progress = weightGrams
+   */
+  syncWeightTasksFromStorage() {
+    if (!this.state) return;
+
+    // 从 StorageManager 同步今日累计重量（真源）
+    const todayWeight = StorageManager.instance.getTodayFishWeightGrams();
+
+    // 同步重量任务进度（基于 StorageManager 的真源数据）
+    const weightTasks = this.state.tasks.filter(t => t.id.startsWith('weight_') && !t.claimed);
+    for (const task of weightTasks) {
+      task.progress = Math.min(task.target, todayWeight);
+      console.log(`weight task ${task.id} synced: ${task.progress}/${task.target} (todayWeight: ${todayWeight}g)`);
+    }
+
+    // 检查是否全部完成
+    this.checkAllCompleted();
+    this.save();
+  }
+
+  /** 获取今日累计鱼重量（克）（从 StorageManager 读取真源） */
+  getTodayFishWeightGrams(): number {
+    return StorageManager.instance.getTodayFishWeightGrams();
   }
 
   /** 检查是否全部完成 */
