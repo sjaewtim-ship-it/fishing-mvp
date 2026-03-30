@@ -437,7 +437,7 @@ export class MainScene extends Phaser.Scene {
         SimpleAudio.click();
         this.scene.start('TaskScene');
       }},
-      { key: 'rewards', label: '🎁 奖励', onClick: () => {
+      { key: 'rewards', label: '🧧 福利', onClick: () => {
         SimpleAudio.click();
         // 预留入口,暂不实现业务逻辑
       }},

@@ -187,6 +187,16 @@ export class ResultModal {
   }
 
   /**
+   * 获取稀有度对应的背景光晕颜色（用于成功态卡片氛围）
+   */
+  private getRarityGlowColor(rarity: string): number {
+    if (rarity.includes('SSR')) return 0xFFD700;  // 金色
+    if (rarity.includes('SR')) return 0xBA55D3;   // 紫色
+    if (rarity.includes('R')) return 0x4CAF50;    // 绿色
+    return 0x64B5F6;  // 普通蓝色
+  }
+
+  /**
    * 映射 RoundResult.rarity 到展示文本（兼容式，结合 drop 保持产品语义）
    * 优先使用 RoundResult 的统一稀有度，保留旧逻辑兜底
    */
@@ -396,9 +406,9 @@ export class ResultModal {
     this.container.add(mask);
 
     // === 弹窗主卡 ===
-    // 成功态和失败态统一高度
+    // 成功态和失败态统一高度（增加高度以容纳内容区）
     const cardWidth = 600;
-    const cardHeight = 560;
+    const cardHeight = 680;  // 从 560 增加到 680，容纳 4 个 section
     const cardX = L.centerX;
     const cardY = L.centerY;
 
@@ -412,71 +422,54 @@ export class ResultModal {
       this.renderSuccessContent(cardX, cardY, cardHeight);
     }
 
-    // === 按钮区（统一）===
-    // 主按钮：中心线下方 80px
-    this.primaryBtnY = cardY + 80;
-    const primaryBtnWidth = 400;
-    const primaryBtnHeight = 84;
-    const primaryBtnText = resultType === 'fail' ? '再来一杆' : '继续钓鱼';
-    const primaryBtnColor = resultType === 'fail' ? 0xFF6B6B : 0x4CAF50;
+    // === 按钮区（统一，仅失败态需要，成功态在 renderSuccessContent 内处理）===
+    if (resultType === 'fail') {
+      // 失败态按钮区：中心线下方
+      this.primaryBtnY = cardY + 80;
+      const primaryBtnWidth = 400;
+      const primaryBtnHeight = 84;
+      const primaryBtnText = '再来一杆';
+      const primaryBtnColor = 0xFF6B6B;
 
-    const primaryBtn = this.scene.add.rectangle(cardX, this.primaryBtnY, primaryBtnWidth, primaryBtnHeight, primaryBtnColor)
-      .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(2, 0xFFFFFF);
-    this.container.add(primaryBtn);
-
-    const primaryBtnTextObj = this.scene.add.text(cardX, this.primaryBtnY, primaryBtnText, {
-      fontSize: '32px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-    this.container.add(primaryBtnTextObj);
-
-    primaryBtn.on('pointerdown', () => {
-      SimpleAudio.click();
-      onContinue();
-    });
-
-    // 分享按钮：主按钮下方，返回按钮上方（仅成功态显示）
-    if (resultType === 'success') {
-      this.shareBtnY = this.primaryBtnY + 95;
-      
-      const shareBtnWidth = 280;
-      const shareBtnHeight = 60;
-      
-      const shareBtn = this.scene.add.rectangle(cardX, this.shareBtnY, shareBtnWidth, shareBtnHeight, 0x9b59b6)
+      const primaryBtn = this.scene.add.rectangle(cardX, this.primaryBtnY, primaryBtnWidth, primaryBtnHeight, primaryBtnColor)
         .setInteractive({ useHandCursor: true })
         .setStrokeStyle(2, 0xFFFFFF);
-      this.container.add(shareBtn);
-      
-      const shareBtnText = this.scene.add.text(cardX, this.shareBtnY, '分享战绩 🎁', {
-        fontSize: '28px',
+
+      const primaryBtnShadow = this.scene.add.rectangle(cardX, this.primaryBtnY + 4, primaryBtnWidth, primaryBtnHeight, 0x000000, 0.15);
+      this.container.add(primaryBtnShadow);
+      this.container.add(primaryBtn);
+
+      const primaryBtnTextObj = this.scene.add.text(cardX, this.primaryBtnY, primaryBtnText, {
+        fontSize: '32px',
         color: '#FFFFFF',
         fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2,
       }).setOrigin(0.5);
-      this.container.add(shareBtnText);
-      
-      shareBtn.on('pointerdown', () => {
-        this.handleShareClick(cardX, cardY, cardWidth);
+      this.container.add(primaryBtnTextObj);
+
+      primaryBtn.on('pointerdown', () => {
+        SimpleAudio.click();
+        onContinue();
+      });
+
+      // 返回按钮
+      const backBtnY = this.primaryBtnY + 70;
+      const backBtnClickArea = this.scene.add.rectangle(cardX, backBtnY, 200, 44, 0xFFFFFF, 0);
+      backBtnClickArea.setInteractive({ useHandCursor: true });
+      this.container.add(backBtnClickArea);
+
+      const backBtnTextObj = this.scene.add.text(cardX, backBtnY, '返回首页', {
+        fontSize: '22px',
+        color: '#999999',
+      }).setOrigin(0.5);
+      this.container.add(backBtnTextObj);
+
+      backBtnClickArea.on('pointerdown', () => {
+        SimpleAudio.click();
+        onBack();
       });
     }
-
-    // 返回按钮：轻文字按钮（带透明点击热区），分享按钮下方（或主按钮下方）
-    const backBtnY = resultType === 'success' ? this.shareBtnY + 70 : this.primaryBtnY + 60;
-    const backBtnClickArea = this.scene.add.rectangle(cardX, backBtnY, 200, 44, 0xFFFFFF, 0);
-    backBtnClickArea.setInteractive({ useHandCursor: true });
-    this.container.add(backBtnClickArea);
-
-    const backBtnTextObj = this.scene.add.text(cardX, backBtnY, '返回首页', {
-      fontSize: '22px',
-      color: '#999999',
-    }).setOrigin(0.5);
-    this.container.add(backBtnTextObj);
-
-    backBtnClickArea.on('pointerdown', () => {
-      SimpleAudio.click();
-      onBack();
-    });
 
     // 淡入动画
     this.container.setAlpha(0);
@@ -551,44 +544,10 @@ export class ResultModal {
     const isSSR = roundResult?.rarity === 'legendary' ||
                   this.getRarityText(drop).includes('SSR');
 
-    // === 标题区 ===
-    const titleY = cardY - cardHeight / 2 + 90;
-
     // 判断是否为离谱物（weird 类型）
     const isWeird = drop.type === 'trash' && ['内裤', '螃蟹', '乌龟', '拖鞋', '破袜子', '树枝', '神秘宝箱'].includes(drop.name);
 
-    // 离谱物使用随机爆点文案，否则使用原有标题
-    const titleTextValue = isWeird ? getRandomWeirdCopy(drop.name) : this.getSuccessTitle(perfect ?? false, actualCombo);
-    const titleColor = isWeird ? '#FF6B6B' : '#333333';  // 离谱物用红色强调
-
-    this.titleText = this.scene.add.text(cardX, titleY, titleTextValue, {
-      fontSize: '46px',
-      color: titleColor,
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-    this.container!.add(this.titleText);
-
-    // === 主视觉区（鱼/物品 emoji）===
-    const visualY = titleY + 70;
-    const emoji = VisualMap.getEmoji(drop.name);
-    const visualSize = isSSR ? 110 : 96;  // SSR emoji 略大
-    this.visual = this.scene.add.text(cardX, visualY, emoji, {
-      fontSize: `${visualSize}px`,
-    }).setOrigin(0.5);
-
-    // SSR 高光层（极轻量，淡金色圆形背景）- 先于 visual 添加，确保在 emoji 后面
-    if (isSSR) {
-      const glowY = visualY + 10;
-      const glow = this.scene.add.circle(cardX, glowY, 90, 0xFFD700, 0.08);
-      this.container!.add(glow);
-    }
-
-    // 添加 visual 到 container（在 glow 之后，确保 emoji 在前方）
-    this.container!.add(this.visual);
-
-    // === 说明区 ===
-    // 稀有度标签（优先使用 roundResult.rarity，保留旧逻辑兜底）
-    const rarityY = visualY + 90;
+    // 获取稀有度文本和颜色
     const roundResultRarity = roundResult?.rarity;
     let rarity = roundResultRarity
       ? this.mapRarityToText(roundResultRarity, drop)
@@ -603,19 +562,75 @@ export class ResultModal {
       rarityColor = 0xBA55D3;  // SR 紫色
     }
 
-    const rarityBg = this.scene.add.rectangle(cardX, rarityY, 170, 38, rarityColor, 0.9)
+    // === 背景氛围层（成功态专属，淡彩色渐变感）===
+    const glowColor = this.getRarityGlowColor(rarity);
+    const bgGlow = this.scene.add.graphics();
+    bgGlow.fillGradientStyle(cardX - 280, cardY - 260, cardX + 280, cardY - 200,
+      glowColor, glowColor, 0xFFFFFF, 0xFFFFFF);
+    bgGlow.fillRoundedRect(cardX - 280, cardY - 260, 560, 60, 20);
+    bgGlow.setAlpha(0.04);
+    this.container!.add(bgGlow);
+
+    // ==================================================
+    // Section 1: Header - 标题区
+    // ==================================================
+    // 标题上移 7px，为 SSR 大体积掉落物让出空间
+    const headerTopY = cardY - cardHeight / 2 + 48;
+    const titleTextValue = isWeird ? getRandomWeirdCopy(drop.name) : this.getSuccessTitle(perfect ?? false, actualCombo);
+    const titleColor = isWeird ? '#FF6B6B' : '#333333';
+
+    this.titleText = this.scene.add.text(cardX, headerTopY, titleTextValue, {
+      fontSize: '42px',
+      color: titleColor,
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    this.container!.add(this.titleText);
+
+    // ==================================================
+    // Section 2: Visual - 主视觉区（渔获 emoji）===
+    // ==================================================
+    // 主物体整体再下移 15px（累计 90px），为成功态内容信息流让出充足空间
+    const visualY = headerTopY + 180;
+    const emoji = VisualMap.getEmoji(drop.name);
+    // 主掉落物主角化：SSR 145px，普通 125px
+    const visualSize = isSSR ? 145 : 125;
+    this.visual = this.scene.add.text(cardX, visualY, emoji, {
+      fontSize: `${visualSize}px`,
+    }).setOrigin(0.5);
+
+    // SSR 高光层（跟随主物体同步下移）
+    if (isSSR) {
+      const glowY = visualY + 12;
+      const glow = this.scene.add.circle(cardX, glowY, 110, 0xFFD700, 0.18);
+      this.container!.add(glow);
+    }
+
+    this.container!.add(this.visual);
+
+    // ==================================================
+    // Section 3: Info - 信息区（稀有度 + 名称 + 奖励 + 说明）===
+    // ==================================================
+    // 收紧主物体→稀有度间距，从 65px 改为 50px
+    const infoStartY = visualY + 50;
+
+    // 稀有度标签
+    const rarityBg = this.scene.add.rectangle(cardX, infoStartY, 180, 40, rarityColor, 0.95)
       .setStrokeStyle(2, 0xFFFFFF);
     this.container!.add(rarityBg);
 
-    this.rarityText = this.scene.add.text(cardX, rarityY, rarity, {
-      fontSize: '19px',
+    this.rarityText = this.scene.add.text(cardX, infoStartY, rarity, {
+      fontSize: '20px',
       color: '#FFFFFF',
       fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
     }).setOrigin(0.5);
     this.container!.add(this.rarityText);
 
-    // 名称（主渔获强化：轻微增大字号 + 轻描边）
-    const nameY = rarityY + 50;
+    // 渔获名称
+    const nameY = infoStartY + 46;
     this.nameText = this.scene.add.text(cardX, nameY, drop.name, {
       fontSize: '38px',
       color: '#333333',
@@ -625,13 +640,15 @@ export class ResultModal {
     }).setOrigin(0.5);
     this.container!.add(this.nameText);
 
-    // 奖励金币（轻微降权：字号减小 + 颜色弱化）
-    const rewardY = nameY + 48;
+    // 奖励金币
+    const rewardY = nameY + 42;
     const coins = roundResult?.finalCoins ?? drop.reward;
     this.rewardText = this.scene.add.text(cardX, rewardY, `+${coins} 金币`, {
       fontSize: '20px',
-      color: '#BBBBBB',
+      color: '#FFA726',
       fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
     }).setOrigin(0.5);
     this.container!.add(this.rewardText);
 
@@ -640,7 +657,6 @@ export class ResultModal {
     const flavorText = drop.flavor;
     let displayText = highlightText || flavorText;
 
-    // 如果都没有，使用情绪文案兜底
     if (!displayText) {
       displayText = this.getEmotionCopy(drop);
     }
@@ -649,14 +665,14 @@ export class ResultModal {
       const textY = rewardY + 32;
       this.textObj = this.scene.add.text(cardX, textY, displayText, {
         fontSize: '17px',
-        color: '#888888',
-        wordWrap: { width: 460 },
+        color: '#666666',
+        wordWrap: { width: 440 },
         align: 'center',
       }).setOrigin(0.5);
       this.container!.add(this.textObj);
     }
 
-    // 传播文案层（新增）
+    // 传播文案
     const hookBaseY = this.textObj
       ? this.textObj.getBounds().bottom
       : this.rewardText
@@ -664,34 +680,166 @@ export class ResultModal {
         : this.nameText
           ? this.nameText.getBounds().bottom
           : rewardY;
-    
-    const hookTextY = hookBaseY + 22;
+
+    const hookTextY = hookBaseY + 16;
     const isSSRorWeird = isSSR || isWeird;
     const hookTextValue = isSSRorWeird ? '这也能钓到？？？' : '这杆不亏';
 
     this.hookText = this.scene.add.text(cardX, hookTextY, hookTextValue, {
       fontSize: '18px',
-      color: '#444444',
+      color: '#333333',
       fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 1,
     }).setOrigin(0.5);
     this.container!.add(this.hookText);
 
-    // SSR 主视觉 emoji 轻量弹出动画（只播一次）
+    // ==================================================
+    // Section 4: Actions - 按钮区（固定在底部）===
+    // ==================================================
+    // 按钮区基于卡片底部定位，不再使用绝对坐标
+    const actionsBottomY = cardY + cardHeight / 2 - 50;
+
+    // 主按钮：按钮区顶部（整体上移 30px）
+    this.primaryBtnY = actionsBottomY - 105;
+    const primaryBtnWidth = 380;
+    const primaryBtnHeight = 76;
+    const primaryBtnText = '继续钓鱼';
+    const primaryBtnColor = 0x4CAF50;
+
+    const primaryBtn = this.scene.add.rectangle(cardX, this.primaryBtnY, primaryBtnWidth, primaryBtnHeight, primaryBtnColor)
+      .setInteractive({ useHandCursor: true })
+      .setStrokeStyle(2, 0xFFFFFF);
+
+    // 主按钮阴影
+    const primaryBtnShadow = this.scene.add.rectangle(cardX, this.primaryBtnY + 3, primaryBtnWidth, primaryBtnHeight, 0x000000, 0.12);
+    this.container!.add(primaryBtnShadow);
+    this.container!.add(primaryBtn);
+
+    const primaryBtnTextObj = this.scene.add.text(cardX, this.primaryBtnY, primaryBtnText, {
+      fontSize: '30px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    this.container!.add(primaryBtnTextObj);
+
+    primaryBtn.on('pointerdown', () => {
+      SimpleAudio.click();
+      this.options.onContinue();
+    });
+
+    // 分享按钮：主按钮下方（终版间距 70px）
+    this.shareBtnY = this.primaryBtnY + 70;
+    const shareBtnWidth = 260;
+    const shareBtnHeight = 56;
+
+    const shareBtn = this.scene.add.rectangle(cardX, this.shareBtnY, shareBtnWidth, shareBtnHeight, 0x7D6BA8)
+      .setInteractive({ useHandCursor: true })
+      .setStrokeStyle(2, 0xFFFFFF, 0.8);
+    this.container!.add(shareBtn);
+
+    const shareBtnText = this.scene.add.text(cardX, this.shareBtnY, '分享战绩 🎁', {
+      fontSize: '24px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.container!.add(shareBtnText);
+
+    shareBtn.on('pointerdown', () => {
+      this.handleShareClick(cardX, cardY, 600);
+    });
+
+    // 返回按钮：分享按钮下方（终版间距 54px）
+    const backBtnY = this.shareBtnY + 54;
+    const backBtnClickArea = this.scene.add.rectangle(cardX, backBtnY, 180, 40, 0xFFFFFF, 0);
+    backBtnClickArea.setInteractive({ useHandCursor: true });
+    this.container!.add(backBtnClickArea);
+
+    const backBtnTextObj = this.scene.add.text(cardX, backBtnY, '返回首页', {
+      fontSize: '22px',
+      color: '#777777',
+    }).setOrigin(0.5);
+    this.container!.add(backBtnTextObj);
+
+    backBtnClickArea.on('pointerdown', () => {
+      SimpleAudio.click();
+      this.options.onBack();
+    });
+
+    // SSR 主视觉 emoji 轻量弹出动画
     if (isSSR) {
       this.visual.setScale(0.2);
       this.scene.tweens.add({
         targets: this.visual,
         scale: 1,
         alpha: 1,
-        duration: 250,
-        delay: 150,  // 延迟 150ms 后开始动画
+        duration: 350,
+        delay: 100,
         ease: 'Back.easeOut',
+      });
+
+      // SSR 增加轻微浮动动画
+      this.scene.tweens.add({
+        targets: this.visual,
+        y: visualY - 6,
+        duration: 1500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    } else {
+      // 非 SSR 也增加轻微浮动
+      this.scene.tweens.add({
+        targets: this.visual,
+        y: visualY - 4,
+        duration: 1800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+
+    // SSR 增加粒子闪烁效果（5 个✨）
+    if (isSSR) {
+      const shinePositions = [
+        { x: 60, y: -40, size: '50px' },
+        { x: 95, y: -5, size: '70px' },
+        { x: -65, y: -15, size: '44px' },
+        { x: 85, y: 50, size: '56px' },
+        { x: -50, y: 40, size: '48px' },
+      ];
+
+      const shines: Phaser.GameObjects.Text[] = [];
+      shinePositions.forEach((pos) => {
+        const shine = this.scene.add.text(cardX + pos.x, visualY + pos.y, '✨', { fontSize: pos.size })
+          .setOrigin(0.5)
+          .setAlpha(0.90);
+        shines.push(shine);
+        this.container!.add(shine);
+      });
+
+      // 闪烁动画（delay 函数签名：(target, index, total) => number）
+      this.scene.tweens.add({
+        targets: shines,
+        alpha: 0.45,
+        scale: 1.08,
+        duration: 550,
+        yoyo: true,
+        repeat: -1,
+        delay: (_target: unknown, index: number): number => index * 90,
       });
     }
   }
 
   hide() {
     if (this.container) {
+      // 停止与 visual 相关的无限循环 tween（防止 tween 残留）
+      if (this.visual) {
+        this.scene.tweens.killTweensOf(this.visual);
+      }
+      
       this.scene.tweens.add({
         targets: this.container,
         alpha: 0,
