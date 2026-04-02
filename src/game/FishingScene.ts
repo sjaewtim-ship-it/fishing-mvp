@@ -8,8 +8,6 @@ import { ResultModal } from './ResultModal';
 import { EnergyModal } from './EnergyModal';
 import { EnergyManager } from './EnergyManager';
 import { DailyMissionManager } from './DailyMissionManager';
-import { GrowthMissionManager } from './GrowthMissionManager';
-import { StorageManager } from './StorageManager';
 import { UIConstants } from './UIConstants';
 import { buildRoundResult, type RoundResult } from './types/RoundResult';
 import { CollectionManager } from './managers/CollectionManager';
@@ -29,7 +27,6 @@ export class FishingScene extends Phaser.Scene {
   private stateText!: Phaser.GameObjects.Text;
   private subHintText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
-  private energyText!: Phaser.GameObjects.Text;  // 体力显示文本
 
   private pullBtnBg!: Phaser.GameObjects.Rectangle;
   private pullBtnText!: Phaser.GameObjects.Text;
@@ -117,19 +114,6 @@ export class FishingScene extends Phaser.Scene {
       stroke: '#000000',
       strokeThickness: 2,
     }).setOrigin(0.5).setAlpha(DirectorSystem.getCombo() >= 2 ? 1 : 0);
-
-    // 体力显示（右上角 HUD 区）
-    const energyX = L.width - 24;  // 右对齐，距离右边缘 24px
-    const energyY = 24;  // 距离顶部 24px
-    this.energyText = this.add.text(energyX, energyY, '⚡ 3/5', {
-      fontSize: '18px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(1, 0);  // 右上角对齐
-
-    this.refreshEnergyText();  // 刷新体力显示
 
     this.stateText = this.add.text(L.centerX, 224, '等待鱼咬钩...', {
       fontSize: '30px',
@@ -260,13 +244,6 @@ export class FishingScene extends Phaser.Scene {
     }
   }
 
-  /** 刷新体力显示 */
-  private refreshEnergyText() {
-    const energy = EnergyManager.instance.getEnergy();
-    const maxEnergy = EnergyManager.instance.getMaxEnergy();
-    this.energyText.setText(`⚡ ${energy}/${maxEnergy}`);
-  }
-
   private startFishingFlow() {
     this.phase = 'idle';
     this.currentDrop = null;
@@ -276,11 +253,7 @@ export class FishingScene extends Phaser.Scene {
     this.subHintText.setText('鱼影和浮漂有明显变化时再拉杆');
 
     // 日常任务：完成钓鱼次数（每次新杆开始）
-    DailyMissionManager.instance.advanceTask('cast_5', 1);
-
-    // 成长任务：累计钓鱼次数（每次真实下杆）
-    GrowthMissionManager.instance.init();
-    GrowthMissionManager.instance.advanceCast(1);
+    DailyMissionManager.instance.advanceTask('cast_3', 1);
 
     this.time.delayedCall(this.config.biteDelayMs, () => {
       if (this.phase !== 'idle') return;
@@ -517,18 +490,6 @@ export class FishingScene extends Phaser.Scene {
       DailyMissionManager.instance.advanceTask('quality_1', 1);
     }
 
-    // 重量统计：统一更新 StorageManager（真源）+ 同步任务进度（合并为一个 if 块，按正确顺序）
-    if (finalDrop.isFish && finalDrop.weightGrams && finalDrop.weightGrams > 0) {
-      // 1. StorageManager（真源）
-      StorageManager.instance.addFishWeight(finalDrop.weightGrams);
-      // 2. DailyMissionManager（今日任务，从真源同步）
-      DailyMissionManager.instance.syncWeightTasksFromStorage();
-      // 3. GrowthMissionManager（成长任务，从真源同步）
-      GrowthMissionManager.instance.syncWeightTasksFromStorage();
-      // 4. GrowthMissionManager（大鱼阈值，基于当前鱼重量）
-      GrowthMissionManager.instance.syncBigFishTasksFromCurrentCatch(finalDrop.weightGrams);
-    }
-
     // 生成 RoundResult 数据结构（用于后续爆点系统/广告优化）
     const combo = DirectorSystem.getCombo();
     const roundResult: RoundResult = buildRoundResult(finalDrop, perfect, combo);
@@ -661,7 +622,6 @@ export class FishingScene extends Phaser.Scene {
         // 体力充足，扣体力并重启
         EnergyManager.instance.costEnergy();
         SaveSync.save();
-        this.refreshEnergyText();  // 刷新体力显示
         this.currentResultModal?.hide();
         this.restartFlow();
       },
@@ -684,7 +644,6 @@ export class FishingScene extends Phaser.Scene {
       onRecharge: () => {
         EnergyManager.instance.addEnergy(3);
         SaveSync.save();
-        this.refreshEnergyText();  // 刷新体力显示
         modal.hide();
       },
       onCancel: () => {
