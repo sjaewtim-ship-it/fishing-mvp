@@ -17,6 +17,50 @@ import { formatWeight } from './DropGenerator';
 import { StorageManager } from './StorageManager';
 
 // ==================================================
+// 首页统一 layoutSpec - 管理所有 section 的纵向布局
+// ==================================================
+const LAYOUT_SPEC = {
+  // 基础参数（移动端适配）
+  safeTop: 26,
+  safeBottom: 0,
+  pagePadding: 24,
+  contentWidth: 0,
+  sectionGap: 18,
+  sectionGapLoose: 24,
+
+  // 固定尺寸
+  brandHeight: 112,
+  resourceHeight: 54,
+  actionHeight: 90,
+  navBarHeight: 60,
+  sandHeight: 120,
+
+  // 间距参数
+  resourceToGoalGap: 28,
+  goalToActionGap: 28,
+  actionToNavBarGap: 20,
+  navBarToOceanGap: 20,
+
+  // 任务区参数
+  goalInnerPadding: 20,
+  taskStartY: 40,
+  taskHeight: 44,
+  taskRowGap: 8,
+  taskFooterGap: 2,
+  footerHeight: 8,
+  paddingBottom: 2,
+
+  // 动态计算（在 calculateLayout 中计算）
+  brandY: 74,
+  resourceY: 196,
+  goalY: 0,
+  goalHeight: 0,
+  actionY: 0,
+  navBarY: 0,
+  oceanY: 0,
+};
+
+// ==================================================
 // 横版首页 layout 常量 - 管理左右分栏布局
 // ==================================================
 const LAYOUT = {
@@ -155,8 +199,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   preload() {
-    // 加载 UI 按钮资源
-    this.load.image('btn_primary', '/assets/ui/btn_primary.png');
+    // 临时移除 btn_primary 资源加载，使用 rectangle 按钮占位
+    // this.load.image('btn_primary', '/assets/ui/btn_primary.png');
   }
 
   private calculateLayout(taskCount: number = 3) {
@@ -558,70 +602,30 @@ export class MainScene extends Phaser.Scene {
     const shadow = this.add.rectangle(x, startBtnY + 6, startBtnW, startBtnH, 0x000000, 0.22);
     shadow.setOrigin(0.5);
 
-    // 按钮背景（使用图片按钮替代渐变图形）
-    if (this.textures.exists('btn_primary')) {
-      // 资源存在时使用图片按钮
-      const btnBg = this.add.image(x, startBtnY, 'btn_primary');
-      btnBg.setDisplaySize(startBtnW, startBtnH);
-      btnBg.setOrigin(0.5);
-      btnBg.setInteractive({ useHandCursor: true });
+    // 按钮背景（使用渐变图形方案）
+    drawVerticalGradientRect(this, x, startBtnY, startBtnW, startBtnH, 0xFF7A7A, 0xFF4D4D, 12, 0.18);
 
-      // 按钮文字（叠加在图片中心）
-      this.add.text(x, startBtnY, '开始钓鱼', {
-        fontSize: '36px',
-        color: '#FFFFFF',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 4,
-        shadow: {
-          color: '#000000',
-          offsetX: 0,
-          offsetY: 3,
-          blur: 4,
-          fill: true,
-        },
-      }).setOrigin(0.5);
+    // 按钮文字（增强压强：描边 + 阴影）
+    const btnText = this.add.text(x, startBtnY, '开始钓鱼', {
+      fontSize: '36px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+      shadow: {
+        color: '#000000',
+        offsetX: 0,
+        offsetY: 3,
+        blur: 4,
+        fill: true,
+      },
+    }).setOrigin(0.5);
 
-      // 点击反馈动画（scale 0.95 → 回弹）
-      btnBg.on('pointerdown', () => {
-        this.tweens.add({
-          targets: btnBg,
-          scaleX: 0.95,
-          scaleY: 0.95,
-          duration: 80,
-          yoyo: true,
-          ease: 'Back.easeOut',
-        });
-      });
-
-      // 绑定点击事件
-      btnBg.on('pointerdown', () => this.onStartFishing());
-    } else {
-      // Fallback：使用原有渐变图形方案
-      drawVerticalGradientRect(this, x, startBtnY, startBtnW, startBtnH, 0xFF7A7A, 0xFF4D4D, 12, 0.18);
-
-      // 按钮文字（增强压强：描边 + 阴影）
-      this.add.text(x, startBtnY, '开始钓鱼', {
-        fontSize: '36px',
-        color: '#FFFFFF',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 4,
-        shadow: {
-          color: '#000000',
-          offsetX: 0,
-          offsetY: 3,
-          blur: 4,
-          fill: true,
-        },
-      }).setOrigin(0.5);
-
-      // 按钮交互（使用透明矩形作为点击区域）
-      const hitArea = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0x000000, 0);
-      hitArea.setOrigin(0.5);
-      hitArea.setInteractive({ useHandCursor: true });
-      hitArea.on('pointerdown', () => this.onStartFishing());
-    }
+    // 按钮交互（使用透明矩形作为点击区域）
+    const hitArea = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0x000000, 0);
+    hitArea.setOrigin(0.5);
+    hitArea.setInteractive({ useHandCursor: true });
+    hitArea.on('pointerdown', () => this.onStartFishing());
   }
 
   // ==================================================
