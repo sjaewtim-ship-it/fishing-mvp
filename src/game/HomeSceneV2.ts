@@ -7,27 +7,19 @@ import { SimpleAudio } from './SimpleAudio';
 import { AnalyticsManager } from './AnalyticsManager';
 import { EnergyModal } from './EnergyModal';
 import { SettingsModal } from './ui/SettingsModal';
-import { StorageManager } from './StorageManager';
 
 // ==================================================
-// 横版首页 Layout 常量
+// 首页 Layout 常量
 // ==================================================
-const LAYOUT = {
-  topPadding: 24,
-  sidePadding: 32,
-  topBarHeight: 52,
+const HOME_LAYOUT = {
+  safePadding: 24,
 
-  visualCenterYRatio: 0.42,
-  bobberOffsetY: -20,
+  topBarHeight: 80,
+  mainHeight: 420,
+  ctaHeight: 100,
+  bottomNavHeight: 100,
 
-  primaryButtonWidth: 280,
-  primaryButtonHeight: 84,
-  primaryButtonOffsetY: 110,
-
-  navButtonWidth: 140,
-  navButtonHeight: 64,
-  navBottomOffset: 56,
-  navGap: 36,
+  sectionGap: 20,
 };
 
 export class HomeSceneV2 extends Phaser.Scene {
@@ -38,190 +30,143 @@ export class HomeSceneV2 extends Phaser.Scene {
     super('HomeSceneV2');
   }
 
+  // ==================================================
+  // 布局计算
+  // ==================================================
+  private calculateLayout() {
+    const { width, height } = this.scale;
+    const L = HOME_LAYOUT;
+
+    const topBarY = L.safePadding + L.topBarHeight / 2;
+
+    const mainY =
+      topBarY +
+      L.topBarHeight / 2 +
+      L.sectionGap +
+      L.mainHeight / 2;
+
+    const ctaY =
+      mainY +
+      L.mainHeight / 2 +
+      L.sectionGap +
+      L.ctaHeight / 2;
+
+    const bottomNavY =
+      height - L.bottomNavHeight / 2 - L.safePadding;
+
+    return {
+      width,
+      height,
+      centerX: width / 2,
+      topBarY,
+      mainY,
+      ctaY,
+      bottomNavY,
+    };
+  }
+
+  // ==================================================
+  // 入口
+  // ==================================================
   create() {
-    const width = Number(this.scale.width) || 750;
-    const height = Number(this.scale.height) || 1334;
+    const layout = this.calculateLayout();
 
     this.cameras.main.setBackgroundColor('#8FD3FF');
 
-    this.createBackground(width, height);
-    this.createTopBar(width);
-    this.createMainVisual(width, height);
-    this.createPrimaryAction(width, height);
-    this.createBottomNav(width, height);
+    this.renderTopBar(layout);
+    this.renderMain(layout);
+    this.renderCTA(layout);
+    this.renderBottomNav(layout);
+
+    this.refreshEnergyUI();
   }
 
   // ==================================================
-  // 背景：天空到海面的渐变
+  // TopBar：金币 + 体力
   // ==================================================
-  private createBackground(width: number, height: number) {
-    const g = this.add.graphics();
+  private renderTopBar(layout: ReturnType<typeof this.calculateLayout>) {
+    const { centerX, topBarY } = layout;
 
-    // 天空部分（上 60%）
-    g.fillGradientStyle(0x87CEEB, 0x87CEEB, 0x4FC3F7, 0x4FC3F7, 1);
-    g.fillRect(0, 0, width, height * 0.6);
-
-    // 海面部分（下 40%）
-    g.fillGradientStyle(0x4FC3F7, 0x4FC3F7, 0x1E88E5, 0x1E88E5, 1);
-    g.fillRect(0, height * 0.6, width, height * 0.4);
-
-    // 地平线
-    g.lineStyle(2, 0xEAF6FF, 0.6);
-    g.lineBetween(0, height * 0.6, width, height * 0.6);
-  }
-
-  // ==================================================
-  // 顶部资源栏：金币 + 体力
-  // ==================================================
-  private createTopBar(width: number) {
-    const y = LAYOUT.topPadding + LAYOUT.topBarHeight / 2;
-
-    // 左侧标题
-    this.add.text(LAYOUT.sidePadding, y, '🎣 钓鱼大师', {
-      fontSize: '28px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-      stroke: '#1565C0',
-      strokeThickness: 3,
-    }).setOrigin(0, 0.5);
-
-    // 右侧资源胶囊
     const coins = CoinManager.instance.getCoins();
     const energy = EnergyManager.instance.getEnergy();
     const maxEnergy = EnergyManager.instance.getMaxEnergy();
 
-    // 金币胶囊
-    const coinCapsuleX = width - LAYOUT.sidePadding - 120;
-    this.add.rectangle(coinCapsuleX, y, 110, 36, 0x000000, 0.35)
-      .setStrokeStyle(1, 0xFFD700, 0.5);
-    this.coinText = this.add.text(coinCapsuleX, y, `💰 ${coins}`, {
-      fontSize: '16px',
-      color: '#FFD700',
+    this.coinText = this.add.text(centerX - 200, topBarY, `💰 ${coins}`, {
+      fontSize: '28px',
+      color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 体力胶囊
-    const energyCapsuleX = width - LAYOUT.sidePadding - 10;
-    this.add.rectangle(energyCapsuleX, y, 80, 36, 0x000000, 0.35)
-      .setStrokeStyle(1, 0x4CAF50, 0.5);
-    this.energyText = this.add.text(energyCapsuleX, y, `⚡ ${energy}/${maxEnergy}`, {
-      fontSize: '16px',
-      color: '#4CAF50',
+    this.energyText = this.add.text(centerX + 200, topBarY, `⚡ ${energy}/${maxEnergy}`, {
+      fontSize: '28px',
+      color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
   }
 
   // ==================================================
-  // 中部主视觉区：浮漂
+  // Main：主视觉区（占位）
   // ==================================================
-  private createMainVisual(width: number, height: number) {
-    const centerX = width / 2;
-    const centerY = height * LAYOUT.visualCenterYRatio + LAYOUT.bobberOffsetY;
+  private renderMain(layout: ReturnType<typeof this.calculateLayout>) {
+    const { centerX, mainY } = layout;
 
-    // 浮漂容器
-    const bobber = this.add.container(centerX, centerY);
+    this.add.rectangle(centerX, mainY, 600, 300, 0x2d9cdb, 0.2)
+      .setStrokeStyle(2, 0x2d9cdb);
 
-    // 浮漂主体（红白相间）
-    const body = this.add.graphics();
-    body.fillStyle(0xFFFFFF, 1);
-    body.fillCircle(0, 0, 12);
-    body.fillStyle(0xFF4444, 1);
-    body.fillCircle(0, -14, 10);
-    body.fillStyle(0xFFFFFF, 0.3);
-    body.fillCircle(0, 0, 18); // 微光
+    this.add.text(centerX, mainY, '主视觉区（占位）', {
+      fontSize: '24px',
+      color: '#ffffff',
+    }).setOrigin(0.5);
+  }
 
-    // 鱼线
-    const line = this.add.graphics();
-    line.lineStyle(2, 0xFFFFFF, 0.6);
-    line.lineBetween(0, -24, 0, -80);
+  // ==================================================
+  // CTA：开始钓鱼（复用 handleStartFishing）
+  // ==================================================
+  private renderCTA(layout: ReturnType<typeof this.calculateLayout>) {
+    const { centerX, ctaY } = layout;
 
-    bobber.add([line, body]);
+    const btn = this.add.rectangle(centerX, ctaY, 300, 80, 0xff6b6b)
+      .setInteractive({ useHandCursor: true });
 
-    // 浮漂轻微上下浮动
-    this.tweens.add({
-      targets: bobber,
-      y: centerY + 8,
-      duration: 1500,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
+    this.add.text(centerX, ctaY, '开始钓鱼', {
+      fontSize: '32px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    btn.on('pointerdown', () => {
+      this.handleStartFishing();
     });
   }
 
   // ==================================================
-  // 主按钮：开始钓鱼
+  // BottomNav：图鉴 / 任务 / 福利 / 设置
   // ==================================================
-  private createPrimaryAction(width: number, height: number) {
-    const centerX = width / 2;
-    const centerY = height * LAYOUT.visualCenterYRatio + LAYOUT.primaryButtonOffsetY;
-    const btnW = LAYOUT.primaryButtonWidth;
-    const btnH = LAYOUT.primaryButtonHeight;
+  private renderBottomNav(layout: ReturnType<typeof this.calculateLayout>) {
+    const { centerX, bottomNavY } = layout;
 
-    // 阴影
-    this.add.rectangle(centerX, centerY + 4, btnW, btnH, 0x000000, 0.2);
-
-    // 按钮背景
-    const btnBg = this.add.rectangle(centerX, centerY, btnW, btnH, 0xFF5F5F)
-      .setStrokeStyle(3, 0xFFFFFF, 0.3);
-    btnBg.setInteractive({ useHandCursor: true });
-
-    // 按钮文字
-    const btnText = this.add.text(centerX, centerY, '开始钓鱼', {
-      fontSize: '36px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4,
-    }).setOrigin(0.5);
-
-    // 呼吸动画
-    this.tweens.add({
-      targets: [btnBg, btnText],
-      scaleX: 1.03,
-      scaleY: 1.03,
-      duration: 1200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // 点击事件
-    btnBg.on('pointerdown', () => this.handleStartFishing());
-  }
-
-  // ==================================================
-  // 底部次级入口：图鉴 / 任务 / 设置
-  // ==================================================
-  private createBottomNav(width: number, height: number) {
-    const y = height - LAYOUT.navBottomOffset;
-    const btnW = LAYOUT.navButtonWidth;
-    const btnH = LAYOUT.navButtonHeight;
-    const gap = LAYOUT.navGap;
-    const totalWidth = btnW * 3 + gap * 2;
-    const startX = (width - totalWidth) / 2 + btnW / 2;
-
-    const navItems = [
-      { label: '📖 图鉴', onClick: () => this.scene.start('CollectionScene') },
-      { label: '📝 任务', onClick: () => this.scene.start('TaskScene') },
-      { label: '⚙️ 设置', onClick: () => new SettingsModal(this).show() },
+    const items = [
+      { label: '图鉴', onClick: () => this.scene.start('CollectionScene') },
+      { label: '任务', onClick: () => this.scene.start('TaskScene') },
+      { label: '福利', onClick: () => {} },
+      { label: '设置', onClick: () => new SettingsModal(this).show() },
     ];
 
-    navItems.forEach((item, index) => {
-      const x = startX + index * (btnW + gap);
+    const gap = 140;
+    const startX = centerX - ((items.length - 1) * gap) / 2;
 
-      // 按钮背景（低饱和色，弱于主按钮）
-      const btnBg = this.add.rectangle(x, y, btnW, btnH, 0x6C5CE7, 0.85)
-        .setStrokeStyle(1, 0x5A4F7F, 0.5);
-      btnBg.setInteractive({ useHandCursor: true });
+    items.forEach((item, i) => {
+      const x = startX + i * gap;
 
-      // 按钮文字
-      this.add.text(x, y, item.label, {
-        fontSize: '18px',
-        color: '#FFFFFF',
-        fontStyle: 'bold',
+      const btn = this.add.rectangle(x, bottomNavY, 120, 60, 0x6c5ce7, 0.8)
+        .setInteractive({ useHandCursor: true });
+
+      this.add.text(x, bottomNavY, item.label, {
+        fontSize: '20px',
+        color: '#ffffff',
       }).setOrigin(0.5);
 
-      btnBg.on('pointerdown', () => {
+      btn.on('pointerdown', () => {
         SimpleAudio.click();
         item.onClick();
       });
@@ -229,31 +174,28 @@ export class HomeSceneV2 extends Phaser.Scene {
   }
 
   // ==================================================
-  // 业务逻辑：开始钓鱼（复用 MainScene 已验证逻辑）
+  // 业务逻辑：开始钓鱼（不改）
   // ==================================================
   private handleStartFishing() {
     SimpleAudio.unlock();
     SimpleAudio.click();
 
-    // 体力检查
     if (!EnergyManager.instance.hasEnergy()) {
       this.showEnergyModal();
       return;
     }
 
-    // 埋点 + 扣体力 + 存档
     AnalyticsManager.instance.onStartRound();
     EnergyManager.instance.costEnergy();
     SaveSync.save();
 
-    // 跳转钓鱼页
     this.scene.start('FishingScene', {
       round: DirectorSystem.getRoundNumber(),
     });
   }
 
   // ==================================================
-  // 体力弹窗（复用 MainScene 逻辑）
+  // 体力弹窗（不改）
   // ==================================================
   private showEnergyModal() {
     const currentEnergy = EnergyManager.instance.getEnergy();
@@ -276,7 +218,7 @@ export class HomeSceneV2 extends Phaser.Scene {
   }
 
   // ==================================================
-  // 刷新顶部资源显示
+  // 刷新资源显示（保留）
   // ==================================================
   private refreshEnergyUI() {
     const coins = CoinManager.instance.getCoins();
