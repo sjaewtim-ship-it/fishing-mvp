@@ -1,18 +1,14 @@
 import Phaser from 'phaser';
 import { EnergyManager } from './EnergyManager';
 import { CoinManager } from './CoinManager';
-import { RecordManager } from './RecordManager';
 import { DirectorSystem } from './DirectorSystem';
 import { SaveSync } from './SaveSync';
 import { SimpleAudio } from './SimpleAudio';
 import { AnalyticsManager } from './AnalyticsManager';
-import { DailyMissionManager, type DailyTask } from './DailyMissionManager';
-import { GrowthMissionManager } from './GrowthMissionManager';
+import { DailyMissionManager } from './DailyMissionManager';
 import { EnergyModal } from './EnergyModal';
 import { SettingsModal } from './ui/SettingsModal';
 import { CollectionManager } from './managers/CollectionManager';
-import { DailyTaskPanel } from './ui/panels/DailyTaskPanel';
-import { TaskItem, type TaskItemData } from './ui/components/TaskItem';
 import { formatWeight } from './DropGenerator';
 import { StorageManager } from './StorageManager';
 
@@ -84,83 +80,34 @@ const PROGRESS_BAR = {
   labelSize: '11px',
 };
 
-/**
- * 绘制垂直渐变矩形（带顶部高光）
- * @param scene Phaser 场景
- * @param x 中心 X
- * @param y 中心 Y
- * @param w 宽度
- * @param h 高度
- * @param colorTop 顶部颜色
- * @param colorBottom 底部颜色
- * @param steps 渐变步数（默认 12）
- * @param highlightAlpha 顶部高光透明度（默认 0.14,0 则无高光）
- * @returns Graphics 对象
- */
-function drawVerticalGradientRect(
-  scene: Phaser.Scene,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  colorTop: number,
-  colorBottom: number,
-  steps = 12,
-  highlightAlpha = 0.14
-): Phaser.GameObjects.Graphics {
-  const g = scene.add.graphics();
-
-  const topColor = Phaser.Display.Color.ValueToColor(colorTop);
-  const bottomColor = Phaser.Display.Color.ValueToColor(colorBottom);
-
-  for (let i = 0; i < steps; i++) {
-    const interpolated = Phaser.Display.Color.Interpolate.ColorWithColor(
-      topColor,
-      bottomColor,
-      steps - 1,
-      i
-    );
-
-    const fillColor = Phaser.Display.Color.GetColor(
-      interpolated.r,
-      interpolated.g,
-      interpolated.b
-    );
-
-    g.fillStyle(fillColor, 1);
-    g.fillRect(x - w / 2, y - h / 2 + (h / steps) * i, w, h / steps + 1);
-  }
-
-  // 顶部高光层（覆盖顶部 32% 区域）
-  if (highlightAlpha > 0) {
-    const highlightHeight = h * 0.32;
-    g.fillStyle(0xffffff, highlightAlpha);
-    g.fillRect(x - w / 2, y - h / 2, w, highlightHeight);
-  }
-
-  return g;
-}
-
 export class MainScene extends Phaser.Scene {
   // UI 引用
   private coinText!: Phaser.GameObjects.Text;
   private energyText!: Phaser.GameObjects.Text;
-  private weightText!: Phaser.GameObjects.Text;  // 累计重量文本
+  private energyIconText!: Phaser.GameObjects.Text;
+  private weightText!: Phaser.GameObjects.Text;
   private taskPanel: DailyTaskPanel | null = null;
 
   // 目标奖励金额（V1 局部常量）
   private readonly DAILY_MISSION_REWARD = 100;
 
-  // Section 容器
-  private brandSection!: Phaser.GameObjects.Container;
-  private resourceSection!: Phaser.GameObjects.Container;
-  private goalSection!: Phaser.GameObjects.Container;
-  private actionSection!: Phaser.GameObjects.Container;
-  private navBarSection!: Phaser.GameObjects.Container;
-  private oceanSection!: Phaser.GameObjects.Container;
+  // === 新组件树 Container ===
+  private bgLayer!: Phaser.GameObjects.Container;
+  private topBar!: Phaser.GameObjects.Container;
+  private contentHeader!: Phaser.GameObjects.Container;
+  private heroArea!: Phaser.GameObjects.Container;
+  private quickEntryGroup!: Phaser.GameObjects.Container;
+  private overlayLayer!: Phaser.GameObjects.Container;
+
+  // 装饰引用（用于 tween）
+  private startFishingBtnContainer!: Phaser.GameObjects.Container;
 
   constructor() {
     super('MainScene');
+  }
+
+  preload() {
+    this.load.image('home_bg_scene', '/assets/bg/home_bg_scene.png');
   }
 
   private calculateLayout(taskCount: number = 3) {
@@ -171,12 +118,8 @@ export class MainScene extends Phaser.Scene {
     // 动态计算 contentWidth（基于统一 pagePadding）
     const contentWidth = width - LAYOUT_SPEC.pagePadding * 2;
 
-    // 动态计算 taskPanelHeight（基于实际任务数量，与 DailyTaskPanel.calculatePanelHeight 逻辑一致）
-    const tasksHeight = taskCount * LAYOUT_SPEC.taskHeight;
-    const gapsHeight = (taskCount - 1) * LAYOUT_SPEC.taskRowGap;
-    const taskContentHeight = LAYOUT_SPEC.taskStartY + tasksHeight + gapsHeight;
-    const footerTop = taskContentHeight + LAYOUT_SPEC.taskFooterGap;
-    const goalHeight = footerTop + LAYOUT_SPEC.footerHeight + LAYOUT_SPEC.paddingBottom;
+    // 动态计算 taskPanelHeight（首页不再显示任务模块，goalHeight 固定为 0）
+    const goalHeight = 0;
 
     // 链式计算各 section Y 位置
     const resourceBottomY = LAYOUT_SPEC.resourceY + LAYOUT_SPEC.resourceHeight;
@@ -228,248 +171,273 @@ export class MainScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#8FD3FF');
 
-    // === 渲染 5 个 section ===
-    this.renderBrandSection(L);
-    this.renderResourceSection(L, coins, energy, maxEnergy, totalFishWeight);
-    this.renderGoalSection(L);
-    this.renderActionSection(L, energy >= maxEnergy);
-    this.renderNavBarSection(L);
-    this.renderOceanSection(L);
+    // === 初始化组件树 Container ===
+    this.bgLayer = this.add.container(0, 0);
+    this.topBar = this.add.container(0, 0);
+    this.contentHeader = this.add.container(0, 0);
+    this.heroArea = this.add.container(0, 0);
+    this.quickEntryGroup = this.add.container(0, 0);
+    this.overlayLayer = this.add.container(0, 0);
+
+    // === 渲染新结构 ===
+    this.renderBgLayer(L);
+    this.renderTopBar(L, energy, maxEnergy);
+    this.renderContentHeader(L);
+    this.renderHeroArea(L, energy >= maxEnergy);
+    this.renderQuickEntryGroup(L);
   }
 
   /**
    * wake 事件：从其他场景返回时刷新数据
    */
   wake() {
-    const coins = CoinManager.instance.getCoins();
     const energy = EnergyManager.instance.getEnergy();
     const maxEnergy = EnergyManager.instance.getMaxEnergy();
-    const totalFishWeight = StorageManager.instance.getTotalFishWeightGrams();
 
-    // 刷新资源区显示
-    this.refreshWeightUI();
-    
-    // 刷新金币和体力显示（如果需要）
-    if (this.coinText) {
-      this.coinText.setText(String(coins));
-    }
+    // 刷新体力显示（topBar 中的 energyText）
     if (this.energyText) {
       this.energyText.setText(`${energy}/${maxEnergy}`);
     }
   }
 
 
-  /** 刷新累计重量显示 */
+  /** 刷新累计重量显示（保留引用，暂不使用） */
   private refreshWeightUI() {
     const totalFishWeight = StorageManager.instance.getTotalFishWeightGrams();
     if (this.weightText) {
-      // 首页累计重量卡单独兜底：0 时显示 0kg，不显示空白
       const weightDisplayText = totalFishWeight > 0 ? formatWeight(totalFishWeight) : '0kg';
       this.weightText.setText(weightDisplayText);
     }
   }
   // ==================================================
-  // 1. brandSection - 顶部品牌区（增加呼吸感）
+  // 1. bgLayer - 背景层（正式背景图 + 极轻装饰）
   // ==================================================
-  private renderBrandSection(L: ReturnType<typeof this.calculateLayout>) {
-    const x = L.centerX;
+  private renderBgLayer(L: ReturnType<typeof this.calculateLayout>) {
+    const { width, height, centerX } = L;
 
-    // 云朵装饰（弱化,不抢视觉）
-    const cloud1 = this.add.text(80, L.brandY + 10, '☁️', { fontSize: '26px' }).setAlpha(0.4);
-    const cloud2 = this.add.text(540, L.brandY + 20, '☁️', { fontSize: '22px' }).setAlpha(0.4);
+    // === 正式背景图（cover 适配）===
+    const bgImage = this.add.image(centerX, height / 2, 'home_bg_scene');
+    bgImage.setOrigin(0.5);
+    bgImage.setDepth(0);
 
-    this.tweens.add({
-      targets: cloud1,
-      x: 520,
-      duration: 22000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    // cover 缩放：取宽高比更大的那个，确保铺满不留白
+    const bgTexture = this.textures.get('home_bg_scene');
+    const bgWidth = bgImage.width;
+    const bgHeight = bgImage.height;
+    const scaleX = width / bgWidth;
+    const scaleY = height / bgHeight;
+    const scale = Math.max(scaleX, scaleY);
+    bgImage.setScale(scale);
 
-    this.tweens.add({
-      targets: cloud2,
-      x: 180,
-      duration: 26000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    this.bgLayer.add(bgImage);
 
-    // 主标题（视觉重心）
-    this.add.text(x, L.brandY + 34, '🎣 钓鱼小游戏', {
-      fontSize: '46px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-      stroke: '#1565C0',
-      strokeThickness: 5,
+    // === 极轻柔光遮罩（可选，确保 UI 可读）===
+    const overlayGraphics = this.add.graphics();
+    overlayGraphics.fillStyle(0x000022, 0.08);  // 极轻深色罩，不盖脏背景
+    overlayGraphics.fillRect(0, 0, width, height);
+    this.bgLayer.add(overlayGraphics);
+
+    // === 极弱波纹装饰（湖面区，仅保留水面暗示）===
+    const lakeTop = height * 0.55;
+    const rippleGraphics = this.add.graphics();
+    rippleGraphics.lineStyle(0.8, 0xffffff, 0.02);
+    for (let i = 0; i < 3; i++) {
+      const ry = lakeTop + 60 + i * 80;
+      const rw = 140 + i * 40;
+      const rx = centerX - rw / 2 + (i % 2 === 0 ? -30 : 30);
+      rippleGraphics.strokeEllipse(rx + rw / 2, ry, rw / 2, 3);
+    }
+    this.bgLayer.add(rippleGraphics);
+  }
+
+  // ==================================================
+  // 2. topBar - 顶栏（状态层：左侧占位 + 体力胶囊）
+  // ==================================================
+  private renderTopBar(L: ReturnType<typeof this.calculateLayout>, energy: number, maxEnergy: number) {
+    const { width } = L;
+    const topBarY = L.safeTop + 20;
+
+    // 左侧占位 zone
+    const leftPlaceholder = this.add.container(60, topBarY);
+    this.topBar.add(leftPlaceholder);
+
+    // 体力胶囊（右侧对齐，安全边距）
+    const energyCapsule = this.add.container(0, 0);
+    const paddingRight = 24;
+    const capsuleW = 88;  // 104 → 88 压缩宽度，减少空洞感
+    const capsuleH = 34;
+    const capsuleX = L.width - paddingRight - capsuleW / 2;  // 右对齐：胶囊右边缘距屏幕 paddingRight
+    const capsuleY = topBarY + 14;
+
+    // 胶囊背景（圆角矩形）
+    const capsuleBg = this.add.graphics();
+    capsuleBg.fillStyle(0x3FA37A, 0.88);
+    capsuleBg.fillRoundedRect(capsuleX - capsuleW / 2, capsuleY - capsuleH / 2, capsuleW, capsuleH, 17);
+    capsuleBg.lineStyle(1, 0x7ED7B2, 0.5);
+    capsuleBg.strokeRoundedRect(capsuleX - capsuleW / 2, capsuleY - capsuleH / 2, capsuleW, capsuleH, 17);
+    energyCapsule.add(capsuleBg);
+
+    // 体力图标
+    this.energyIconText = this.add.text(capsuleX - capsuleW / 2 + 18, capsuleY, '⚡', {  // 12 → 18 向右收 6px
+      fontSize: '16px',
     }).setOrigin(0.5);
+    energyCapsule.add(this.energyIconText);
 
-    // slogan（与标题拉开间距）
-    this.add.text(x, L.brandY + 96, '看准时机,一杆出货', {
-      fontSize: '24px',
+    // 体力数值
+    this.energyText = this.add.text(capsuleX + capsuleW / 2 - 18, capsuleY, `${energy}/${maxEnergy}`, {  // 10 → 18 向左收 8px
+      fontSize: '15px',
       color: '#FFFFFF',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2,
+    }).setOrigin(1, 0.5);
+    energyCapsule.add(this.energyText);
+
+    this.topBar.add(energyCapsule);
+  }
+
+  // ==================================================
+  // 3. contentHeader - 主题内容区（moodTag + 主标题 + 副标题）
+  // ==================================================
+  private renderContentHeader(L: ReturnType<typeof this.calculateLayout>) {
+    const { width, height, centerX } = L;
+
+    // contentHeader 整体位于页面中上部
+    const headerCenterY = height * 0.26;  // 主标题中心 Y
+
+    // === 极轻聚焦光晕（让主题区有整体感）===
+    const glowGraphics = this.add.graphics();
+    glowGraphics.fillStyle(0xffffff, 0.04);
+    glowGraphics.fillEllipse(centerX, headerCenterY - 6, 280, 160);
+    this.contentHeader.add(glowGraphics);
+
+    // A. moodTag（小标签，主标题上方，间距收紧）
+    const moodTagY = headerCenterY - 44;  // 52 → 44 更紧凑
+    const moodTagGraphics = this.add.graphics();
+    const moodTagW = 90;
+    const moodTagH = 26;
+    moodTagGraphics.fillStyle(0xffffff, 0.18);
+    moodTagGraphics.fillRoundedRect(centerX - moodTagW / 2, moodTagY - moodTagH / 2, moodTagW, moodTagH, 13);
+    this.contentHeader.add(moodTagGraphics);
+
+    const moodTagText = this.add.text(centerX, moodTagY, '轻松摸鱼', {
+      fontSize: '13px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setAlpha(0.8);
+    this.contentHeader.add(moodTagText);
+
+    // B. mainTitleText（首页真正主标题）
+    const mainTitleText = this.add.text(centerX, headerCenterY, '治愈钓鱼', {
+      fontSize: '48px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+      stroke: '#1565C0',
+      strokeThickness: 3,
     }).setOrigin(0.5);
+    this.contentHeader.add(mainTitleText);
+
+    // C. subInfoText（副标题，主标题下方，间距收紧）
+    const subInfoY = headerCenterY + 34;  // 40 → 34 更紧凑
+    const subInfoText = this.add.text(centerX, subInfoY, '看准时机，一杆出货', {
+      fontSize: '18px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setAlpha(0.7);
+    this.contentHeader.add(subInfoText);
   }
 
   // ==================================================
-  // 2. resourceSection - 资源区（3 卡布局：金币/体力/重量,移动端适配）
+  // 4. heroArea - 主按钮区（开始钓鱼）
   // ==================================================
-  private renderResourceSection(
-    L: ReturnType<typeof this.calculateLayout>,
-    coins: number,
-    energy: number,
-    maxEnergy: number,
-    totalFishWeight: number
-  ) {
-    const cardH = RESOURCE_CARD.height;
-    const gap = RESOURCE_CARD.gap;
-
-    // 动态计算卡片宽度（3 卡等分,基于统一 pagePadding）
-    const cardW = (L.contentWidth - gap * 2) / 3;
-
-    // 左对齐位置（基于统一 pagePadding）
-    const leftX = L.pagePadding;
-    const midX = leftX + cardW + gap;
-    const rightX = leftX + (cardW + gap) * 2;
-
-    const rowY = L.resourceY + cardH / 2;
-
-    // === 金币卡片（左列,渐变：金色）===
-    const coinCardX = leftX + cardW / 2;
-    drawVerticalGradientRect(this, coinCardX, rowY, cardW, cardH, 0xE6D75A, 0xA89F2E, 12, 0.16);
-    this.add.text(leftX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '🪙 金币', {
-      fontSize: RESOURCE_CARD.labelSize,
-      color: '#F7F3C8',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: RESOURCE_CARD.labelStroke,
-    }).setOrigin(0, 0);
-    this.coinText = this.add.text(leftX + cardW - RESOURCE_CARD.paddingX, rowY + cardH / 2 - 6, String(coins), {
-      fontSize: RESOURCE_CARD.valueSize,
-      color: RESOURCE_CARD.valueColor,
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: RESOURCE_CARD.valueStroke,
-    }).setOrigin(1, 1);
-
-    // === 体力卡片（中列,渐变：绿色）===
-    const energyCardX = midX + cardW / 2;
-    drawVerticalGradientRect(this, energyCardX, rowY, cardW, cardH, 0x7ED7B2, 0x3FA37A, 12, 0.14);
-    this.add.text(midX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '⚡ 体力', {
-      fontSize: RESOURCE_CARD.labelSize,
-      color: '#E9FFF5',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: RESOURCE_CARD.labelStroke,
-    }).setOrigin(0, 0);
-    this.energyText = this.add.text(midX + cardW - RESOURCE_CARD.paddingX, rowY + cardH / 2 - 6, `${energy}/${maxEnergy}`, {
-      fontSize: RESOURCE_CARD.valueSize,
-      color: RESOURCE_CARD.valueColor,
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: RESOURCE_CARD.valueStroke,
-    }).setOrigin(1, 1);
-
-    // === 重量卡片（右列,渐变：蓝色,显示累计重量）===
-    const weightCardX = rightX + cardW / 2;
-    drawVerticalGradientRect(this, weightCardX, rowY, cardW, cardH, 0x6EC1FF, 0x3B82C4, 12, 0.15);
-    this.add.text(rightX + RESOURCE_CARD.paddingX, rowY - cardH / 2 + RESOURCE_CARD.paddingTop, '⚖️ 累计重量', {
-      fontSize: RESOURCE_CARD.labelSize,
-      color: '#EAF6FF',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: RESOURCE_CARD.labelStroke,
-    }).setOrigin(0, 0);
-    // 首页累计重量卡单独兜底：0 时显示 0kg，不显示空白
-    const weightDisplayText = totalFishWeight > 0 ? formatWeight(totalFishWeight) : '0kg';
-    this.weightText = this.add.text(rightX + cardW - RESOURCE_CARD.paddingX, rowY + cardH / 2 - 6, weightDisplayText, {
-      fontSize: RESOURCE_CARD.valueSize,
-      color: RESOURCE_CARD.valueColor,
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: RESOURCE_CARD.valueStroke,
-    }).setOrigin(1, 1);
-  }
-
-  // ==================================================
-  // 3. goalSection - 今日任务区（使用 DailyTaskPanel 组件）
-  // ==================================================
-  private renderGoalSection(L: ReturnType<typeof this.calculateLayout>) {
+  private renderHeroArea(L: ReturnType<typeof this.calculateLayout>, _isFullEnergy: boolean) {
     const x = L.centerX;
-    const y = L.goalY + LAYOUT_SPEC.goalHeight / 2;
-    const tasks = DailyMissionManager.instance.getTasks();
+    const startBtnY = L.height * 0.70;  // 强制收口：按钮中心落在屏幕 70% 位置
+    const startBtnW = 324;  // 310 → 324 略增宽度
+    const startBtnH = 90;   // 86 → 90 略增高度
 
-    // 创建任务面板（container 放在任务区左上角）
-    const panelX = L.pagePadding;  // 任务区左边缘
-    const panelY = L.goalY;         // 任务区上边缘
-    this.taskPanel = new DailyTaskPanel(this, panelX, panelY, tasks.length);
+    this.startFishingBtnContainer = this.add.container(0, 0);
 
-    // 设置标题
-    this.taskPanel.setTitle('📋 今日任务');
+    // 按钮阴影层（增强压地感）
+    const btnShadow = this.add.graphics();
+    btnShadow.fillStyle(0x000000, 0.34);  // 0.30 → 0.34 略加深
+    btnShadow.fillRoundedRect(x - startBtnW / 2 + 3, startBtnY - startBtnH / 2 + 6, startBtnW, startBtnH, 22);  // 20 → 22 圆角略增
+    this.startFishingBtnContainer.add(btnShadow);
 
-    // 添加任务项
-    tasks.forEach((task, index) => {
-      const taskData: TaskItemData = {
-        title: task.title,
-        progress: task.progress,
-        target: task.target,
-        rewardText: '🪙 +50',
-        state: this.getTaskState(task),
-      };
-
-      const taskItem = this.taskPanel!.addTaskItem(this, taskData, index);
-
-      // 设置点击事件（仅可领取状态）
-      if (taskData.state === 'claimable') {
-        taskItem.setOnClick(() => this.onClaimTaskReward(task.id, taskItem));
-      }
-    });
-  }
-
-  /**
-   * 获取任务状态
-   */
-  private getTaskState(task: DailyTask): 'todo' | 'claimable' | 'claimed' {
-    if (task.claimed) return 'claimed';
-    if (task.progress >= task.target) return 'claimable';
-    return 'todo';
-  }
-
-  /**
-   * 领取单个任务奖励
-   */
-  private onClaimTaskReward(taskId: string, taskItem: TaskItem) {
-    SimpleAudio.unlock();
-    SimpleAudio.click();
-
-    const claimed = DailyMissionManager.instance.claimTaskReward(taskId);
-    if (claimed) {
-      // 发放金币（每个任务 50 金币）
-      CoinManager.instance.addCoins(50);
-      SaveSync.save();
-
-      // 更新任务项状态
-      taskItem.updateState('claimed');
+    // 按钮背景（珊瑚橙红渐变）
+    const btnBg = this.add.graphics();
+    const topC = new Phaser.Display.Color(255, 130, 100);
+    const bottomC = new Phaser.Display.Color(230, 60, 50);
+    const steps = 10;
+    const stepH = startBtnH / steps;
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      const c = Phaser.Display.Color.Interpolate.ColorWithColor(topC, bottomC, 1, t);
+      const color = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
+      btnBg.fillStyle(color, 1);
+      btnBg.fillRect(x - startBtnW / 2, startBtnY - startBtnH / 2 + i * stepH, startBtnW, stepH + 1);
     }
+    btnBg.lineStyle(1, 0xff8a65, 0.6);
+    btnBg.strokeRoundedRect(x - startBtnW / 2, startBtnY - startBtnH / 2, startBtnW, startBtnH, 22);  // 20 → 22
+    this.startFishingBtnContainer.add(btnBg);
+
+    // 高光层（顶部 30%，更自然）
+    const btnHighlight = this.add.graphics();
+    const highlightH = startBtnH * 0.3;
+    btnHighlight.fillStyle(0xffffff, 0.16);  // 0.14 → 0.16 略增
+    btnHighlight.fillRoundedRect(x - startBtnW / 2 + 4, startBtnY - startBtnH / 2 + 3, startBtnW - 8, highlightH, 18);  // 16 → 18
+    this.startFishingBtnContainer.add(btnHighlight);
+
+    // 按钮文字（增加 emoji 图标）
+    const btnText = this.add.text(x, startBtnY, '🎣 开始钓鱼', {
+      fontSize: '34px',  // 36 → 34 给 emoji 留空间
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+      shadow: {
+        color: '#000000',
+        offsetX: 0,
+        offsetY: 3,
+        blur: 4,
+        fill: true,
+      },
+    }).setOrigin(0.5);
+    this.startFishingBtnContainer.add(btnText);
+
+    // 点击交互区域
+    const hitArea = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0x000000, 0);
+    hitArea.setOrigin(0.5);
+    hitArea.setInteractive({ useHandCursor: true });
+    hitArea.on('pointerdown', () => this.onStartFishing());
+    this.startFishingBtnContainer.add(hitArea);
+
+    // 呼吸 tween（保持轻量）
+    this.tweens.add({
+      targets: this.startFishingBtnContainer,
+      scaleX: 1.03,
+      scaleY: 1.03,
+      duration: 1600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    this.heroArea.add(this.startFishingBtnContainer);
   }
 
   // ==================================================
-  // 入口栏 Section - 图鉴/任务/设置（3 个入口,放在开始钓鱼下方）
+  // 5. quickEntryGroup - 次级功能入口（图鉴/任务/设置）
   // ==================================================
-  private renderNavBarSection(L: ReturnType<typeof this.calculateLayout>) {
+  private renderQuickEntryGroup(L: ReturnType<typeof this.calculateLayout>) {
     const x = L.centerX;
-    
-    // 临时硬定位验证：强制放在"开始钓鱼"按钮正下方 30px
-    const actionBottomY = L.actionY + LAYOUT_SPEC.actionHeight;  // 506 + 90 = 596
-    const y = actionBottomY + 30 + LAYOUT_SPEC.navBarHeight / 2;  // 596 + 30 + 30 = 656
 
-    const summary = CollectionManager.getSummary();
+    // 位于开始钓鱼按钮下方，强制收口：整体中心落在屏幕 84% 位置
+    const y = L.height * 0.84;
 
-    // 3 个入口按钮配置（统一结构：图标 + 文案，无副文案）
+    // 3 个入口按钮配置（保留原有回调逻辑）
     const navButtons = [
       { key: 'collection', label: '📖 图鉴', onClick: () => {
         SimpleAudio.click();
@@ -485,59 +453,59 @@ export class MainScene extends Phaser.Scene {
       }},
     ];
 
-
-
-    // 计算布局（3 个按钮，保持等间距，整体居中）
-    const btnWidth = 120;                // 原 150 → 120
-    const btnHeight = 42;                // 原 50 → 42
+    // 计算布局（3 个按钮等间距，整体居中）
+    const btnWidth = 100;
+    const btnHeight = 36;
     const gap = 12;
-    const totalWidth = btnWidth * 3 + gap * 2;  // 3 个按钮，2 个间距
-    const startX = x - totalWidth / 2 + btnWidth / 2;  // 整体居中
+    const totalWidth = btnWidth * 3 + gap * 2;
+    const startX = x - totalWidth / 2 + btnWidth / 2;
 
+    // === 弱容器底板（增强组感，但仍轻）===
+    const groupPaddingX = 24;
+    const groupPaddingY = 16;
+    const groupW = totalWidth + groupPaddingX * 2;
+    const groupH = btnHeight + groupPaddingY * 2;
+    const groupX = x;
+    const groupY = y;
 
+    const groupBg = this.add.graphics();
+    groupBg.fillStyle(0xffffff, 0.10);  // 0.06 → 0.10 更清晰
+    groupBg.fillRoundedRect(groupX - groupW / 2, groupY - groupH / 2, groupW, groupH, 14);  // 12 → 14
+    groupBg.lineStyle(0.8, 0xffffff, 0.08);  // 0.5/0.04 → 0.8/0.08 更清晰
+    groupBg.strokeRoundedRect(groupX - groupW / 2, groupY - groupH / 2, groupW, groupH, 14);
+    this.quickEntryGroup.add(groupBg);
+
+    // 三个按钮
     navButtons.forEach((btn, index) => {
       const btnX = startX + index * (btnWidth + gap);
       const btnY = y;
 
-      // 按钮背景（正式视觉：深紫色 + 轻描边）
-      const btnBg = this.add.rectangle(btnX, btnY, btnWidth, btnHeight, 0x6c5ce7);
-      btnBg.setStrokeStyle(1, 0x5A4F7F);
-      btnBg.setInteractive({ useHandCursor: true });
+      // 按钮容器
+      const entryBtn = this.add.container(0, 0);
 
-      // 扩大点击区域（保持原点击区域不变）
-      const hitArea = this.add.rectangle(btnX, btnY, btnWidth + 38, btnHeight + 18, 0x000000, 0);
+      // 按钮背景（增强卡片感）
+      const bg = this.add.graphics();
+      bg.fillStyle(0x7B6FB8, 0.90);  // 0.85 → 0.90 略增不透明度
+      bg.fillRoundedRect(btnX - btnWidth / 2, btnY - btnHeight / 2, btnWidth, btnHeight, 10);  // 9 → 10
+      bg.lineStyle(1, 0x5A4F7F, 0.40);  // 0.35 → 0.40 略增描边
+      bg.strokeRoundedRect(btnX - btnWidth / 2, btnY - btnHeight / 2, btnWidth, btnHeight, 10);
+      entryBtn.add(bg);
+
+      // 扩大点击区域
+      const hitArea = this.add.rectangle(btnX, btnY, btnWidth + 36, btnHeight + 16, 0x000000, 0);
       hitArea.setInteractive({ useHandCursor: true });
       hitArea.on('pointerdown', () => btn.onClick());
+      entryBtn.add(hitArea);
 
-      // 主文案（正式视觉：白色文字,垂直居中）
-      const labelText = this.add.text(btnX, btnY, btn.label, {
-        fontSize: '16px',
+      // 文案（略小）
+      const label = this.add.text(btnX, btnY, btn.label, {
+        fontSize: '14px',  // 15 → 14
         color: '#FFFFFF',
         fontStyle: 'bold',
       }).setOrigin(0.5);
+      entryBtn.add(label);
 
-      // 图鉴按钮呼吸动效（减弱幅度）
-      if (btn.key === 'collection') {
-        this.tweens.add({
-          targets: btnBg,
-          scaleX: 1.03,
-          scaleY: 1.03,
-          duration: 2000,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-        // 文字也跟随缩放
-        this.tweens.add({
-          targets: labelText,
-          scaleX: 1.03,
-          scaleY: 1.03,
-          duration: 2000,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-      }
+      this.quickEntryGroup.add(entryBtn);
     });
   }
 
@@ -547,55 +515,6 @@ export class MainScene extends Phaser.Scene {
     if (this.coinText) {
       this.coinText.setText(String(coins));
     }
-  }
-
-  // ==================================================
-  // 4. actionSection - 主行动区（最终版 CTA 按钮,移动端适配）
-  // ==================================================
-  private renderActionSection(L: ReturnType<typeof this.calculateLayout>, isFullEnergy: boolean) {
-    const x = L.centerX;
-    const startBtnY = L.actionY + LAYOUT_SPEC.actionHeight / 2;
-    const startBtnW = 260;
-    const startBtnH = 72;
-
-    // 按钮阴影（先绘制,在按钮下方）
-    const shadow = this.add.rectangle(x, startBtnY + 6, startBtnW, startBtnH, 0x000000, 0.22);
-    shadow.setOrigin(0.5);
-
-    // 按钮背景（渐变：红色系,带顶部高光）
-    drawVerticalGradientRect(this, x, startBtnY, startBtnW, startBtnH, 0xFF7A7A, 0xFF4D4D, 12, 0.18);
-
-    // 按钮文字（增强压强：描边 + 阴影）
-    this.add.text(x, startBtnY, '开始钓鱼', {
-      fontSize: '36px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4,
-      shadow: {
-        color: '#000000',
-        offsetX: 0,
-        offsetY: 3,
-        blur: 4,
-        fill: true,
-      },
-    }).setOrigin(0.5);
-
-    // 按钮交互（使用透明矩形作为点击区域）
-    const hitArea = this.add.rectangle(x, startBtnY, startBtnW, startBtnH, 0x000000, 0);
-    hitArea.setOrigin(0.5);
-    hitArea.setInteractive({ useHandCursor: true });
-    hitArea.on('pointerdown', () => this.onStartFishing());
-  }
-
-  // ==================================================
-  // 5. oceanSection - 简洁背景区（统一为浅蓝色,与主背景一致）
-  // ==================================================
-  private renderOceanSection(L: ReturnType<typeof this.calculateLayout>) {
-    const x = L.centerX;
-
-    // 简洁背景（浅蓝色,与主背景 #8FD3FF 一致）
-    this.add.rectangle(x, L.oceanY + L.oceanHeight / 2, L.width, L.oceanHeight, 0x8FD3FF);
   }
 
 

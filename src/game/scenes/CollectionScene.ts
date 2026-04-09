@@ -1,53 +1,95 @@
 /**
- * 图鉴页 Scene
- * 
+ * 图鉴页 Scene（页面内容流重建版）
+ *
  * 职责：
- * - 渲染图鉴总览
- * - 渲染 4 个分类 Tab
- * - 渲染当前 Tab 的图鉴卡片
+ * - 渲染产品化图鉴页面
+ * - 渲染分类 Tab（全部/普通/稀缺/离谱）
+ * - 渲染双列图鉴卡片网格
  * - 处理 Tab 切换
  * - 返回首页
- * 
+ *
  * 不负责：
  * - 不存储图鉴数据
  * - 不修改图鉴进度
+ * - 不改变业务逻辑
  */
 
 import Phaser from 'phaser';
 import { CollectionManager } from '../managers/CollectionManager';
 import type { CollectionCategory } from '../data/collectionCatalog';
 
-// 布局常量（抽离 magic number）
-const L = {
-  headerY: 52,
-  tabsY: 170,
-  containerTop: 192,  // 与 tabBottom 对齐 (tabsY + tabHeight/2)
-  containerHeight: 648,  // 减少 44px，补偿上移
-  cardsStartY: 281,  // tabBottom + rowGap + cardHeight/2 = 192 + 14 + 75
+// ==================================================
+// 页面内容流 LayoutSpec
+// 所有 section 的 Y 都从上一个 section 的 bottom 推出
+// ==================================================
+const SPEC = {
+  // === 页面边距 ===
+  pageInsetX: 24,            // 页面左右安全边距
+  topBarY: 56,               // 顶栏中心 Y
+  topBarBottom: 70,          // 顶栏底部 Y（固定值）
+
+  // === Section 间距 ===
+  gapTopToHero: 20,          // topBar 底 → hero 顶
+  gapHeroToTab: 20,          // hero 底 → tab 顶
+  gapTabToGrid: 24,          // tab 底 → grid 顶
+  gapGridToStats: 28,        // grid 底 → stats 顶
+  gapBottomSafe: 40,         // stats 底 → 页面底
+
+  // === Hero 主卡 ===
+  heroWidth: 380,
+  heroHeight: 130,
+  heroRadius: 20,
+  heroPadX: 20,              // hero 内部水平内边距
+
+  // === Tab 组 ===
+  tabHeight: 32,
+  tabW: 72,
+  tabGap: 10,
+
+  // === Grid 卡片 ===
+  cardWidth: 156,
+  cardHeight: 180,
+  cardCols: 2,
+  cardColGap: 14,
+  cardRowGap: 16,
+
+  // === Stats 卡 ===
+  statsWidth: 336,           // 两张 stats 卡总宽度
+  statsCardHeight: 64,
+  statsCardGap: 16,
 };
 
-type TabConfig = {
-  key: CollectionCategory;
+// Tab 配置
+type TabDef = {
+  key: CollectionCategory | 'all';
   label: string;
 };
 
-type TabButton = {
-  key: CollectionCategory;
-  bg: Phaser.GameObjects.Rectangle;
-  text: Phaser.GameObjects.Text;
-};
-
-const TABS: TabConfig[] = [
-  { key: 'fish', label: '普通鱼' },
-  { key: 'rare', label: '稀有鱼' },
-  { key: 'weird', label: '离谱物' },
-  { key: 'legend', label: '传说' },
+const TABS: TabDef[] = [
+  { key: 'all', label: '全部' },
+  { key: 'fish', label: '普通' },
+  { key: 'rare', label: '稀缺' },
+  { key: 'weird', label: '离谱' },
 ];
 
+// 卡片配置（引用 SPEC）
+const CARD = {
+  width: SPEC.cardWidth,
+  height: SPEC.cardHeight,
+  cols: SPEC.cardCols,
+  colGap: SPEC.cardColGap,
+  rowGap: SPEC.cardRowGap,
+};
+
 export class CollectionScene extends Phaser.Scene {
-  private currentTab: CollectionCategory = 'fish';
-  private tabButtons: TabButton[] = [];
-  private cardContainer: Phaser.GameObjects.Container | null = null;
+  private currentTab: CollectionCategory | 'all' = 'all';
+  private tabButtons: Array<{ bg: Phaser.GameObjects.Graphics; text: Phaser.GameObjects.Text }> = [];
+
+  // 单实例 section 容器
+  private heroContainer: Phaser.GameObjects.Container | null = null;
+  private tabContainer: Phaser.GameObjects.Container | null = null;
+  private gridContainer: Phaser.GameObjects.Container | null = null;
+  private statsContainer: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super('CollectionScene');
@@ -58,295 +100,421 @@ export class CollectionScene extends Phaser.Scene {
     const height = this.scale.height as number;
     const centerX = width / 2;
 
-    // 背景
-    this.add.rectangle(centerX, height / 2, width, height, 0xF5F6F8);
+    // 1. 背景层
+    this.renderBgLayer(width, height, centerX);
 
-    // 渲染各区域（注意顺序：ContentContainer 先画，Tabs/Cards 后画）
-    this.renderHeader(centerX);
-    this.renderEmptyHint(centerX);
-    this.renderContentContainer(centerX);
-    this.renderTabs(centerX, L.tabsY);
-    this.renderCards(centerX, L.cardsStartY);
-    this.renderBackButton(centerX, height - 80);  // 参数保留但不再使用（按钮位置已固定）
+    // 2. 顶栏
+    this.renderTopBar(centerX, width);
+
+    // 3. 页面内容流：从 topBarBottom 开始流式下推
+    let y = SPEC.topBarBottom + SPEC.gapTopToHero;
+    y = this.renderHeroSection(centerX, y);
+    y = this.renderTabSection(centerX, y);
+    y = this.renderGridSection(centerX, y);
+    this.renderStatsSection(centerX, y);
   }
 
-  /**
-   * 渲染头部总览
-   */
-  private renderHeader(centerX: number) {
-    const summary = CollectionManager.getSummary();
+  // ==================================================
+  // 1. bgLayer - 页面底色
+  // ==================================================
+  private renderBgLayer(width: number, height: number, centerX: number) {
+    this.add.rectangle(centerX, height / 2, width, height, 0xEEF8FF);
+  }
 
-    // Header 背景（白底 + 圆角）
-    const headerBg = this.add.rectangle(centerX, L.headerY, 700, 88, 0xffffff);
-    headerBg.setOrigin(0.5);
+  // ==================================================
+  // 2. topBar - 返回 + 标题
+  // ==================================================
+  private renderTopBar(centerX: number, width: number) {
+    const y = SPEC.topBarY;
+    const backBtnX = SPEC.pageInsetX + 18;
 
-    // 标题
-    this.add.text(centerX, L.headerY - 20, '📖 图鉴', {
-      fontSize: '26px',
-      color: '#333333',
+    // 返回按钮
+    const backBtn = this.add.graphics();
+    backBtn.fillStyle(0xF0F4F8, 1);
+    backBtn.fillCircle(backBtnX, y, 16);
+    backBtn.lineStyle(1, 0xC8D0D8, 0.6);
+    backBtn.strokeCircle(backBtnX, y, 16);
+
+    this.add.text(backBtnX, y + 1, '‹', {
+      fontSize: '20px',
+      color: '#5A6A80',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 收集进度文字
-    this.add.text(centerX, L.headerY + 10, `已收集 ${summary.unlocked} / ${summary.total}`, {
-      fontSize: '16px',
-      color: '#666666',
+    const backHit = this.add.rectangle(backBtnX, y, 40, 40, 0x000000, 0);
+    backHit.setInteractive({ useHandCursor: true });
+    backHit.on('pointerdown', () => {
+      this.scene.start('MainScene');
+    });
+
+    // 标题
+    this.add.text(centerX, y + 1, '图鉴', {
+      fontSize: '20px',
+      color: '#1A1A2E',
+      fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 进度条（符合 UI Design System：宽度 702，左对齐增长）
-    const progressBarWidth = 702;
-    const progressBarHeight = 8;
-    const progressBarY = L.headerY + 38;
-    const startX = centerX - progressBarWidth / 2;
-
-    // 进度条轨道（浅灰）
-    this.add.rectangle(centerX, progressBarY, progressBarWidth, progressBarHeight, 0xE8ECF1);
-
-    // 进度条填充（主色，按百分比从左侧增长）
-    const fillWidth = progressBarWidth * (summary.percentage / 100);
-    this.add.rectangle(startX + fillWidth / 2, progressBarY, fillWidth, progressBarHeight, 0x4FA6F8);
+    // 极轻底部分隔
+    const divider = this.add.graphics();
+    divider.fillStyle(0xE8ECF0, 0.5);
+    divider.fillRect(0, SPEC.topBarBottom, width, 1);
   }
 
-  /**
-   * 渲染空进度提示
-   */
-  private renderEmptyHint(centerX: number) {
-    const summary = CollectionManager.getSummary();
-    
-    if (summary.unlocked === 0) {
-      this.add.text(centerX, 110, '先去钓一条鱼，图鉴就会开始解锁', {
-        fontSize: '14px',
-        color: '#999999',
-        fontStyle: 'italic',
-      }).setOrigin(0.5);
+  // ==================================================
+  // 3. heroSection - 进度主卡（topBar 下第一主块）
+  // 返回 heroBottomY
+  // ==================================================
+  private renderHeroSection(centerX: number, topY: number): number {
+    if (this.heroContainer) {
+      this.heroContainer.destroy(true);
     }
+    this.heroContainer = this.add.container(0, 0);
+
+    const w = SPEC.heroWidth;
+    const h = SPEC.heroHeight;
+    const y = topY + h / 2;
+    const r = SPEC.heroRadius;
+    const padX = SPEC.heroPadX;
+
+    // 卡片背景（紫色渐变）
+    const cardBg = this.add.graphics();
+    const gradTop = new Phaser.Display.Color(120, 80, 220);
+    const gradBottom = new Phaser.Display.Color(80, 60, 180);
+    const steps = 8;
+    const stepH = h / steps;
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      const c = Phaser.Display.Color.Interpolate.ColorWithColor(gradTop, gradBottom, 1, t);
+      const color = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
+      cardBg.fillStyle(color, 1);
+      cardBg.fillRect(centerX - w / 2, y - h / 2 + i * stepH, w, stepH + 1);
+    }
+    cardBg.fillRoundedRect(centerX - w / 2, y - h / 2, w, h, r);
+    this.heroContainer.add(cardBg);
+
+    const summary = CollectionManager.getSummary();
+
+    // Progress 小字
+    this.heroContainer.add(this.add.text(centerX - w / 2 + padX, y - h / 2 + 14, `Progress ${summary.unlocked}/${summary.total}`, {
+      fontSize: '12px',
+      color: 'rgba(255,255,255,0.65)',
+    }).setOrigin(0, 0));
+
+    // 主标题
+    this.heroContainer.add(this.add.text(centerX, y - 14, '揭开水底世界的秘密', {
+      fontSize: '22px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    // 进度条
+    const barW = w - padX * 2;
+    const barH = 8;
+    const barY = y + 18;
+    const barX = centerX - barW / 2;
+    this.heroContainer.add(this.add.rectangle(centerX, barY, barW, barH, 0x3A2870).setOrigin(0.5));
+
+    const fillW = barW * (summary.percentage / 100);
+    if (fillW > 0) {
+      this.heroContainer.add(this.add.rectangle(barX + fillW / 2, barY, fillW, barH, 0xFFD700).setOrigin(0.5));
+    }
+
+    // 底部辅助文字
+    this.heroContainer.add(this.add.text(centerX - barW / 2, barY + 18, `收集进度 ${summary.percentage}%`, {
+      fontSize: '11px',
+      color: 'rgba(255,255,255,0.55)',
+    }).setOrigin(0, 0));
+
+    this.heroContainer.add(this.add.text(centerX + barW / 2, barY + 18, '🏆 成就徽章', {
+      fontSize: '11px',
+      color: 'rgba(255,255,255,0.55)',
+    }).setOrigin(1, 0));
+
+    return topY + h;
   }
 
-  /**
-   * 渲染内容容器（白色主容器）
-   */
-  private renderContentContainer(centerX: number) {
-    const containerY = L.containerTop + L.containerHeight / 2;
-    const containerBg = this.add.rectangle(centerX, containerY, 702, L.containerHeight, 0xFFFFFF);
-    containerBg.setOrigin(0.5);
-    containerBg.setStrokeStyle(1, 0xEEF1F4);
-  }
+  // ==================================================
+  // 4. tabSection - 分类切换（独立 section）
+  // 返回 tabBottomY
+  // ==================================================
+  private renderTabSection(centerX: number, topY: number): number {
+    if (this.tabContainer) {
+      this.tabContainer.destroy(true);
+    }
+    this.tabContainer = this.add.container(0, 0);
 
-  /**
-   * 渲染 Tab
-   */
-  private renderTabs(centerX: number, y: number) {
-    const tabWidth = 150;
-    const tabHeight = 44;
-    const gap = 12;
-    const totalWidth = tabWidth * 4 + gap * 3;
-    const startX = centerX - totalWidth / 2 + tabWidth / 2;
+    const tabH = SPEC.tabHeight;
+    const tabW = SPEC.tabW;
+    const gap = SPEC.tabGap;
+    const y = topY + tabH / 2;
+    const totalW = tabW * TABS.length + gap * (TABS.length - 1);
+    const startX = centerX - totalW / 2 + tabW / 2;
 
-    TABS.forEach((tab, index) => {
-      const x = startX + index * (tabWidth + gap);
+    this.tabButtons = [];
+
+    TABS.forEach((tab, idx) => {
+      const x = startX + idx * (tabW + gap);
       const isSelected = tab.key === this.currentTab;
 
-      // Tab 背景
-      const bgColor = isSelected ? 0x4FA6F8 : 0xF2F4F7;
-      const textColor = isSelected ? '#FFFFFF' : '#505866';
+      const bg = this.add.graphics();
+      bg.fillStyle(isSelected ? 0xFF6B6B : 0xE8F0FE, 1);
+      bg.fillRoundedRect(x - tabW / 2, y - tabH / 2, tabW, tabH, 16);
+      this.tabContainer.add(bg);
 
-      const bg = this.add.rectangle(x, y, tabWidth, tabHeight, bgColor);
-      bg.setInteractive({ useHandCursor: true });
-      bg.setDepth(100);  // 确保 Tab 在最上层
-
-      // Tab 文字
       const text = this.add.text(x, y, tab.label, {
-        fontSize: '16px',
-        color: textColor,
+        fontSize: '14px',
+        color: isSelected ? '#FFFFFF' : '#5A6A80',
         fontStyle: 'bold',
       }).setOrigin(0.5);
-      text.setDepth(100);  // 确保 Tab 文字在最上层
+      this.tabContainer.add(text);
 
-      // 保存到 tabButtons 数组
-      this.tabButtons.push({
-        key: tab.key,
-        bg,
-        text,
-      });
+      const hit = this.add.rectangle(x, y, tabW, tabH, 0x000000, 0);
+      hit.setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', () => this.switchTab(tab.key));
+      this.tabContainer.add(hit);
 
-      // 点击事件
-      bg.on('pointerdown', () => {
-        this.switchTab(tab.key);
-      });
-    });
-  }
-
-  /**
-   * 切换 Tab
-   */
-  private switchTab(category: CollectionCategory) {
-    if (category === this.currentTab) return;
-
-    this.currentTab = category;
-
-    // 更新 Tab 样式
-    this.tabButtons.forEach((tab) => {
-      const isSelected = tab.key === this.currentTab;
-      const bgColor = isSelected ? 0x4FA6F8 : 0xF2F4F7;
-      const textColor = isSelected ? '#FFFFFF' : '#505866';
-
-      // 安全更新 bg
-      if (
-        tab.bg &&
-        !tab.bg.destroyed &&
-        tab.bg.scene &&
-        tab.bg.active !== false
-      ) {
-        tab.bg.setFillStyle(bgColor);
-      }
-
-      // 安全更新 text
-      if (
-        tab.text &&
-        !tab.text.destroyed &&
-        tab.text.scene &&
-        tab.text.active !== false
-      ) {
-        tab.text.setColor(textColor);
-      }
+      this.tabButtons.push({ bg, text });
     });
 
-    // 重新渲染卡片
-    this.renderCards(this.scale.width as number / 2, L.cardsStartY);
+    return topY + tabH;
   }
 
-  /**
-   * 渲染卡片网格
-   */
-  private renderCards(centerX: number, startY: number) {
-    // 清除旧卡片（true = 递归销毁子元素）
-    if (this.cardContainer) {
-      this.cardContainer.destroy(true);
+  // ==================================================
+  // 5. gridSection - 双列图鉴卡片网格
+  // 返回 gridBottomY
+  // ==================================================
+  private renderGridSection(centerX: number, topY: number): number {
+    if (this.gridContainer) {
+      this.gridContainer.destroy(true);
     }
+    this.gridContainer = this.add.container(0, 0);
 
-    this.cardContainer = this.add.container(0, 0);
-
-    const items = CollectionManager.getItemsByCategory(this.currentTab);
-
-    const cardWidth = 150;
-    const cardHeight = 150;
-    const cols = 4;
-    const colGap = 12;
-    const rowGap = 14;
-    const totalWidth = cardWidth * cols + colGap * (cols - 1);
-    const startX = centerX - totalWidth / 2 + cardWidth / 2;
+    const items = this.getTabItems();
+    const { width: cardW, height: cardH, colGap, rowGap, cols } = CARD;
+    const totalW = cardW * cols + colGap * (cols - 1);
+    const startX = centerX - totalW / 2 + cardW / 2;
+    const startY = topY + cardH / 2;
 
     items.forEach((item, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
-      const x = startX + col * (cardWidth + colGap);
-      const y = startY + row * (cardHeight + rowGap);
-
-      const isUnlocked = item.progress?.unlocked ?? false;
-
-      // ========== 创建卡片容器（每张卡独立 container） ==========
-      const card = this.add.container(x, y);
-
-      // ========== 卡片背景 ==========
-      const bgColor = isUnlocked ? 0xFFFFFF : 0xE8EAEF;
-      const bg = this.add.rectangle(0, 0, cardWidth, cardHeight, bgColor);
-      if (isUnlocked) {
-        bg.setStrokeStyle(2, this.getRarityStrokeColor(item.rarity));
-      } else {
-        bg.setStrokeStyle(1, 0xD8DCE2);
-      }
-
-      // ========== Emoji（视觉中心） ==========
-      const emojiText = isUnlocked ? item.emoji : '?';
-      const emoji = this.add.text(0, -34, emojiText, {
-        fontSize: '56px',
-      }).setOrigin(0.5);
-      if (!isUnlocked) {
-        emoji.setColor('#B0B4BC');
-      }
-
-      // ========== 名称 ==========
-      const nameText = isUnlocked ? item.name : '???';
-      const name = this.add.text(0, 8, nameText, {
-        fontSize: '13px',
-        color: isUnlocked ? '#2F3440' : '#9AA1AA',
-        fontStyle: isUnlocked ? 'bold' : 'normal',
-      }).setOrigin(0.5);
-
-      // ========== Rarity Badge ==========
-      const rarityText = isUnlocked ? item.rarity : '???';
-      const rarityBgColor = isUnlocked ? this.getRarityBgColor(item.rarity) : 0xC8CCD2;
-      const rarityBg = this.add.rectangle(0, 34, 48, 20, rarityBgColor);
-      const rarity = this.add.text(0, 34, rarityText, {
-        fontSize: '11px',
-        color: '#FFFFFF',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
-
-      // ========== 将所有元素加入卡片容器 ==========
-      card.add([bg, emoji, name, rarityBg, rarity]);
-
-      // ========== CatchCount（仅已解锁，必须加入卡片容器） ==========
-      if (isUnlocked && item.progress && item.progress.catchCount > 0) {
-        const count = this.add.text(0, 56, `x${item.progress.catchCount}`, {
-          fontSize: '11px',
-          color: '#9AA1AA',
-          fontStyle: 'bold',
-        }).setOrigin(0.5);
-        card.add(count);
-      }
-
-      // ========== 将卡片容器加入总容器 ==========
-      this.cardContainer.add(card);
+      const x = startX + col * (cardW + colGap);
+      const y = startY + row * (cardH + rowGap);
+      this.gridContainer!.add(this.createCollectionCard(x, y, item));
     });
 
-    this.add.existing(this.cardContainer);
+    const rowCount = Math.ceil(items.length / cols);
+    return topY + rowCount * (cardH + rowGap);
   }
 
-  /**
-   * 获取稀有度背景色
-   */
-  private getRarityBgColor(rarity: string): number {
-    switch (rarity) {
-      case 'SSR': return 0xF5B800;  // 金色
-      case 'SR': return 0xB47CFF;   // 紫色
-      case 'R': return 0x4FA6F8;    // 蓝色
-      default: return 0x9AA0A6;     // 灰色
+  // ==================================================
+  // 6. statsSection - 底部统计（pageContent 最后一层）
+  // ==================================================
+  private renderStatsSection(centerX: number, gridBottomY: number) {
+    if (this.statsContainer) {
+      this.statsContainer.destroy(true);
     }
-  }
+    this.statsContainer = this.add.container(0, 0);
 
-  /**
-   * 获取稀有度描边颜色
-   */
-  private getRarityStrokeColor(rarity: string): number {
-    switch (rarity) {
-      case 'SSR': return 0xF5B800;  // 金色
-      case 'SR': return 0xB47CFF;   // 紫色
-      case 'R': return 0x4FA6F8;    // 蓝色
-      default: return 0x9AA0A6;     // 灰色
-    }
-  }
+    const topY = gridBottomY + SPEC.gapGridToStats;
+    const y = topY + SPEC.statsCardHeight / 2;
+    const cardH = SPEC.statsCardHeight;
+    const totalW = SPEC.statsWidth;
+    const cardW = (totalW - SPEC.statsCardGap) / 2;
+    const gap = SPEC.statsCardGap;
 
-  /**
-   * 渲染返回按钮（左上角，轻量级）
-   */
-  private renderBackButton(centerX: number, y: number) {
-    const btnWidth = 88;
-    const btnHeight = 40;
-    const btnX = 60;  // 左上角，安全区域内
-    const btnY = 60;
+    const summary = CollectionManager.getSummary();
+    const allItems = CollectionManager.getItemsByCategory('fish')
+      .concat(CollectionManager.getItemsByCategory('rare'))
+      .concat(CollectionManager.getItemsByCategory('weird'))
+      .concat(CollectionManager.getItemsByCategory('legend'));
+    const rareUnlocked = allItems.filter(item =>
+      item.progress?.unlocked && (item.rarity === 'SR' || item.rarity === 'SSR')
+    ).length;
+    const rareTotal = allItems.filter(item =>
+      item.rarity === 'SR' || item.rarity === 'SSR'
+    ).length;
 
-    const bg = this.add.rectangle(btnX, btnY, btnWidth, btnHeight, 0xF2F4F7);
-    bg.setInteractive({ useHandCursor: true });
+    // 左卡
+    const leftX = centerX - cardW / 2 - gap / 2;
+    const leftCard = this.add.graphics();
+    leftCard.fillStyle(0xffffff, 0.85);
+    leftCard.fillRoundedRect(leftX - cardW / 2, y - cardH / 2, cardW, cardH, 14);
+    leftCard.lineStyle(0.5, 0xE0E8F0, 0.5);
+    leftCard.strokeRoundedRect(leftX - cardW / 2, y - cardH / 2, cardW, cardH, 14);
+    this.statsContainer.add(leftCard);
 
-    this.add.text(btnX, btnY, '← 返回', {
-      fontSize: '16px',
-      color: '#333333',
+    this.statsContainer.add(this.add.text(leftX, y - 10, '🐟 已解锁品种', {
+      fontSize: '12px',
+      color: '#8A96A6',
+    }).setOrigin(0.5));
+
+    this.statsContainer.add(this.add.text(leftX, y + 14, `${summary.unlocked}`, {
+      fontSize: '24px',
+      color: '#1A1A2E',
       fontStyle: 'bold',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5));
 
-    bg.on('pointerdown', () => {
-      this.scene.start('MainScene');
+    // 右卡
+    const rightX = centerX + cardW / 2 + gap / 2;
+    const rightCard = this.add.graphics();
+    rightCard.fillStyle(0xffffff, 0.85);
+    rightCard.fillRoundedRect(rightX - cardW / 2, y - cardH / 2, cardW, cardH, 14);
+    rightCard.lineStyle(0.5, 0xE0E8F0, 0.5);
+    rightCard.strokeRoundedRect(rightX - cardW / 2, y - cardH / 2, cardW, cardH, 14);
+    this.statsContainer.add(rightCard);
+
+    this.statsContainer.add(this.add.text(rightX, y - 10, '⭐ 稀有收集度', {
+      fontSize: '12px',
+      color: '#8A96A6',
+    }).setOrigin(0.5));
+
+    this.statsContainer.add(this.add.text(rightX, y + 14, `${rareUnlocked}/${rareTotal}`, {
+      fontSize: '24px',
+      color: '#1A1A2E',
+      fontStyle: 'bold',
+    }).setOrigin(0.5));
+  }
+
+  // ==================================================
+  // Tab 切换（只重建 grid + stats）
+  // ==================================================
+  private switchTab(category: CollectionCategory | 'all') {
+    if (category === this.currentTab) return;
+    this.currentTab = category;
+
+    // 更新 Tab 选中态（不重建容器）
+    this.tabButtons.forEach((tab, index) => {
+      const isSelected = TABS[index].key === this.currentTab;
+      tab.bg.clear();
+      tab.bg.fillStyle(isSelected ? 0xFF6B6B : 0xE8F0FE, 1);
+      tab.bg.fillRoundedRect(-SPEC.tabW / 2, -SPEC.tabHeight / 2, SPEC.tabW, SPEC.tabHeight, 16);
+      tab.text.setColor(isSelected ? '#FFFFFF' : '#5A6A80');
     });
+
+    // 只重建 grid + stats（使用与 create 相同的流式推导）
+    const width = this.scale.width as number;
+    const centerX = width / 2;
+
+    const tabBottomY = SPEC.topBarBottom + SPEC.gapTopToHero + SPEC.heroHeight + SPEC.gapHeroToTab + SPEC.tabHeight;
+    const gridBottomY = this.renderGridSection(centerX, tabBottomY + SPEC.gapTabToGrid);
+    this.renderStatsSection(centerX, gridBottomY);
+  }
+
+  // ==================================================
+  // 数据方法（不碰业务逻辑）
+  // ==================================================
+  private getTabItems() {
+    if (this.currentTab === 'all') {
+      return CollectionManager.getItemsByCategory('fish')
+        .concat(CollectionManager.getItemsByCategory('rare'))
+        .concat(CollectionManager.getItemsByCategory('weird'))
+        .concat(CollectionManager.getItemsByCategory('legend'));
+    }
+    return CollectionManager.getItemsByCategory(this.currentTab as CollectionCategory);
+  }
+
+  private createCollectionCard(
+    x: number,
+    y: number,
+    item: ReturnType<typeof CollectionManager.getItemsByCategory>[number],
+  ): Phaser.GameObjects.Container {
+    const card = this.add.container(x, y);
+    const isUnlocked = item.progress?.unlocked ?? false;
+    if (isUnlocked) {
+      this.populateUnlockedCard(card, item);
+    } else {
+      this.populateLockedCard(card);
+    }
+    return card;
+  }
+
+  private populateUnlockedCard(
+    card: Phaser.GameObjects.Container,
+    item: ReturnType<typeof CollectionManager.getItemsByCategory>[number],
+  ): void {
+    const { width: w, height: h } = CARD;
+
+    // 卡片背景
+    const cardBg = this.add.graphics();
+    const topC = new Phaser.Display.Color(30, 50, 80);
+    const bottomC = new Phaser.Display.Color(20, 35, 60);
+    const steps = 6;
+    const stepH = h / steps;
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      const c = Phaser.Display.Color.Interpolate.ColorWithColor(topC, bottomC, 1, t);
+      cardBg.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b), 1);
+      cardBg.fillRect(-w / 2, -h / 2 + i * stepH, w, stepH + 1);
+    }
+    cardBg.fillRoundedRect(-w / 2, -h / 2, w, h, 14);
+    cardBg.lineStyle(1.5, this.getRarityColor(item.rarity), 0.6);
+    cardBg.strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
+    card.add(cardBg);
+
+    // SSR 发光
+    if (item.rarity === 'SSR') {
+      const glow = this.add.graphics();
+      glow.fillStyle(0xFFD700, 0.08);
+      glow.fillRoundedRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, 16);
+      card.addAt(glow, 0);
+    }
+
+    // 稀有度角标
+    const rx = w / 2 - 22;
+    const ry = -h / 2 + 16;
+    const rarityBg = this.add.graphics();
+    rarityBg.fillStyle(this.getRarityColor(item.rarity), 0.9);
+    rarityBg.fillRoundedRect(rx - 16, ry - 8, 32, 16, 8);
+    card.add(rarityBg);
+    card.add(this.add.text(rx, ry, item.rarity, {
+      fontSize: '10px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    // Emoji
+    card.add(this.add.text(0, -16, item.emoji, { fontSize: '52px' }).setOrigin(0.5));
+
+    // 中文名
+    card.add(this.add.text(0, 36, item.name, {
+      fontSize: '14px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    // 捕获次数
+    if (item.progress && item.progress.catchCount > 1) {
+      card.add(this.add.text(0, 56, `x${item.progress.catchCount}`, {
+        fontSize: '11px',
+        color: 'rgba(255,255,255,0.5)',
+      }).setOrigin(0.5));
+    }
+  }
+
+  private populateLockedCard(card: Phaser.GameObjects.Container): void {
+    const { width: w, height: h } = CARD;
+
+    const cardBg = this.add.graphics();
+    cardBg.fillStyle(0xD8DCE2, 0.5);
+    cardBg.fillRoundedRect(-w / 2, -h / 2, w, h, 14);
+    cardBg.lineStyle(1, 0xC0C4CC, 0.3);
+    cardBg.strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
+    card.add(cardBg);
+
+    card.add(this.add.text(0, -10, '🔒', { fontSize: '40px' }).setOrigin(0.5).setAlpha(0.4));
+    card.add(this.add.text(0, 36, '???', {
+      fontSize: '14px',
+      color: '#9AA1AA',
+    }).setOrigin(0.5));
+  }
+
+  private getRarityColor(rarity: string): number {
+    switch (rarity) {
+      case 'SSR': return 0xFFD700;
+      case 'SR': return 0xB47CFF;
+      case 'R': return 0x4FA6F8;
+      default: return 0x9AA0A6;
+    }
   }
 }
