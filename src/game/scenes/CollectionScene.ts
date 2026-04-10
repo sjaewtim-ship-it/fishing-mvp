@@ -1,65 +1,187 @@
 /**
- * 图鉴页 Scene（页面内容流重建版）
+ * 图鉴页 Scene（Stitch 结构继承版）
  *
- * 职责：
- * - 渲染产品化图鉴页面
- * - 渲染分类 Tab（全部/普通/稀缺/离谱）
- * - 渲染双列图鉴卡片网格
- * - 处理 Tab 切换
- * - 返回首页
+ * 页面结构（Phaser 组件树）：
+ *
+ * CollectionScene
+ * ├─ bgLayer
+ * ├─ topBarContainer
+ * ├─ heroSectionContainer
+ * ├─ tabSectionContainer
+ * ├─ gridSectionContainer
+ * └─ statsSectionContainer
  *
  * 不负责：
  * - 不存储图鉴数据
  * - 不修改图鉴进度
- * - 不改变业务逻辑
+ * - 不改变 CollectionManager 业务逻辑
  */
 
 import Phaser from 'phaser';
 import { CollectionManager } from '../managers/CollectionManager';
-import type { CollectionCategory } from '../data/collectionCatalog';
+import type { CollectionCategory, CollectionRarity } from '../data/collectionCatalog';
 
-// ==================================================
-// 页面内容流 LayoutSpec
-// 所有 section 的 Y 都从上一个 section 的 bottom 推出
-// ==================================================
-const SPEC = {
-  // === 页面边距 ===
-  pageInsetX: 24,            // 页面左右安全边距
-  topBarY: 56,               // 顶栏中心 Y
-  topBarBottom: 70,          // 顶栏底部 Y（固定值）
+// ============================================================
+// 色板
+// ============================================================
+const C = {
+  // 背景
+  pageBg: 0xF2F5F9,
 
-  // === Section 间距 ===
-  gapTopToHero: 20,          // topBar 底 → hero 顶
-  gapHeroToTab: 20,          // hero 底 → tab 顶
-  gapTabToGrid: 24,          // tab 底 → grid 顶
-  gapGridToStats: 28,        // grid 底 → stats 顶
-  gapBottomSafe: 40,         // stats 底 → 页面底
+  // TopBar
+  topBarDivider: 0xE8EEF5,
+  backBtnBg: 0xEEF4FA,
+  backBtnStroke: 0xD7E4F0,
+  backBtnArrow: 0x7A8FA6,
+  titleText: '#243446',
 
-  // === Hero 主卡 ===
-  heroWidth: 380,
-  heroHeight: 130,
-  heroRadius: 20,
-  heroPadX: 20,              // hero 内部水平内边距
+  // Hero
+  heroGradTop: { r: 100, g: 60, b: 190 },
+  heroGradBottom: { r: 65, g: 40, b: 160 },
+  heroTextWhite: '#FFFFFF',
+  heroTextMuted: 'rgba(255,255,255,0.55)',
+  heroTrack: 0x2D1B60,
+  heroFill: 0xFFE44D,
+  heroGlow: 0xFFFFFF,
 
-  // === Tab 组 ===
-  tabHeight: 32,
-  tabW: 72,
-  tabGap: 10,
+  // Tab
+  tabSelectedBg: 0xF97316,
+  tabSelectedText: '#FFFFFF',
+  tabUnselectedBg: 0xEBF0F7,
+  tabUnselectedText: '#5B6B7E',
 
-  // === Grid 卡片 ===
-  cardWidth: 156,
-  cardHeight: 180,
+  // 卡片
+  cardBgTop: { r: 20, g: 55, b: 75 },
+  cardBgBottom: { r: 12, g: 35, b: 55 },
+  cardLockedBg: 0xE2E6EC,
+  cardLockedAlpha: 0.6,
+  cardLockedBorder: 0xC8CED6,
+
+  // 稀有度
+  rarityN: 0x9AA0A6,
+  rarityR: 0x5BA0E8,
+  raritySR: 0xA855F7,
+  raritySSR: 0xFBBF24,
+  ssrGlow: 0xFFD700,
+
+  // 文本
+  textCardName: '#FFFFFF',
+  textCardEn: 'rgba(255,255,255,0.45)',
+  textLocked: '#A0A8B2',
+  textStatsLabel: '#8A96A6',
+  textStatsValue: '#1A2332',
+
+  // Stats
+  statsCardBg: 0xFFFFFF,
+  statsCardBorder: 0xE4ECF4,
+};
+
+// ============================================================
+// 英文名 fallback map（不改 catalog 结构）
+// ============================================================
+const EN_NAMES: Record<string, string> = {
+  'fish_001': 'Crucian Carp',
+  'fish_002': 'Common Carp',
+  'fish_003': 'Tilapia',
+  'fish_004': 'Grass Carp',
+  'fish_005': 'Catfish',
+  'fish_006': 'Big Carp',
+  'fish_007': 'Snakehead',
+  'fish_008': 'Bass',
+  'fish_009': 'Gold Crucian',
+  'rare_001': 'Koi',
+  'rare_002': 'Giant Grass Carp',
+  'rare_003': 'Arowana',
+  'rare_004': 'Golden Koi',
+  'weird_001': 'Old Sock',
+  'weird_002': 'Sandal',
+  'weird_003': 'Branch',
+  'weird_004': 'Underwear',
+  'weird_005': 'Crab',
+  'weird_006': 'Turtle',
+  'legend_001': 'Diamond Ring',
+  'legend_002': 'Mystery Chest',
+};
+
+// ============================================================
+// 统一布局常量（参考图节奏：顶部轻 / Hero 强 / Tab 清晰 / Grid 最强 / Stats 最弱）
+// ============================================================
+const L = {
+  // --- 页面 ---
+  pageInsetX: 24,
+  pageBottomSafe: 28,
+
+  // --- TopBar ---
+  topBarY: 56,
+  topBarBottom: 72,
+
+  // --- Section 间距 ---
+  gapTopBarToHero: 18,
+  gapHeroToTabs: 18,
+  gapTabsToGrid: 18,
+  gapGridToStats: 18,
+
+  // --- Hero 主视觉卡 ---
+  heroWidth: 702,
+  heroHeight: 140,
+  heroRadius: 24,
+  heroPadX: 22,
+  heroPadTop: 18,
+  heroPadBottom: 18,
+
+  // --- Tab 胶囊 ---
+  tabHeight: 38,
+  tabW: 82,
+  tabGap: 14,
+  tabRadius: 19,
+
+  // --- Grid 卡片 ---
+  cardWidth: 160,
+  cardHeight: 204,
   cardCols: 2,
   cardColGap: 14,
   cardRowGap: 16,
+  cardRadius: 20,
 
-  // === Stats 卡 ===
-  statsWidth: 336,           // 两张 stats 卡总宽度
-  statsCardHeight: 64,
-  statsCardGap: 16,
+  // --- 卡片内部 ---
+  cardEmojiSize: 64,
+  cardEmojiY: -28,
+  cardNameY: 36,
+  cardNameFontSize: 16,
+  cardEnY: 56,
+  cardEnFontSize: 10,
+  cardCatchFontSize: 10,
+
+  // --- 稀有度角标 ---
+  rarityBadgeW: 30,
+  rarityBadgeH: 16,
+  rarityBadgeR: 8,
+  rarityFontSize: 9,
+  rarityBadgeX: 14,
+  rarityBadgeY: 14,
+
+  // --- Stats ---
+  statsTotalW: 702,
+  statsCardH: 60,
+  statsCardGap: 14,
+  statsCardR: 16,
 };
 
+// ============================================================
+// 布局计算：section bottom 推导
+// ============================================================
+function getSectionY() {
+  const heroTop = L.topBarBottom + L.gapTopBarToHero;
+  const heroBottom = heroTop + L.heroHeight;
+  const tabTop = heroBottom + L.gapHeroToTabs;
+  const tabBottom = tabTop + L.tabHeight;
+  const gridTop = tabBottom + L.gapTabsToGrid;
+  return { heroTop, heroBottom, tabTop, tabBottom, gridTop };
+}
+
+// ============================================================
 // Tab 配置
+// ============================================================
 type TabDef = {
   key: CollectionCategory | 'all';
   label: string;
@@ -72,24 +194,20 @@ const TABS: TabDef[] = [
   { key: 'weird', label: '离谱' },
 ];
 
-// 卡片配置（引用 SPEC）
-const CARD = {
-  width: SPEC.cardWidth,
-  height: SPEC.cardHeight,
-  cols: SPEC.cardCols,
-  colGap: SPEC.cardColGap,
-  rowGap: SPEC.cardRowGap,
-};
-
+// ============================================================
+// CollectionScene
+// ============================================================
 export class CollectionScene extends Phaser.Scene {
   private currentTab: CollectionCategory | 'all' = 'all';
   private tabButtons: Array<{ bg: Phaser.GameObjects.Graphics; text: Phaser.GameObjects.Text }> = [];
 
   // 单实例 section 容器
-  private heroContainer: Phaser.GameObjects.Container | null = null;
-  private tabContainer: Phaser.GameObjects.Container | null = null;
-  private gridContainer: Phaser.GameObjects.Container | null = null;
-  private statsContainer: Phaser.GameObjects.Container | null = null;
+  private bgLayer: Phaser.GameObjects.Container | null = null;
+  private topBarContainer: Phaser.GameObjects.Container | null = null;
+  private heroSectionContainer: Phaser.GameObjects.Container | null = null;
+  private tabSectionContainer: Phaser.GameObjects.Container | null = null;
+  private gridSectionContainer: Phaser.GameObjects.Container | null = null;
+  private statsSectionContainer: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super('CollectionScene');
@@ -98,157 +216,191 @@ export class CollectionScene extends Phaser.Scene {
   create() {
     const width = this.scale.width as number;
     const height = this.scale.height as number;
-    const centerX = width / 2;
+    const cx = width / 2;
 
-    // 1. 背景层
-    this.renderBgLayer(width, height, centerX);
+    const sy = getSectionY();
 
-    // 2. 顶栏
-    this.renderTopBar(centerX, width);
+    // === 1. bgLayer ===
+    this.renderBgLayer(cx, height / 2, width, height);
 
-    // 3. 页面内容流：从 topBarBottom 开始流式下推
-    let y = SPEC.topBarBottom + SPEC.gapTopToHero;
-    y = this.renderHeroSection(centerX, y);
-    y = this.renderTabSection(centerX, y);
-    y = this.renderGridSection(centerX, y);
-    this.renderStatsSection(centerX, y);
+    // === 2. topBarContainer ===
+    this.renderTopBar(cx, width);
+
+    // === 3. heroSectionContainer ===
+    this.renderHeroSection(cx, sy.heroTop);
+
+    // === 4. tabSectionContainer ===
+    this.renderTabSection(cx, sy.tabTop);
+
+    // === 5. gridSectionContainer ===
+    this.renderGridSection(cx, sy.gridTop);
+
+    // === 6. statsSectionContainer ===
+    this.renderStatsSection(cx, sy.gridTop);
   }
 
-  // ==================================================
-  // 1. bgLayer - 页面底色
-  // ==================================================
-  private renderBgLayer(width: number, height: number, centerX: number) {
-    this.add.rectangle(centerX, height / 2, width, height, 0xEEF8FF);
+  // ============================================================
+  // 1. bgLayer
+  // ============================================================
+  private renderBgLayer(cx: number, cy: number, w: number, h: number) {
+    this.bgLayer = this.add.container(0, 0);
+    this.bgLayer.add(this.add.rectangle(cx, cy, w, h, C.pageBg));
   }
 
-  // ==================================================
-  // 2. topBar - 返回 + 标题
-  // ==================================================
-  private renderTopBar(centerX: number, width: number) {
-    const y = SPEC.topBarY;
-    const backBtnX = SPEC.pageInsetX + 18;
+  // ============================================================
+  // 2. topBarContainer（轻量产品导航）
+  // ============================================================
+  private renderTopBar(cx: number, width: number) {
+    this.topBarContainer = this.add.container(0, 0);
 
-    // 返回按钮
-    const backBtn = this.add.graphics();
-    backBtn.fillStyle(0xF0F4F8, 1);
-    backBtn.fillCircle(backBtnX, y, 16);
-    backBtn.lineStyle(1, 0xC8D0D8, 0.6);
-    backBtn.strokeCircle(backBtnX, y, 16);
+    const y = L.topBarY;
+    const btnX = L.pageInsetX + 20;
+    const btnR = 20;
 
-    this.add.text(backBtnX, y + 1, '‹', {
-      fontSize: '20px',
-      color: '#5A6A80',
+    // 返回按钮（浅蓝圆形，轻填充）
+    const backBg = this.add.graphics();
+    backBg.fillStyle(C.backBtnBg, 1);
+    backBg.fillCircle(btnX, y, btnR);
+    backBg.lineStyle(1, C.backBtnStroke, 0.5);
+    backBg.strokeCircle(btnX, y, btnR);
+    this.topBarContainer.add(backBg);
+
+    this.topBarContainer.add(this.add.text(btnX, y + 1, '‹', {
+      fontSize: '22px',
+      color: '#' + C.backBtnArrow.toString(16).padStart(6, '0'),
       fontStyle: 'bold',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5));
 
-    const backHit = this.add.rectangle(backBtnX, y, 40, 40, 0x000000, 0);
+    const backHit = this.add.rectangle(btnX, y, 44, 44, 0x000000, 0);
     backHit.setInteractive({ useHandCursor: true });
     backHit.on('pointerdown', () => {
       this.scene.start('MainScene');
     });
+    this.topBarContainer.add(backHit);
 
-    // 标题
-    this.add.text(centerX, y + 1, '图鉴', {
+    // 标题（居中，深蓝灰）
+    this.topBarContainer.add(this.add.text(cx, y + 1, '图鉴', {
       fontSize: '20px',
-      color: '#1A1A2E',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    // 极轻底部分隔
-    const divider = this.add.graphics();
-    divider.fillStyle(0xE8ECF0, 0.5);
-    divider.fillRect(0, SPEC.topBarBottom, width, 1);
-  }
-
-  // ==================================================
-  // 3. heroSection - 进度主卡（topBar 下第一主块）
-  // 返回 heroBottomY
-  // ==================================================
-  private renderHeroSection(centerX: number, topY: number): number {
-    if (this.heroContainer) {
-      this.heroContainer.destroy(true);
-    }
-    this.heroContainer = this.add.container(0, 0);
-
-    const w = SPEC.heroWidth;
-    const h = SPEC.heroHeight;
-    const y = topY + h / 2;
-    const r = SPEC.heroRadius;
-    const padX = SPEC.heroPadX;
-
-    // 卡片背景（紫色渐变）
-    const cardBg = this.add.graphics();
-    const gradTop = new Phaser.Display.Color(120, 80, 220);
-    const gradBottom = new Phaser.Display.Color(80, 60, 180);
-    const steps = 8;
-    const stepH = h / steps;
-    for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
-      const c = Phaser.Display.Color.Interpolate.ColorWithColor(gradTop, gradBottom, 1, t);
-      const color = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
-      cardBg.fillStyle(color, 1);
-      cardBg.fillRect(centerX - w / 2, y - h / 2 + i * stepH, w, stepH + 1);
-    }
-    cardBg.fillRoundedRect(centerX - w / 2, y - h / 2, w, h, r);
-    this.heroContainer.add(cardBg);
-
-    const summary = CollectionManager.getSummary();
-
-    // Progress 小字
-    this.heroContainer.add(this.add.text(centerX - w / 2 + padX, y - h / 2 + 14, `Progress ${summary.unlocked}/${summary.total}`, {
-      fontSize: '12px',
-      color: 'rgba(255,255,255,0.65)',
-    }).setOrigin(0, 0));
-
-    // 主标题
-    this.heroContainer.add(this.add.text(centerX, y - 14, '揭开水底世界的秘密', {
-      fontSize: '22px',
-      color: '#FFFFFF',
+      color: C.titleText,
       fontStyle: 'bold',
     }).setOrigin(0.5));
 
-    // 进度条
+    // 右侧占位（保证标题真居中）
+    const rightPlaceholder = this.add.rectangle(width - L.pageInsetX - 20, y, 40, 40, 0x000000, 0);
+    this.topBarContainer.add(rightPlaceholder);
+
+    // 极轻分隔线
+    const divider = this.add.graphics();
+    divider.fillStyle(C.topBarDivider, 0.4);
+    divider.fillRect(0, L.topBarBottom, width, 1);
+    this.topBarContainer.add(divider);
+  }
+
+  // ============================================================
+  // 3. heroSectionContainer（紫色大圆角主视觉卡）
+  // ============================================================
+  private renderHeroSection(cx: number, heroTopY: number) {
+    if (this.heroSectionContainer) {
+      this.heroSectionContainer.destroy(true);
+    }
+    this.heroSectionContainer = this.add.container(0, 0);
+
+    const w = L.heroWidth;
+    const h = L.heroHeight;
+    const y = heroTopY + h / 2;
+    const r = L.heroRadius;
+    const cardLeft = cx - w / 2;
+    const padX = L.heroPadX;
+
+    // 卡片背景（紫色渐变，更大圆角）
+    const cardBg = this.add.graphics();
+    const gradTop = new Phaser.Display.Color(C.heroGradTop.r, C.heroGradTop.g, C.heroGradTop.b);
+    const gradBot = new Phaser.Display.Color(C.heroGradBottom.r, C.heroGradBottom.g, C.heroGradBottom.b);
+    const steps = 10;
+    const stepH = h / steps;
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      const col = Phaser.Display.Color.Interpolate.ColorWithColor(gradTop, gradBot, 1, t);
+      const color = Phaser.Display.Color.GetColor(col.r, col.g, col.b);
+      cardBg.fillStyle(color, 1);
+      cardBg.fillRoundedRect(cardLeft, y - h / 2 + i * stepH, w, stepH + 1, r);
+    }
+    cardBg.fillRoundedRect(cardLeft, y - h / 2, w, h, r);
+    this.heroSectionContainer.add(cardBg);
+
+    // 装饰 orb（右上柔光，轻量不抢）
+    const orb = this.add.graphics();
+    orb.fillStyle(C.heroGlow, 0.05);
+    orb.fillCircle(cardLeft + w - 40, y - h * 0.22, 95);
+    this.heroSectionContainer.add(orb);
+
+    const orb2 = this.add.graphics();
+    orb2.fillStyle(C.heroFill, 0.03);
+    orb2.fillCircle(cardLeft + w - 60, y - h * 0.12, 65);
+    this.heroSectionContainer.add(orb2);
+
+    const summary = CollectionManager.getSummary();
+
+    // Progress 小字（左上）
+    this.heroSectionContainer.add(this.add.text(cardLeft + padX, y - h / 2 + L.heroPadTop, `Progress ${summary.unlocked}/${summary.total}`, {
+      fontSize: '11px',
+      color: C.heroTextMuted,
+      fontStyle: 'bold',
+      letterSpacing: '0.5px',
+    }).setOrigin(0, 0));
+
+    // 主标题（更大更粗，居中偏上）
+    this.heroSectionContainer.add(this.add.text(cx, y - 18, '揭开水底世界的秘密', {
+      fontSize: '26px',
+      color: C.heroTextWhite,
+      fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    // 进度条（加厚，更饱满）
     const barW = w - padX * 2;
-    const barH = 8;
-    const barY = y + 18;
-    const barX = centerX - barW / 2;
-    this.heroContainer.add(this.add.rectangle(centerX, barY, barW, barH, 0x3A2870).setOrigin(0.5));
+    const barH = 12;
+    const barY = y + 20;
+    const barX = cardLeft + padX;
+
+    this.heroSectionContainer.add(this.add.graphics()
+      .fillStyle(C.heroTrack, 1)
+      .fillRoundedRect(barX, barY - barH / 2, barW, barH, 6));
 
     const fillW = barW * (summary.percentage / 100);
     if (fillW > 0) {
-      this.heroContainer.add(this.add.rectangle(barX + fillW / 2, barY, fillW, barH, 0xFFD700).setOrigin(0.5));
+      this.heroSectionContainer.add(this.add.graphics()
+        .fillStyle(C.heroFill, 1)
+        .fillRoundedRect(barX, barY - barH / 2, fillW, barH, 6));
     }
 
-    // 底部辅助文字
-    this.heroContainer.add(this.add.text(centerX - barW / 2, barY + 18, `收集进度 ${summary.percentage}%`, {
+    // 底部左右说明（统一内边距）
+    const bottomY = barY + barH / 2 + L.heroPadBottom - 4;
+    this.heroSectionContainer.add(this.add.text(barX, bottomY, `收集进度 ${summary.percentage}%`, {
       fontSize: '11px',
-      color: 'rgba(255,255,255,0.55)',
+      color: C.heroTextMuted,
     }).setOrigin(0, 0));
 
-    this.heroContainer.add(this.add.text(centerX + barW / 2, barY + 18, '🏆 成就徽章', {
+    this.heroSectionContainer.add(this.add.text(barX + barW, bottomY, '🏆 成就徽章', {
       fontSize: '11px',
-      color: 'rgba(255,255,255,0.55)',
+      color: C.heroTextMuted,
     }).setOrigin(1, 0));
-
-    return topY + h;
   }
 
-  // ==================================================
-  // 4. tabSection - 分类切换（独立 section）
-  // 返回 tabBottomY
-  // ==================================================
-  private renderTabSection(centerX: number, topY: number): number {
-    if (this.tabContainer) {
-      this.tabContainer.destroy(true);
+  // ============================================================
+  // 4. tabSectionContainer（圆润胶囊筛选器）
+  // ============================================================
+  private renderTabSection(cx: number, tabTopY: number) {
+    if (this.tabSectionContainer) {
+      this.tabSectionContainer.destroy(true);
     }
-    this.tabContainer = this.add.container(0, 0);
+    this.tabSectionContainer = this.add.container(0, 0);
 
-    const tabH = SPEC.tabHeight;
-    const tabW = SPEC.tabW;
-    const gap = SPEC.tabGap;
-    const y = topY + tabH / 2;
+    const tabH = L.tabHeight;
+    const tabW = L.tabW;
+    const gap = L.tabGap;
+    const y = tabTopY + tabH / 2;
     const totalW = tabW * TABS.length + gap * (TABS.length - 1);
-    const startX = centerX - totalW / 2 + tabW / 2;
+    const startX = cx - totalW / 2 + tabW / 2;
 
     this.tabButtons = [];
 
@@ -257,71 +409,74 @@ export class CollectionScene extends Phaser.Scene {
       const isSelected = tab.key === this.currentTab;
 
       const bg = this.add.graphics();
-      bg.fillStyle(isSelected ? 0xFF6B6B : 0xE8F0FE, 1);
-      bg.fillRoundedRect(x - tabW / 2, y - tabH / 2, tabW, tabH, 16);
-      this.tabContainer.add(bg);
+      bg.fillStyle(isSelected ? C.tabSelectedBg : C.tabUnselectedBg, 1);
+      bg.fillRoundedRect(x - tabW / 2, y - tabH / 2, tabW, tabH, L.tabRadius);
+      this.tabSectionContainer.add(bg);
 
       const text = this.add.text(x, y, tab.label, {
         fontSize: '14px',
-        color: isSelected ? '#FFFFFF' : '#5A6A80',
-        fontStyle: 'bold',
+        color: isSelected ? C.tabSelectedText : C.tabUnselectedText,
+        fontStyle: isSelected ? 'bold' : 'normal',
       }).setOrigin(0.5);
-      this.tabContainer.add(text);
+      this.tabSectionContainer.add(text);
 
-      const hit = this.add.rectangle(x, y, tabW, tabH, 0x000000, 0);
+      const hit = this.add.rectangle(x, y, tabW + 6, tabH + 4, 0x000000, 0);
       hit.setInteractive({ useHandCursor: true });
       hit.on('pointerdown', () => this.switchTab(tab.key));
-      this.tabContainer.add(hit);
+      this.tabSectionContainer.add(hit);
 
       this.tabButtons.push({ bg, text });
     });
-
-    return topY + tabH;
   }
 
-  // ==================================================
-  // 5. gridSection - 双列图鉴卡片网格
-  // 返回 gridBottomY
-  // ==================================================
-  private renderGridSection(centerX: number, topY: number): number {
-    if (this.gridContainer) {
-      this.gridContainer.destroy(true);
+  // ============================================================
+  // 5. gridSectionContainer（双列图鉴卡片网格）
+  // ============================================================
+  private renderGridSection(cx: number, gridTopY: number) {
+    if (this.gridSectionContainer) {
+      this.gridSectionContainer.destroy(true);
     }
-    this.gridContainer = this.add.container(0, 0);
+    this.gridSectionContainer = this.add.container(0, 0);
 
     const items = this.getTabItems();
-    const { width: cardW, height: cardH, colGap, rowGap, cols } = CARD;
+    const cardW = L.cardWidth;
+    const cardH = L.cardHeight;
+    const colGap = L.cardColGap;
+    const rowGap = L.cardRowGap;
+    const cols = L.cardCols;
     const totalW = cardW * cols + colGap * (cols - 1);
-    const startX = centerX - totalW / 2 + cardW / 2;
-    const startY = topY + cardH / 2;
+    const startX = cx - totalW / 2 + cardW / 2;
+    const startY = gridTopY + cardH / 2;
 
     items.forEach((item, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
       const x = startX + col * (cardW + colGap);
       const y = startY + row * (cardH + rowGap);
-      this.gridContainer!.add(this.createCollectionCard(x, y, item));
+      this.gridSectionContainer!.add(this.createCollectionCard(x, y, item));
     });
-
-    const rowCount = Math.ceil(items.length / cols);
-    return topY + rowCount * (cardH + rowGap);
   }
 
-  // ==================================================
-  // 6. statsSection - 底部统计（pageContent 最后一层）
-  // ==================================================
-  private renderStatsSection(centerX: number, gridBottomY: number) {
-    if (this.statsContainer) {
-      this.statsContainer.destroy(true);
+  // ============================================================
+  // 6. statsSectionContainer（底部统计卡）
+  // ============================================================
+  private renderStatsSection(cx: number, gridTopY: number) {
+    if (this.statsSectionContainer) {
+      this.statsSectionContainer.destroy(true);
     }
-    this.statsContainer = this.add.container(0, 0);
+    this.statsSectionContainer = this.add.container(0, 0);
 
-    const topY = gridBottomY + SPEC.gapGridToStats;
-    const y = topY + SPEC.statsCardHeight / 2;
-    const cardH = SPEC.statsCardHeight;
-    const totalW = SPEC.statsWidth;
-    const cardW = (totalW - SPEC.statsCardGap) / 2;
-    const gap = SPEC.statsCardGap;
+    // 计算 grid 底部 Y
+    const items = this.getTabItems();
+    const rowCount = Math.ceil(items.length / L.cardCols);
+    const gridBottomY = gridTopY + rowCount * (L.cardHeight + L.cardRowGap);
+
+    const topY = gridBottomY + L.gapGridToStats;
+    const y = topY + L.statsCardH / 2;
+    const totalW = L.statsTotalW;
+    const cardGap = L.statsCardGap;
+    const cardW = (totalW - cardGap) / 2;
+    const cardH = L.statsCardH;
 
     const summary = CollectionManager.getSummary();
     const allItems = CollectionManager.getItemsByCategory('fish')
@@ -335,75 +490,80 @@ export class CollectionScene extends Phaser.Scene {
       item.rarity === 'SR' || item.rarity === 'SSR'
     ).length;
 
-    // 左卡
-    const leftX = centerX - cardW / 2 - gap / 2;
-    const leftCard = this.add.graphics();
-    leftCard.fillStyle(0xffffff, 0.85);
-    leftCard.fillRoundedRect(leftX - cardW / 2, y - cardH / 2, cardW, cardH, 14);
-    leftCard.lineStyle(0.5, 0xE0E8F0, 0.5);
-    leftCard.strokeRoundedRect(leftX - cardW / 2, y - cardH / 2, cardW, cardH, 14);
-    this.statsContainer.add(leftCard);
+    // 左卡：已解锁品种
+    this.statsSectionContainer.add(this.createStatsCard(
+      cx - cardW / 2 - cardGap / 2, y, cardW, cardH,
+      '🐟', '已解锁品种', `${summary.unlocked}/${summary.total}`,
+    ));
 
-    this.statsContainer.add(this.add.text(leftX, y - 10, '🐟 已解锁品种', {
-      fontSize: '12px',
-      color: '#8A96A6',
-    }).setOrigin(0.5));
-
-    this.statsContainer.add(this.add.text(leftX, y + 14, `${summary.unlocked}`, {
-      fontSize: '24px',
-      color: '#1A1A2E',
-      fontStyle: 'bold',
-    }).setOrigin(0.5));
-
-    // 右卡
-    const rightX = centerX + cardW / 2 + gap / 2;
-    const rightCard = this.add.graphics();
-    rightCard.fillStyle(0xffffff, 0.85);
-    rightCard.fillRoundedRect(rightX - cardW / 2, y - cardH / 2, cardW, cardH, 14);
-    rightCard.lineStyle(0.5, 0xE0E8F0, 0.5);
-    rightCard.strokeRoundedRect(rightX - cardW / 2, y - cardH / 2, cardW, cardH, 14);
-    this.statsContainer.add(rightCard);
-
-    this.statsContainer.add(this.add.text(rightX, y - 10, '⭐ 稀有收集度', {
-      fontSize: '12px',
-      color: '#8A96A6',
-    }).setOrigin(0.5));
-
-    this.statsContainer.add(this.add.text(rightX, y + 14, `${rareUnlocked}/${rareTotal}`, {
-      fontSize: '24px',
-      color: '#1A1A2E',
-      fontStyle: 'bold',
-    }).setOrigin(0.5));
+    // 右卡：稀有收集度
+    this.statsSectionContainer.add(this.createStatsCard(
+      cx + cardW / 2 + cardGap / 2, y, cardW, cardH,
+      '⭐', '稀有收集度', `${rareUnlocked}/${rareTotal}`,
+    ));
   }
 
-  // ==================================================
+  /** 创建统计卡（轻量融入整页） */
+  private createStatsCard(x: number, y: number, w: number, h: number, icon: string, label: string, value: string): Phaser.GameObjects.Container {
+    const card = this.add.container(x, y);
+
+    // 卡片背景（更轻的蓝白底，弱化存在感）
+    const cardBg = this.add.graphics();
+    cardBg.fillStyle(C.statsCardBg, 0.85);
+    cardBg.fillRoundedRect(-w / 2, -h / 2, w, h, L.statsCardR);
+    cardBg.lineStyle(0.5, C.statsCardBorder, 0.4);
+    cardBg.strokeRoundedRect(-w / 2, -h / 2, w, h, L.statsCardR);
+    card.add(cardBg);
+
+    // 图标
+    card.add(this.add.text(-w / 2 + 16, y, icon, {
+      fontSize: '20px',
+    }).setOrigin(0, 0.5));
+
+    // 标签
+    card.add(this.add.text(-w / 2 + 42, y - 10, label, {
+      fontSize: '10px',
+      color: C.textStatsLabel,
+    }).setOrigin(0, 0.5));
+
+    // 数值
+    card.add(this.add.text(-w / 2 + 42, y + 12, value, {
+      fontSize: '20px',
+      color: C.textStatsValue,
+      fontStyle: 'bold',
+    }).setOrigin(0, 0.5));
+
+    return card;
+  }
+
+  // ============================================================
   // Tab 切换（只重建 grid + stats）
-  // ==================================================
+  // ============================================================
   private switchTab(category: CollectionCategory | 'all') {
     if (category === this.currentTab) return;
     this.currentTab = category;
 
-    // 更新 Tab 选中态（不重建容器）
+    // 更新 Tab 选中态
     this.tabButtons.forEach((tab, index) => {
       const isSelected = TABS[index].key === this.currentTab;
       tab.bg.clear();
-      tab.bg.fillStyle(isSelected ? 0xFF6B6B : 0xE8F0FE, 1);
-      tab.bg.fillRoundedRect(-SPEC.tabW / 2, -SPEC.tabHeight / 2, SPEC.tabW, SPEC.tabHeight, 16);
-      tab.text.setColor(isSelected ? '#FFFFFF' : '#5A6A80');
+      tab.bg.fillStyle(isSelected ? C.tabSelectedBg : C.tabUnselectedBg, 1);
+      tab.bg.fillRoundedRect(-L.tabW / 2, -L.tabHeight / 2, L.tabW, L.tabHeight, L.tabRadius);
+      tab.text.setColor(isSelected ? C.tabSelectedText : C.tabUnselectedText);
+      tab.text.setFontStyle(isSelected ? 'bold' : 'normal');
+      tab.text.setFontSize('14px');
     });
 
-    // 只重建 grid + stats（使用与 create 相同的流式推导）
-    const width = this.scale.width as number;
-    const centerX = width / 2;
-
-    const tabBottomY = SPEC.topBarBottom + SPEC.gapTopToHero + SPEC.heroHeight + SPEC.gapHeroToTab + SPEC.tabHeight;
-    const gridBottomY = this.renderGridSection(centerX, tabBottomY + SPEC.gapTabToGrid);
-    this.renderStatsSection(centerX, gridBottomY);
+    // 重建 grid + stats
+    const cx = this.scale.width as number / 2;
+    const sy = getSectionY();
+    this.renderGridSection(cx, sy.gridTop);
+    this.renderStatsSection(cx, sy.gridTop);
   }
 
-  // ==================================================
-  // 数据方法（不碰业务逻辑）
-  // ==================================================
+  // ============================================================
+  // 数据方法（不动业务逻辑）
+  // ============================================================
   private getTabItems() {
     if (this.currentTab === 'all') {
       return CollectionManager.getItemsByCategory('fish')
@@ -414,6 +574,9 @@ export class CollectionScene extends Phaser.Scene {
     return CollectionManager.getItemsByCategory(this.currentTab as CollectionCategory);
   }
 
+  // ============================================================
+  // 统一卡片模板
+  // ============================================================
   private createCollectionCard(
     x: number,
     y: number,
@@ -421,100 +584,147 @@ export class CollectionScene extends Phaser.Scene {
   ): Phaser.GameObjects.Container {
     const card = this.add.container(x, y);
     const isUnlocked = item.progress?.unlocked ?? false;
+
     if (isUnlocked) {
       this.populateUnlockedCard(card, item);
     } else {
-      this.populateLockedCard(card);
+      this.populateLockedCard(card, item);
     }
     return card;
   }
 
+  /** 已解锁卡（深海收藏卡） */
   private populateUnlockedCard(
     card: Phaser.GameObjects.Container,
     item: ReturnType<typeof CollectionManager.getItemsByCategory>[number],
   ): void {
-    const { width: w, height: h } = CARD;
+    const w = L.cardWidth;
+    const h = L.cardHeight;
 
-    // 卡片背景
+    // cardBg（深海蓝绿渐变，更大圆角）
     const cardBg = this.add.graphics();
-    const topC = new Phaser.Display.Color(30, 50, 80);
-    const bottomC = new Phaser.Display.Color(20, 35, 60);
-    const steps = 6;
+    const topC = new Phaser.Display.Color(C.cardBgTop.r, C.cardBgTop.g, C.cardBgTop.b);
+    const bottomC = new Phaser.Display.Color(C.cardBgBottom.r, C.cardBgBottom.g, C.cardBgBottom.b);
+    const steps = 8;
     const stepH = h / steps;
     for (let i = 0; i < steps; i++) {
       const t = i / (steps - 1);
-      const c = Phaser.Display.Color.Interpolate.ColorWithColor(topC, bottomC, 1, t);
-      cardBg.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b), 1);
-      cardBg.fillRect(-w / 2, -h / 2 + i * stepH, w, stepH + 1);
+      const col = Phaser.Display.Color.Interpolate.ColorWithColor(topC, bottomC, 1, t);
+      cardBg.fillStyle(Phaser.Display.Color.GetColor(col.r, col.g, col.b), 1);
+      cardBg.fillRoundedRect(-w / 2, -h / 2 + i * stepH, w, stepH + 1, L.cardRadius);
     }
-    cardBg.fillRoundedRect(-w / 2, -h / 2, w, h, 14);
-    cardBg.lineStyle(1.5, this.getRarityColor(item.rarity), 0.6);
-    cardBg.strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
+    cardBg.fillRoundedRect(-w / 2, -h / 2, w, h, L.cardRadius);
+    cardBg.lineStyle(1.5, this.getRarityColor(item.rarity), 0.7);
+    cardBg.strokeRoundedRect(-w / 2, -h / 2, w, h, L.cardRadius);
     card.add(cardBg);
 
-    // SSR 发光
+    // SSR/SR 额外发光
     if (item.rarity === 'SSR') {
       const glow = this.add.graphics();
-      glow.fillStyle(0xFFD700, 0.08);
-      glow.fillRoundedRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, 16);
+      glow.fillStyle(C.ssrGlow, 0.12);
+      glow.fillRoundedRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, L.cardRadius + 2);
+      card.addAt(glow, 0);
+    } else if (item.rarity === 'SR') {
+      const glow = this.add.graphics();
+      glow.fillStyle(C.raritySR, 0.07);
+      glow.fillRoundedRect(-w / 2 - 1, -h / 2 - 1, w + 2, h + 2, L.cardRadius + 1);
       card.addAt(glow, 0);
     }
 
-    // 稀有度角标
-    const rx = w / 2 - 22;
-    const ry = -h / 2 + 16;
+    // rarityStarGroup（精致角标，右上）
+    const rx = w / 2 - L.rarityBadgeX;
+    const ry = -h / 2 + L.rarityBadgeY;
     const rarityBg = this.add.graphics();
-    rarityBg.fillStyle(this.getRarityColor(item.rarity), 0.9);
-    rarityBg.fillRoundedRect(rx - 16, ry - 8, 32, 16, 8);
+    rarityBg.fillStyle(this.getRarityColor(item.rarity), 0.95);
+    rarityBg.fillRoundedRect(rx - L.rarityBadgeW / 2, ry - L.rarityBadgeH / 2, L.rarityBadgeW, L.rarityBadgeH, L.rarityBadgeR);
     card.add(rarityBg);
     card.add(this.add.text(rx, ry, item.rarity, {
-      fontSize: '10px',
+      fontSize: `${L.rarityFontSize}px`,
       color: '#FFFFFF',
       fontStyle: 'bold',
     }).setOrigin(0.5));
 
-    // Emoji
-    card.add(this.add.text(0, -16, item.emoji, { fontSize: '52px' }).setOrigin(0.5));
+    // contentFrame（emoji 主体，更大更聚焦）
+    card.add(this.add.text(0, L.cardEmojiY, item.emoji, {
+      fontSize: `${L.cardEmojiSize}px`,
+    }).setOrigin(0.5));
 
-    // 中文名
-    card.add(this.add.text(0, 36, item.name, {
-      fontSize: '14px',
-      color: '#FFFFFF',
+    // nameCn（中文名，更醒目）
+    card.add(this.add.text(0, L.cardNameY, item.name, {
+      fontSize: `${L.cardNameFontSize}px`,
+      color: C.textCardName,
       fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    // nameEn（英文名，副标题感，更弱）
+    const enName = EN_NAMES[item.id] ?? 'UNKNOWN SPECIES';
+    card.add(this.add.text(0, L.cardEnY, enName, {
+      fontSize: `${L.cardEnFontSize}px`,
+      color: C.textCardEn,
     }).setOrigin(0.5));
 
     // 捕获次数
     if (item.progress && item.progress.catchCount > 1) {
-      card.add(this.add.text(0, 56, `x${item.progress.catchCount}`, {
-        fontSize: '11px',
-        color: 'rgba(255,255,255,0.5)',
+      card.add(this.add.text(0, h / 2 - 14, `×${item.progress.catchCount}`, {
+        fontSize: `${L.cardCatchFontSize}px`,
+        color: 'rgba(255,255,255,0.4)',
       }).setOrigin(0.5));
     }
   }
 
-  private populateLockedCard(card: Phaser.GameObjects.Container): void {
-    const { width: w, height: h } = CARD;
+  /** 未解锁卡（封存中的收藏位） */
+  private populateLockedCard(
+    card: Phaser.GameObjects.Container,
+    item: ReturnType<typeof CollectionManager.getItemsByCategory>[number],
+  ): void {
+    const w = L.cardWidth;
+    const h = L.cardHeight;
 
+    // cardBg（雾灰底，像待解锁收藏位）
     const cardBg = this.add.graphics();
-    cardBg.fillStyle(0xD8DCE2, 0.5);
-    cardBg.fillRoundedRect(-w / 2, -h / 2, w, h, 14);
-    cardBg.lineStyle(1, 0xC0C4CC, 0.3);
-    cardBg.strokeRoundedRect(-w / 2, -h / 2, w, h, 14);
+    cardBg.fillStyle(C.cardLockedBg, C.cardLockedAlpha);
+    cardBg.fillRoundedRect(-w / 2, -h / 2, w, h, L.cardRadius);
+    cardBg.lineStyle(1, C.cardLockedBorder, 0.4);
+    cardBg.strokeRoundedRect(-w / 2, -h / 2, w, h, L.cardRadius);
     card.add(cardBg);
 
-    card.add(this.add.text(0, -10, '🔒', { fontSize: '40px' }).setOrigin(0.5).setAlpha(0.4));
-    card.add(this.add.text(0, 36, '???', {
-      fontSize: '14px',
-      color: '#9AA1AA',
+    // rarityStarGroup（灰化角标，与已解锁卡同位置）
+    const rx = w / 2 - L.rarityBadgeX;
+    const ry = -h / 2 + L.rarityBadgeY;
+    const rarityBg = this.add.graphics();
+    rarityBg.fillStyle(C.rarityN, 0.3);
+    rarityBg.fillRoundedRect(rx - L.rarityBadgeW / 2, ry - L.rarityBadgeH / 2, L.rarityBadgeW, L.rarityBadgeH, L.rarityBadgeR);
+    card.add(rarityBg);
+    card.add(this.add.text(rx, ry, item.rarity, {
+      fontSize: `${L.rarityFontSize}px`,
+      color: 'rgba(255,255,255,0.3)',
+      fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    // lock icon（柔和，不抢眼）
+    card.add(this.add.text(0, L.cardEmojiY, '🔒', {
+      fontSize: '40px',
+    }).setOrigin(0.5).setAlpha(0.28));
+
+    // ???（轻量）
+    card.add(this.add.text(0, L.cardNameY, '???', {
+      fontSize: `${L.cardNameFontSize}px`,
+      color: C.textLocked,
+    }).setOrigin(0.5).setAlpha(0.5));
+
+    // 英文占位（更淡）
+    card.add(this.add.text(0, L.cardEnY, 'UNKNOWN SPECIES', {
+      fontSize: `${L.cardEnFontSize}px`,
+      color: 'rgba(154,161,170,0.35)',
     }).setOrigin(0.5));
   }
 
-  private getRarityColor(rarity: string): number {
+  private getRarityColor(rarity: CollectionRarity): number {
     switch (rarity) {
-      case 'SSR': return 0xFFD700;
-      case 'SR': return 0xB47CFF;
-      case 'R': return 0x4FA6F8;
-      default: return 0x9AA0A6;
+      case 'SSR': return C.raritySSR;
+      case 'SR': return C.raritySR;
+      case 'R': return C.rarityR;
+      default: return C.rarityN;
     }
   }
 }
